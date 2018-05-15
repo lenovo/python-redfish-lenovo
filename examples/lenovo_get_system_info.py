@@ -4,7 +4,7 @@
 #
 # Copyright Notice:
 #
-# Copyright 2017 Lenovo Corporation
+# Copyright 2017-2018 Lenovo Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
 # not use this file except in compliance with the License. You may obtain
@@ -45,15 +45,19 @@ response_system_url = REDFISH_OBJ.get(system_url, None)
 
 # Print out the system information
 sys.stdout.write("\n")
-sys.stdout.write("Host Name         : %s\n" % response_system_url.dict["HostName"])
-sys.stdout.write("Model Number      : %s\n" % response_system_url.dict["Model"])
+sys.stdout.write("Manufacturer      : %s\n" % response_system_url.dict["Manufacturer"])
+sys.stdout.write("Model             : %s\n" % response_system_url.dict["Model"])
+sys.stdout.write("SKU Number        : %s\n" % response_system_url.dict["SKU"])
 sys.stdout.write("Serial Number     : %s\n" % response_system_url.dict["SerialNumber"])
 sys.stdout.write("Asset Tag         : %s\n" % response_system_url.dict["AssetTag"])
 sys.stdout.write("System UUID       : %s\n" % response_system_url.dict["UUID"])
+sys.stdout.write("Host Name         : %s\n" % response_system_url.dict["HostName"])
 sys.stdout.write("Procesors Model   : %s\n" % response_system_url.dict["ProcessorSummary"]["Model"])
 sys.stdout.write("Procesors Count   : %s\n" % response_system_url.dict["ProcessorSummary"]["Count"])
 sys.stdout.write("Total Memory      : %s GB\n" % response_system_url.dict["MemorySummary"]["TotalSystemMemoryGiB"])
 sys.stdout.write("BIOS Version      : %s\n" % response_system_url.dict["BiosVersion"])
+sys.stdout.write("Indicator LED     : %s\n" % response_system_url.dict["IndicatorLED"])
+sys.stdout.write("Power State       : %s\n" % response_system_url.dict["PowerState"])
 sys.stdout.write("NIC MAC Addresses : \n")
 
 # GET System EtherNetInterfaces resources
