@@ -1,6 +1,6 @@
 ###
 #
-# Lenovo Redfish examples - Reset System with the selected Reset Type
+# Lenovo Redfish examples - Get the supported System Boot once targets
 #
 # Copyright Notice:
 #
@@ -43,20 +43,8 @@ REDFISH_OBJ.login(auth="session")
 system_url = utils.get_system_url("/redfish/v1", REDFISH_OBJ)
 response_system_url = REDFISH_OBJ.get(system_url, None)
 
-# Find the Reset Action target URL
-target_url=response_system_url.dict["Actions"]["#ComputerSystem.Reset"]["target"]
-
-# Prepare POST body
-post_body = {"ResetType": ""}
-post_body["ResetType"] = sys.argv[1]
-
-# POST Reset Action
-post_response = REDFISH_OBJ.post(target_url, body=post_body)
-
-# If Response does not return 200/OK, print the response Extended Error message
-if post_response.status != 200:
-    message = utils.get_extended_error(post_response)
-    print ("Error message is ", message)
+# Print out the AllowableValues of the Boot.BootSourceOverrideTarget property
+sys.stdout.write("%s\n" % response_system_url.dict["Boot"]["BootSourceOverrideTarget@Redfish.AllowableValues"])
 
 # Logout of the current session
 REDFISH_OBJ.logout()
