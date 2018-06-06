@@ -1,7 +1,7 @@
 ###
 # Copyright Notice:
 #
-# Copyright 2017-2018 Lenovo Corporation
+# Copyright 2018 Lenovo Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
 # not use this file except in compliance with the License. You may obtain
@@ -24,14 +24,12 @@ from redfish import redfish_logger
 
 
 def get_system_url(base_url, redfish_obj):
-    """Get ComputerSystem instance URL
-    
+    """Get ComputerSystem instance URL    
     :params base_url: URL of the Redfish Service Root
     :type base_url: string
     :params http_response: Response from HTTP
     :type redfish_obj: redfish client object
     :returns: returns string URL to ComputerSystem resource
-    
     """
     # Get ServiceRoot resource
     response_base_url = redfish_obj.get(base_url, None)
@@ -40,34 +38,12 @@ def get_system_url(base_url, redfish_obj):
     systems_url = response_base_url.dict["Systems"]["@odata.id"]
     response_systems_url = redfish_obj.get(systems_url, None)
 
-    # Get the first ComputerSystem resource from the collection members
-    #  NOTE: Assume only 1 ComputerSystem instance
-    system_url = response_systems_url.dict["Members"][0]["@odata.id"]
-
-    return system_url
-
-def get_chassis_url(base_url, redfish_obj):
-    """Get Chassis instance URL
-
-    :params base_url: URL of the Redfish Service Root
-    :type base_url: string
-    :params http_response: Response from HTTP
-    :type redfish_obj: redfish client object
-    :returns: returns string URL to Chassis resource
-
-    """
-    # Get ServiceRoot resource
-    response_base_url = redfish_obj.get(base_url, None)
-
-    # Get ChassisCollection resource
-    chassis_url = response_base_url.dict["Chassis"]["@odata.id"]
-    response_chassis_url = redfish_obj.get(chassis_url, None)
-
-    # Get the first Chassis resource from the collection members
-    #  NOTE: Assume only 1 Chassis instance
-    chassis_url = response_chassis_url.dict["Members"][0]["@odata.id"]
-
-    return chassis_url
+    # NOTE: Get the ComputerSystem instance list
+    system = []
+    for i in range(response_systems_url.dict['Members@odata.count']):
+        system_url = response_systems_url.dict["Members"][i]["@odata.id"]
+        system.append(system_url)
+    return system
 
 
 def get_extended_error(response_body):
