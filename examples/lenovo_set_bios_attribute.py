@@ -1,0 +1,98 @@
+###
+#
+# Lenovo Redfish examples - Set Bios attribute
+#
+# Copyright Notice:
+#
+# Copyright 2018 Lenovo Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+###
+
+
+
+import sys
+import json
+import redfish
+import lenovo_utils as utils
+
+
+def set_bios_attribute(ip, login_account, login_password, attribute_name, attribute_value):
+    result = {}
+    # Connect using the BMC address, account name, and password
+    # Create a REDFISH object
+    login_host = "https://" + ip
+    REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
+                                         password=login_password, default_prefix='/redfish/v1')
+
+    # Login into the server and create a session
+    try:
+        REDFISH_OBJ.login(auth="session")
+    except:
+        result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
+        return result
+    # GET the ComputerSystem resource
+    system = utils.get_system_url("/redfish/v1", REDFISH_OBJ)
+    for i in range(len(system)):
+        system_url = system[i]
+        response_system_url = REDFISH_OBJ.get(system_url, None)
+        if response_system_url.status == 200:
+            # Get the ComputerBios resource
+            bios_url = response_system_url.dict['Bios']['@odata.id']
+        else:
+            result = {'ret': False, 'msg': "response system url Error code %s" % response_system_url.status}
+            REDFISH_OBJ.logout()
+            return result
+
+        response_bios_url = REDFISH_OBJ.get(bios_url, None)
+        if response_bios_url.status == 200:
+            pending_url = response_bios_url.dict['@Redfish.Settings']['SettingsObject']['@odata.id']
+        else:
+            result = {'ret': False, 'msg': "response bios url Error code %s" % response_bios_url.status}
+            REDFISH_OBJ.logout()
+            return result
+        # parameter = {"DevicesandIOPorts_Device_Slot6": "Disabled"}
+        parameter = {attribute_name: attribute_value}
+        attribute = {"Attributes": parameter}
+        response_pending_url = REDFISH_OBJ.patch(pending_url, body=attribute)
+        if response_pending_url.status == 200:
+            result = {'ret': True, 'msg': '%s set Successful'% attribute_name }
+        elif response_pending_url.status == 400:
+            result = {'ret': False, 'msg': 'Not supported on this platform'}
+        elif response_pending_url.status == 405:
+            result = {'ret': False, 'msg': "Resource not supported"}
+        else:
+            result = {'ret': False, 'msg': "Error code %s" % str(response_pending_url.status)}
+
+    REDFISH_OBJ.logout()
+    return result
+
+
+if __name__ == '__main__':
+    # ip = '10.10.10.10'
+    # login_account = 'USERID'
+    # login_password = 'PASSW0RD'
+    ip = sys.argv[1]
+    login_account = sys.argv[2]
+    login_password = sys.argv[3]
+    # attribute_name: DevicesandIOPorts_Device_Slot6
+    attribute_name = sys.argv[4]
+    # attribute_value: Disabled
+    attribute_value = sys.argv[5]
+    result = set_bios_attribute(ip, login_account, login_password, attribute_name, attribute_value)
+
+    if result['ret'] is True:
+        del result['ret']
+        sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
+    else:
+        sys.stderr.write(result['msg'])
