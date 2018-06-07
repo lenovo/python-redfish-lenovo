@@ -23,6 +23,7 @@
 import sys
 import redfish
 import lenovo_utils as utils
+import json
 
 
 def enable_secure_boot(ip, login_account, login_password):
