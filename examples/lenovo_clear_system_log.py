@@ -26,27 +26,30 @@ import json
 import lenovo_utils as utils
 
 
-def clear_system_log(ip, login_account, login_password):
-    result={}
+def clear_system_log(ip, login_account, login_password, system_id):
+    result = {}
     login_host = 'https://' + ip
-    # Connect using the BMC address, account name, and password
-    # Create a REDFISH object
-    REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
-                                         password=login_password, default_prefix='/redfish/v1')
-    
-    # Login into the server and create a session
     try:
+        # Connect using the BMC address, account name, and password
+        # Create a REDFISH object
+        REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
+                                             password=login_password, default_prefix='/redfish/v1')
+        # Login into the server and create a session
         REDFISH_OBJ.login(auth="session")
     except:
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
         return result
     # GET the ComputerSystem resource
-    system = utils.get_system_url("/redfish/v1", REDFISH_OBJ)
+    system = utils.get_system_url("/redfish/v1", system_id, REDFISH_OBJ)
+    if not system:
+        result = {'ret': False, 'msg': "This system id is not exist or system member is None"}
+        REDFISH_OBJ.logout()
+        return result
     for i in range(len(system)):
         system_url = system[i]
         response_system_url = REDFISH_OBJ.get(system_url, None)
         if response_system_url.status == 200:
-            # Get the ComputerProcessors resource
+            # Get the LogServices URL
             LogServices_url = response_system_url.dict['LogServices']['@odata.id']
         else:
             result = {'ret': False, 'msg': "response system url Error code %s" % response_system_url.status}
@@ -64,13 +67,14 @@ def clear_system_log(ip, login_account, login_password):
             response_log_url = REDFISH_OBJ.get(log_url, None)
             if "Actions" in response_log_url.dict:
                 if "#LogService.ClearLog" in response_log_url.dict["Actions"]:
+                    # Get the clear system log url
                     clear_log_url = response_log_url.dict["Actions"]["#LogService.ClearLog"]["target"]
+                    # Clear the system log
                     response_clear_log = REDFISH_OBJ.post(clear_log_url, None)
                     if response_clear_log.status == 200:
                         result = {'ret': True, 'msg': "Clear log successfully"}
                     else:
-                    	result = {'ret': False, 'msg': "response clear log Error code %s" % response_clear_log.status}
-         
+                        result = {'ret': False, 'msg': "response clear log Error code %s" % response_clear_log.status}
 
         REDFISH_OBJ.logout()
         return result
@@ -83,7 +87,11 @@ if __name__ == '__main__':
     ip = sys.argv[1]
     login_account = sys.argv[2]
     login_password = sys.argv[3]
-    result = clear_system_log(ip, login_account, login_password)
+    try:
+        system_id = sys.argv[4]
+    except IndexError:
+        system_id = None
+    result = clear_system_log(ip, login_account, login_password, system_id)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))

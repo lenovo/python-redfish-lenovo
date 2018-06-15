@@ -29,13 +29,13 @@ from redfish import redfish_logger
 
 def get_bmc_user_accounts(ip, login_account, login_password):
     result = {}
-    # Connect using the BMC address, account name, and password
-    # Create a REDFISH object
     login_host = "https://" + ip
-    # Login into the server and create a session
     try:
+        # Connect using the BMC address, account name, and password
+        # Create a REDFISH object
         REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
                                              password=login_password, default_prefix='/redfish/v1')
+        # Login into the server and create a session
         REDFISH_OBJ.login(auth="session")
     except:
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}

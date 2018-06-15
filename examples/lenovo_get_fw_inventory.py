@@ -24,15 +24,16 @@ import sys
 import redfish
 import json
 
+
 def get_fw_inventory(ip, login_account, login_password):
     result = {}
-    # Connect using the BMC address, account name, and password
-    # Create a REDFISH object
-    login_host = "https://" + ip
-    REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
-                                         password=login_password, default_prefix='/redfish/v1')
-
     try:
+        # Connect using the BMC address, account name, and password
+        # Create a REDFISH object
+        login_host = "https://" + ip
+        REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
+                                             password=login_password, default_prefix='/redfish/v1')
+        # Login into the server and create a session
         REDFISH_OBJ.login(auth="session")
     except:
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
@@ -59,14 +60,23 @@ def get_fw_inventory(ip, login_account, login_password):
                 firmware_list = firmware_version_url.split("/")
                 response_firmware_version = REDFISH_OBJ.get(firmware_version_url, None)
                 if response_firmware_version.status == 200:
-                    fw = {firmware_list[-1]: response_firmware_version.dict['Version']}
+                    fw = {}
+                    Version = response_firmware_version.dict['Version']
+                    SoftwareId = response_firmware_version.dict['SoftwareId']
+                    Description = response_firmware_version.dict['Description']
+                    State = response_firmware_version.dict['Status']['State']
+                    fw['Version'] = Version
+                    fw['SoftwareId'] = SoftwareId
+                    fw['Description'] = Description
+                    fw['State'] = State
+                    fw = {firmware_list[-1]: fw}
                     fw_version.append(fw)
                 else:
-                    result = {'ret': False, 'msg': "response firmware version Error code %s" % response_firmware_version.status}
+                    result = {'ret': False,
+                              'msg': "response firmware version Error code %s" % response_firmware_version.status}
                     REDFISH_OBJ.logout()
                     return result
         else:
-            
             result = {'ret': False, 'msg': "response firmware url Error code %s" % response_firmware_url.status}
             REDFISH_OBJ.logout()
             return result
@@ -77,7 +87,7 @@ def get_fw_inventory(ip, login_account, login_password):
 
     result['ret'] = True
     result['fw_version_detail'] = fw_version
-    
+
     REDFISH_OBJ.logout()
     return result
 
@@ -90,7 +100,7 @@ if __name__ == '__main__':
     login_account = sys.argv[2]
     login_password = sys.argv[3]
     result = get_fw_inventory(ip, login_account, login_password)
-    
+
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['fw_version_detail'], sort_keys=True, indent=2))

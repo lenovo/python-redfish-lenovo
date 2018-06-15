@@ -1,6 +1,6 @@
 ###
 #
-# Lenovo Redfish examples - Get Bios attribute metadata
+# Lenovo Redfish examples - Get Bios attribute
 #
 # Copyright Notice:
 #
@@ -27,7 +27,7 @@ import redfish
 import lenovo_utils as utils
 
 
-def get_bios_attribute_metadata(ip, login_account, login_password, system_id):
+def reset_bios_default(ip, login_account, login_password, system_id):
     result = {}
     login_host = "https://" + ip
     try:
@@ -59,18 +59,20 @@ def get_bios_attribute_metadata(ip, login_account, login_password, system_id):
             return result
         response_bios_url = REDFISH_OBJ.get(bios_url, None)
         if response_bios_url.status == 200:
-            metadata_url = response_bios_url.dict['@odata.context']
-            result = {'ret': True, 'msg': "Metadata_url %s" % metadata_url}
-        elif response_bios_url.status_code == 400:
-            result = {'ret': False, 'msg': 'Not supported on this platform'}
+            # Get the Bios reset url
+            reset_bios_url = response_bios_url.dict['Actions']['#Bios.ResetBios']['target']
+            # Reset bios default
+            response_reset_bios = REDFISH_OBJ.post(reset_bios_url, None)
+            if response_reset_bios.status == 200:
+                result = {'ret': True, 'msg': 'reset bios default successful'}
+            else:
+                result = {'ret': False, 'msg': 'response reset bios Error code %s'% response_reset_bios.status}
+                REDFISH_OBJ.logout()
+                return result
         else:
             result = {'ret': False, 'msg': "response bios url Error code %s" % response_bios_url.status}
             REDFISH_OBJ.logout()
             return result
-
-
-    result['ret'] = True
-    # Logout of the current session
     REDFISH_OBJ.logout()
     return result
 
@@ -86,7 +88,7 @@ if __name__ == '__main__':
         system_id = sys.argv[4]
     except IndexError:
         system_id = None
-    result = get_bios_attribute_metadata(ip, login_account, login_password, system_id)
+    result = reset_bios_default(ip, login_account, login_password, system_id)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))

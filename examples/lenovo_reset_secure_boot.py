@@ -26,21 +26,25 @@ import json
 import lenovo_utils as utils
 
 
-def reset_secure_boot(ip, login_account, login_password, reset_keys_type):
+def reset_secure_boot(ip, login_account, login_password, system_id, reset_keys_type):
     result = {}
     login_host = "https://" + ip
-    # Connect using the BMC address, account name, and password
-    # Create a REDFISH object
-    REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
-                                         password=login_password, default_prefix='/redfish/v1')
-    # Login into the server and create a session
     try:
+        # Connect using the BMC address, account name, and password
+        # Create a REDFISH object
+        REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
+                                             password=login_password, default_prefix='/redfish/v1')
+        # Login into the server and create a session
         REDFISH_OBJ.login(auth="session")
     except:
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
         return result
     # GET the ComputerSystem resource
-    system = utils.get_system_url("/redfish/v1", REDFISH_OBJ)
+    system = utils.get_system_url("/redfish/v1", system_id, REDFISH_OBJ)
+    if not system:
+        result = {'ret': False, 'msg': "This system id is not exist or system member is None"}
+        REDFISH_OBJ.logout()
+        return result
     for i in range(len(system)):
         system_url = system[i]
         response_system_url = REDFISH_OBJ.get(system_url, None)
@@ -52,20 +56,20 @@ def reset_secure_boot(ip, login_account, login_password, reset_keys_type):
             result = {'ret': False, 'msg': "response system url Error code %s" % response_system_url.status}
             REDFISH_OBJ.logout()
             return result
-        
+
         response_secure_boot_url = REDFISH_OBJ.get(secure_boot_url, None)
         if response_secure_boot_url.status == 200:
             reset_action_url = response_secure_boot_url.dict["Actions"]["#SecureBoot.ResetKeys"]["target"]
-            body = {"ResetKeysType":reset_keys_type}
+            body = {"ResetKeysType": reset_keys_type}
             response_reset_url = REDFISH_OBJ.post(reset_action_url, body=body)
             if response_reset_url.status == 200:
                 result = {'ret': True, 'msg': "clear all keys successful"}
             else:
-                result = {'ret': False, 'msg': " response reset url Error code %s" %  response_reset_url.status}
+                result = {'ret': False, 'msg': " response reset url Error code %s" % response_reset_url.status}
                 REDFISH_OBJ.logout()
                 return result
         else:
-            result = {'ret': False, 'msg': " response secure boot url Error code %s" %  response_secure_boot_url.status}
+            result = {'ret': False, 'msg': " response secure boot url Error code %s" % response_secure_boot_url.status}
 
     REDFISH_OBJ.logout()
     return result
@@ -78,10 +82,16 @@ if __name__ == '__main__':
     ip = sys.argv[1]
     login_account = sys.argv[2]
     login_password = sys.argv[3]
-    # "DeleteAllKeys" or "DeletePK" or "ResetAllKeysToDefault"
-    reset_keys_type = sys.argv[4]
-    result = reset_secure_boot(ip, login_account, login_password, reset_keys_type)
-    
+    try:
+        system_id = sys.argv[4]
+        # "DeleteAllKeys" or "DeletePK" or "ResetAllKeysToDefault"
+        reset_keys_type = sys.argv[5]
+    except IndexError:
+        system_id = None
+        # "DeleteAllKeys" or "DeletePK" or "ResetAllKeysToDefault"
+        reset_keys_type = sys.argv[4]
+    result = reset_secure_boot(ip, login_account, login_password, system_id, reset_keys_type)
+
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))

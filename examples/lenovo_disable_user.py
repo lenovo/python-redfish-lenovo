@@ -25,15 +25,15 @@ import redfish
 import json
 
 
-def disable_user(ip, login_account, login_password):
+def disable_user(ip, login_account, login_password, userid):
     result = {}
     login_host = "https://" + ip
-    # Connect using the BMC address, account name, and password
-    # Create a REDFISH object
-    REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
-                                         password=login_password, default_prefix='/redfish/v1')
-
     try:
+        # Connect using the BMC address, account name, and password
+        # Create a REDFISH object
+        REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
+                                             password=login_password, default_prefix='/redfish/v1')
+        # Login into the server and create a session
         REDFISH_OBJ.login(auth="session")
     except:
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
@@ -51,7 +51,7 @@ def disable_user(ip, login_account, login_password):
     response_account_service_url = REDFISH_OBJ.get(account_service_url, None)
     if response_account_service_url.status == 200:
         accounts_url = response_account_service_url.dict['Accounts']['@odata.id']
-        userid = 3
+        userid = userid
         accounts_url += str(userid)
         
         response_account_url = REDFISH_OBJ.get(accounts_url, None)
@@ -84,7 +84,6 @@ if __name__ == '__main__':
     # ip = '10.10.10.10'
     # login_account = 'USERID'
     # login_password = 'PASSW0RD'
-
     ip = sys.argv[1]
     login_account = sys.argv[2]
     login_password = sys.argv[3]
@@ -92,7 +91,7 @@ if __name__ == '__main__':
     # 1-12
     userid = sys.argv[4]
 
-    result = disable_user(ip, login_account, login_password)
+    result = disable_user(ip, login_account, login_password, userid)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))

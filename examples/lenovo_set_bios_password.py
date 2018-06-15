@@ -1,6 +1,6 @@
 ###
 #
-# Lenovo Redfish examples - Get Bios attribute metadata
+# Lenovo Redfish examples - Get Bios attribute
 #
 # Copyright Notice:
 #
@@ -27,9 +27,11 @@ import redfish
 import lenovo_utils as utils
 
 
-def get_bios_attribute_metadata(ip, login_account, login_password, system_id):
+def set_bios_password(ip, login_account, login_password, system_id, bios_password_name, bios_password):
     result = {}
+
     login_host = "https://" + ip
+
     try:
         # Connect using the BMC address, account name, and password
         # Create a REDFISH object
@@ -42,7 +44,7 @@ def get_bios_attribute_metadata(ip, login_account, login_password, system_id):
         return result
 
     # GET the ComputerSystem resource
-    system = utils.get_system_url("/redfish/v1", system_id, REDFISH_OBJ)
+    system = utils.get_system_url("/redfish/v1",system_id, REDFISH_OBJ)
     if not system:
         result = {'ret': False, 'msg': "This system id is not exist or system member is None"}
         REDFISH_OBJ.logout()
@@ -59,18 +61,28 @@ def get_bios_attribute_metadata(ip, login_account, login_password, system_id):
             return result
         response_bios_url = REDFISH_OBJ.get(bios_url, None)
         if response_bios_url.status == 200:
-            metadata_url = response_bios_url.dict['@odata.context']
-            result = {'ret': True, 'msg': "Metadata_url %s" % metadata_url}
-        elif response_bios_url.status_code == 400:
-            result = {'ret': False, 'msg': 'Not supported on this platform'}
+            # Get the change password url
+            change_password_url = response_bios_url.dict['Actions']['#Bios.ChangePassword']['target']
+            # Set Password info
+            PasswordName = bios_password_name
+            new_password = bios_password
+            parameter = {"PasswordName":PasswordName, "NewPassword":new_password}
+            # Change password
+            response_change_password = REDFISH_OBJ.post(change_password_url, body=parameter)
+            if response_change_password.status == 200:
+                result = {'ret': True, 'msg': 'set bios password successful'}
+            else:
+                # result = {'ret': False, 'msg': 'response change password Error code %s'% response_change_password.status}
+                result = {'ret': False,
+                          'msg': 'response change password Error code %s' % response_change_password.dict["error"]["@Message.ExtendedInfo"][0]}
+                REDFISH_OBJ.logout()
+                return result
         else:
             result = {'ret': False, 'msg': "response bios url Error code %s" % response_bios_url.status}
             REDFISH_OBJ.logout()
             return result
 
 
-    result['ret'] = True
-    # Logout of the current session
     REDFISH_OBJ.logout()
     return result
 
@@ -84,9 +96,15 @@ if __name__ == '__main__':
     login_password = sys.argv[3]
     try:
         system_id = sys.argv[4]
+        # "UefiAdminPassword" or "UefiPowerOnPassword"
+        bios_password_name = sys.argv[5]
+        bios_password = sys.argv[6]
     except IndexError:
         system_id = None
-    result = get_bios_attribute_metadata(ip, login_account, login_password, system_id)
+        # "UefiAdminPassword" or "UefiPowerOnPassword"
+        bios_password_name = sys.argv[4]
+        bios_password = sys.argv[5]
+    result = set_bios_password(ip, login_account, login_password, system_id, bios_password_name, bios_password)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))

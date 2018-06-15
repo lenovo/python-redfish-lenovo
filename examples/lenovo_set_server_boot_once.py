@@ -1,10 +1,10 @@
 ###
 #
-# Lenovo Redfish examples - Set the System Boot Once target
+# Lenovo Redfish examples - Reset System with the selected Reset Type
 #
 # Copyright Notice:
 #
-# Copyright 2017 Lenovo Corporation
+# Copyright 2018 Lenovo Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
 # not use this file except in compliance with the License. You may obtain
@@ -21,38 +21,78 @@
 
 
 import sys
+import json
 import logging
 import redfish
 from redfish import redfish_logger
 import lenovo_utils as utils
 
-# Connect using the address, account name, and password
-login_host = "https://10.243.13.101"
-login_account = "USERID"
-login_password = "PASSW0RD"
+
+def set_server_boot_once(ip, login_account, login_password,system_id, boot_source):
+    result = {}
+    login_host = "https://" + ip
+    try:
+        # Connect using the address, account name, and password
+        # Create a REDFISH object
+        REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
+                                             password=login_password, default_prefix='/redfish/v1')
+        # Login into the server and create a session
+        REDFISH_OBJ.login(auth="session")
+    except:
+        sys.stdout.write("Please check the username, password, IP is correct\n")
+        sys.exit(1)
+    # GET the ComputerSystem resource
+    system = utils.get_system_url("/redfish/v1",system_id, REDFISH_OBJ)
+    if not system:
+        result = {'ret': False, 'msg': "This system id is not exist or system member is None"}
+        REDFISH_OBJ.logout()
+        return result
+    for i in range(len(system)):
+        system_url = system[i]
+        # Prepare PATCH Body to set Boot once to the user specified target
+        patch_body = {"Boot": {"BootSourceOverrideEnabled": "", "BootSourceOverrideTarget": ""}}
+        patch_body["Boot"]["BootSourceOverrideEnabled"] = "Once"
+        patch_body["Boot"]["BootSourceOverrideTarget"] = boot_source
+        patch_response = REDFISH_OBJ.patch(system_url, body=patch_body)
+        # If Response does not return 200/OK, print the response Extended Error message
+        if patch_response.status  == 200:
+            result = {'ret': False, 'msg': "Set server boot once %s successful" % boot_source}
+        else:
+            message = utils.get_extended_error(patch_response)
+            result = {'ret': False, 'msg': "Error message is %s" % message}
+    # Logout of the current session
+    REDFISH_OBJ.logout()
+    return result
 
 
-## Create a REDFISH object
-REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account, \
-                          password=login_password, default_prefix='/redfish/v1')
+if __name__ == '__main__':
+    # ip = '10.10.10.10'
+    # login_account = 'USERID'
+    # login_password = 'PASSW0RD'
+    ip = sys.argv[1]
+    login_account = sys.argv[2]
+    login_password = sys.argv[3]
+    try:
+        system_id = sys.argv[4]
+        # example: "None", "Pxe", "Cd", "Usb","Hdd","BiosSetup","Diags","UefiTarget"
+        boot_source = sys.argv[5]
+    except IndexError:
+        system_id = None
+        # example: "None", "Pxe", "Cd", "Usb","Hdd","BiosSetup","Diags","UefiTarget"
+        boot_source = sys.argv[4]
+    result = set_server_boot_once(ip, login_account, login_password,system_id, boot_source)
 
-# Login into the server and create a session
-REDFISH_OBJ.login(auth="session")
+    if result['ret'] is True:
+        del result['ret']
+        sys.stdout.write(json.dumps(result['entries'], sort_keys=True, indent=2))
+    else:
+        sys.stderr.write(result['msg'])
 
-# GET the ComputerSystem resource URL
-system_url = utils.get_system_url("/redfish/v1", REDFISH_OBJ)
 
-# Prepare PATCH Body to set Boot once to the user specified target
-patch_body = {"Boot": {"BootSourceOverrideEnabled": "", "BootSourceOverrideTarget": "" }}
-patch_body["Boot"]["BootSourceOverrideEnabled"] = "Once"
-patch_body["Boot"]["BootSourceOverrideTarget"] = sys.argv[1]
 
-patch_response = REDFISH_OBJ.patch(system_url, body=patch_body)
 
-# If Response does not return 200/OK, print the response Extended Error message
-if patch_response.status != 200:
-    message = utils.get_extended_error(patch_response)
-    print ("Error message is %s" % message)
 
-# Logout of the current session
-REDFISH_OBJ.logout()
+
+
+
+

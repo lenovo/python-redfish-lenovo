@@ -27,25 +27,27 @@ import redfish
 import lenovo_utils as utils
 
 
-def get_cpu_info(ip, login_account, login_password):
+def get_cpu_info(ip, login_account, login_password, system_id):
     result = {}
-    # Connect using the BMC address, account name, and password
-    # Create a REDFISH object
     login_host = "https://" + ip
-    REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
-                                         password=login_password, default_prefix='/redfish/v1')
-
-    # Login into the server and create a session
     try:
+        # Connect using the BMC address, account name, and password
+        # Create a REDFISH object
+        REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
+                                             password=login_password, default_prefix='/redfish/v1')
+        # Login into the server and create a session
         REDFISH_OBJ.login(auth="session")
     except:
-        result = {'ret':False, 'msg':"Please check the username, password, IP is correct"}
+        result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
         return result
 
-    
     cpu_details = []
     # GET the ComputerSystem resource
-    system = utils.get_system_url("/redfish/v1", REDFISH_OBJ)
+    system = utils.get_system_url("/redfish/v1", system_id, REDFISH_OBJ)
+    if not system:
+        result = {'ret': False, 'msg': "This system id is not exist or system member is None"}
+        REDFISH_OBJ.logout()
+        return result
     for i in range(len(system)):
         system_url = system[i]
         response_system_url = REDFISH_OBJ.get(system_url, None)
@@ -104,7 +106,7 @@ def get_cpu_info(ip, login_account, login_password):
                 cpu_details.append(cpu)
             else:
                 result = {'ret': False, 'msg': "response_members_url Error code %s" % response_members_url.status}
-    
+
     result['ret'] = True
     result['entries'] = cpu_details
     # Logout of the current session
@@ -119,8 +121,12 @@ if __name__ == '__main__':
     ip = sys.argv[1]
     login_account = sys.argv[2]
     login_password = sys.argv[3]
-    result = get_cpu_info(ip, login_account, login_password)
-    
+    try:
+        system_id = sys.argv[4]
+    except IndexError:
+        system_id = None
+    result = get_cpu_info(ip, login_account, login_password, system_id)
+
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['entries'], sort_keys=True, indent=2))
