@@ -23,7 +23,7 @@ import redfish
 from redfish import redfish_logger
 
 
-def get_system_url(base_url, redfish_obj):
+def get_system_url(base_url, system_id, redfish_obj):
     """Get ComputerSystem instance URL    
     :params base_url: URL of the Redfish Service Root
     :type base_url: string
@@ -37,13 +37,32 @@ def get_system_url(base_url, redfish_obj):
     # Get ComputerSystemCollection resource
     systems_url = response_base_url.dict["Systems"]["@odata.id"]
     response_systems_url = redfish_obj.get(systems_url, None)
-
+    count = response_systems_url.dict["Members@odata.count"]
+    Members = response_systems_url.dict["Members"]
     # NOTE: Get the ComputerSystem instance list
     system = []
-    for i in range(response_systems_url.dict['Members@odata.count']):
-        system_url = response_systems_url.dict["Members"][i]["@odata.id"]
+    if not Members:
+        return system
+    if system_id is None:
+        # Default returns the first system found
+        system_url = response_systems_url.dict["Members"][0]["@odata.id"]
         system.append(system_url)
-    return system
+        return system
+    elif system_id == "all":
+        # Return all system list
+        for i in range(response_systems_url.dict['Members@odata.count']):
+            system_url = response_systems_url.dict["Members"][i]["@odata.id"]
+            system.append(system_url)
+            return system
+    else:
+        # Return parameters specify the system
+        for system_x_url in Members:
+            system_url = system_x_url["@odata.id"]
+            if system_id in system_url:
+                system.append(system_url)
+                return system
+            else:
+                return system
 
 
 def get_extended_error(response_body):

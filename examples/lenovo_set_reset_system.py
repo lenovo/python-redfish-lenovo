@@ -4,7 +4,7 @@
 #
 # Copyright Notice:
 #
-# Copyright 2017 Lenovo Corporation
+# Copyright 2018 Lenovo Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
 # not use this file except in compliance with the License. You may obtain
@@ -21,6 +21,7 @@
 
 
 import sys
+import json
 import logging
 import redfish
 from redfish import redfish_logger

@@ -1,10 +1,10 @@
 ###
 #
-# Lenovo Redfish examples - Get the supported System Reset Types
+# Lenovo Redfish examples - Get the current System Boot Once target
 #
 # Copyright Notice:
 #
-# Copyright 2017 Lenovo Corporation
+# Copyright 2018 Lenovo Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
 # not use this file except in compliance with the License. You may obtain
@@ -21,30 +21,60 @@
 
 
 import sys
-import logging
+import json
 import redfish
 from redfish import redfish_logger
 import lenovo_utils as utils
 
-# Connect using the address, account name, and password
-login_host = "https://10.243.13.101"
-login_account = "USERID"
-login_password = "PASSW0RD"
+
+def get_reset_types(ip, login_account, login_password):
+    result = {}
+    # Connect using the BMC address, account name, and password
+    # Create a REDFISH object
+    login_host = "https://" + ip
+    # Login into the server and create a session
+    try:
+        REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
+                                             password=login_password, default_prefix='/redfish/v1')
+        REDFISH_OBJ.login(auth="session")
+    except:
+        result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
+        return result
+    # GET the ComputerSystem resource
+    reset_details = []
+    system = utils.get_system_url("/redfish/v1", REDFISH_OBJ)
+    for i in range(len(system)):
+        system_url = system[i]
+        response_system_url = REDFISH_OBJ.get(system_url, None)
+        if response_system_url.status == 200:
+            # Get the response
+            reset_types = {}
+            Computer_reset = response_system_url.dict["Actions"]["#ComputerSystem.Reset"]["ResetType@Redfish.AllowableValues"]
+            reset_types["ResetType@Redfish.AllowableValues"] = Computer_reset
+            reset_details.append(reset_types)
+        else:
+            result = {'ret': False, 'msg': "response_system_url Error code %s" % response_system_url.status}
+            REDFISH_OBJ.logout()
+            return result
+
+    result['ret'] = True
+    result['entries'] = reset_details
+    # Logout of the current session
+    REDFISH_OBJ.logout()
+    return result
 
 
-## Create a REDFISH object
-REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account, \
-                          password=login_password, default_prefix='/redfish/v1')
+if __name__ == '__main__':
+    # ip = '10.10.10.10'
+    # login_account = 'USERID'
+    # login_password = 'PASSW0RD'
+    ip = sys.argv[1]
+    login_account = sys.argv[2]
+    login_password = sys.argv[3]
+    result = get_reset_types(ip, login_account, login_password)
+    if result['ret'] is True:
+        del result['ret']
+        sys.stdout.write(json.dumps(result['entries'], sort_keys=True, indent=2))
+    else:
+        sys.stderr.write(result['msg'])
 
-# Login into the server and create a session
-REDFISH_OBJ.login(auth="session")
-
-# GET the ComputerSystem resource
-system_url = utils.get_system_url("/redfish/v1", REDFISH_OBJ)
-response_system_url = REDFISH_OBJ.get(system_url, None)
-
-# Print out the AllowableValues of the ResetType parameter of the ComputerSyste.Reset Action
-sys.stdout.write("%s\n" % response_system_url.dict["Actions"]["#ComputerSystem.Reset"]["ResetType@Redfish.AllowableValues"])
-
-# Logout of the current session
-REDFISH_OBJ.logout()

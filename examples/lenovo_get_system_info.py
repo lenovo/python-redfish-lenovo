@@ -4,7 +4,7 @@
 #
 # Copyright Notice:
 #
-# Copyright 2017-2018 Lenovo Corporation
+# Copyright 2018 Lenovo Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
 # not use this file except in compliance with the License. You may obtain
@@ -21,56 +21,99 @@
 
 
 import sys
-import logging
+import json
 import redfish
-from redfish import redfish_logger
 import lenovo_utils as utils
 
-# Connect using the address, account name, and password
-login_host = "https://10.243.13.101"
-login_account = "USERID"
-login_password = "PASSW0RD"
+
+def get_system_info(ip, login_account, login_password):
+    result = {}
+    # Connect using the BMC address, account name, and password
+    # Create a REDFISH object
+    login_host = "https://" + ip
+    # Login into the server and create a session
+    try:
+        REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
+                                             password=login_password, default_prefix='/redfish/v1')
+        REDFISH_OBJ.login(auth="session")
+    except:
+        result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
+        return result
+
+    system_details = []
+    # GET the ComputerSystem resource
+    system = utils.get_system_url("/redfish/v1", REDFISH_OBJ)
+    for i in range(len(system)):
+        system_url = system[i]
+        response_system_url = REDFISH_OBJ.get(system_url, None)
+        if response_system_url.status == 200:
+            system = {}
+            # Get the system information
+            Host_Name = response_system_url.dict["HostName"]
+            Model = response_system_url.dict["Model"]
+            SerialNumber = response_system_url.dict["SerialNumber"]
+            AssetTag = response_system_url.dict["AssetTag"]
+            UUID = response_system_url.dict["UUID"]
+            Procesors_Model = response_system_url.dict["ProcessorSummary"]["Model"]
+            ProcesorsCount = response_system_url.dict["ProcessorSummary"]["Count"]
+            Total_Memory = response_system_url.dict["MemorySummary"]["TotalSystemMemoryGiB"]
+            BIOS_Version = response_system_url.dict["BiosVersion"]
+            system['HostName'] = Host_Name
+            system['Model'] = Model
+            system['SerialNumber'] = SerialNumber
+            system['AssetTag'] = AssetTag
+            system['UUID'] = UUID
+            system['Procesors_Model'] = Procesors_Model
+            system['ProcesorsCount'] = ProcesorsCount
+            system['TotalSystemMemoryGiB'] = Total_Memory
+            system['BiosVersion'] = BIOS_Version
+            system_details.append(system)
+            # GET System EtherNetInterfaces resources
+            nics_url = response_system_url.dict["EthernetInterfaces"]["@odata.id"]
+            response_nics_url = REDFISH_OBJ.get(nics_url, None)
+            if response_nics_url.status == 200:
+                nic_count = response_nics_url.dict["Members@odata.count"]
+            else:
+                result = {'ret': False, 'msg': "response nics url Error code %s" % response_nics_url.status}
+                REDFISH_OBJ.logout()
+                return result
+            x = 0
+            for x in range(0, nic_count):
+                EtherNetInterfaces = {}
+                nic_x_url = response_nics_url.dict["Members"][x]["@odata.id"]
+                response_nic_x_url = REDFISH_OBJ.get(nic_x_url, None)
+                if response_nic_x_url.status == 200:
+                    PermanentMACAddress = response_nic_x_url.dict["PermanentMACAddress"]
+                    EtherNetInterfaces['PermanentMACAddress'] = PermanentMACAddress
+                    system_details.append(EtherNetInterfaces)
+                else:
+                    result = {'ret': False, 'msg': "response nic_x_url Error code %s" % response_nic_x_url.status}
+                    REDFISH_OBJ.logout()
+                    return result
+
+        else:
+            result = {'ret': False, 'msg': "response_system_url Error code %s" % response_system_url.status}
+            REDFISH_OBJ.logout()
+            return result
+
+        result['ret'] = True
+        result['entries'] = system_details
+        # Logout of the current session
+        REDFISH_OBJ.logout()
+        return result
 
 
-## Create a REDFISH object
-REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account, \
-                          password=login_password, default_prefix='/redfish/v1')
+if __name__ == '__main__':
+    # ip = '10.10.10.10'
+    # login_account = 'USERID'
+    # login_password = 'PASSW0RD'
+    ip = sys.argv[1]
+    login_account = sys.argv[2]
+    login_password = sys.argv[3]
+    result = get_system_info(ip, login_account, login_password)
+    if result['ret'] is True:
+        del result['ret']
+        sys.stdout.write(json.dumps(result['entries'], sort_keys=True, indent=2))
+    else:
+        sys.stderr.write(result['msg'])
 
-# Login into the server and create a session
-REDFISH_OBJ.login(auth="session")
-
-# GET the ComputerSystem resource
-system_url = utils.get_system_url("/redfish/v1", REDFISH_OBJ)
-response_system_url = REDFISH_OBJ.get(system_url, None)
-
-# Print out the system information
-sys.stdout.write("\n")
-sys.stdout.write("Manufacturer      : %s\n" % response_system_url.dict["Manufacturer"])
-sys.stdout.write("Model             : %s\n" % response_system_url.dict["Model"])
-sys.stdout.write("SKU Number        : %s\n" % response_system_url.dict["SKU"])
-sys.stdout.write("Serial Number     : %s\n" % response_system_url.dict["SerialNumber"])
-sys.stdout.write("Asset Tag         : %s\n" % response_system_url.dict["AssetTag"])
-sys.stdout.write("System UUID       : %s\n" % response_system_url.dict["UUID"])
-sys.stdout.write("Host Name         : %s\n" % response_system_url.dict["HostName"])
-sys.stdout.write("Procesors Model   : %s\n" % response_system_url.dict["ProcessorSummary"]["Model"])
-sys.stdout.write("Procesors Count   : %s\n" % response_system_url.dict["ProcessorSummary"]["Count"])
-sys.stdout.write("Total Memory      : %s GB\n" % response_system_url.dict["MemorySummary"]["TotalSystemMemoryGiB"])
-sys.stdout.write("BIOS Version      : %s\n" % response_system_url.dict["BiosVersion"])
-sys.stdout.write("Indicator LED     : %s\n" % response_system_url.dict["IndicatorLED"])
-sys.stdout.write("Power State       : %s\n" % response_system_url.dict["PowerState"])
-sys.stdout.write("NIC MAC Addresses : \n")
-
-# GET System EtherNetInterfaces resources
-nics_url = response_system_url.dict["EthernetInterfaces"]["@odata.id"]
-response_nics_url = REDFISH_OBJ.get(nics_url, None)
-nic_count = response_nics_url.dict["Members@odata.count"]
-x = 0
-for x in range (0, nic_count):
-    nic_x_url = response_nics_url.dict["Members"][x]["@odata.id"]
-    response_nic_x_url = REDFISH_OBJ.get(nic_x_url, None)
-    sys.stdout.write("   %s\n" % response_nic_x_url.dict["PermanentMACAddress"])
-
-sys.stdout.write("\n")
-
-# Logout of the current session
-REDFISH_OBJ.logout()

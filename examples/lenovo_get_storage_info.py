@@ -21,58 +21,96 @@
 
 
 import sys
-import logging
+import json
 import redfish
-from redfish import redfish_logger
 import lenovo_utils as utils
 
-# Connect using the address, account name, and password
-login_host = "https://10.243.12.117"
-login_account = "USERID"
-login_password = "PASSW0RD"
+def get_storage_info(ip, login_account, login_passwprd):
+    result = {}
+    # Connect using the BMC address, account name, and password
+    # Create a REDFISH object
+    login_host = "https://" + ip
+    # Login into the server and create a session
+    try:
+        REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
+                                             password=login_password, default_prefix='/redfish/v1')
+        REDFISH_OBJ.login(auth="session")
+    except:
+        result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
+        return result
+    storage_details = []
+    # GET the ComputerSystem resource
+    system = utils.get_system_url("/redfish/v1", REDFISH_OBJ)
+    for i in range(len(system)):
+        system_url = system[i]
+        response_system_url = REDFISH_OBJ.get(system_url, None)
+        if response_system_url.status == 200:
+            # GET the Storage resources from the ComputerSystem resource
+            storage_url = response_system_url.dict["Storage"]["@odata.id"]
+            response_storage_url = REDFISH_OBJ.get(storage_url, None)
+            if response_storage_url.status == 200:
+                storage_count = response_storage_url.dict["Members@odata.count"]
+                storage = 0
+                for nic in range(0, storage_count):
+                    storage_x_url = response_storage_url.dict["Members"][nic]["@odata.id"]
+                    response_storage_x_url = REDFISH_OBJ.get(storage_x_url, None)
+                    if response_storage_x_url.status == 200:
+                        storage = {}
+                        Storage_id = response_storage_x_url.dict["Id"]
+                        Name = response_storage_x_url.dict["Name"]
+                        storage['Id'] = Storage_id
+                        storage['Name'] = Name
+                        storage_details.append(storage)
+                        controller_count = response_storage_x_url.dict["StorageControllers@odata.count"]
+                        controller = 0
+                        # GET the StorageControllers instances resources from each of the Storage resources
+                        for controller in range(0, controller_count):
+                            storage_controller = {}
+                            Controller = controller
+                            Manufacturer = response_storage_x_url.dict["StorageControllers"][controller]["Manufacturer"]
+                            Model = response_storage_x_url.dict["StorageControllers"][controller]["Model"]
+                            SerialNumber = response_storage_x_url.dict["StorageControllers"][controller]["SerialNumber"]
+                            FirmwareVersion = response_storage_x_url.dict["StorageControllers"][controller]["FirmwareVersion"]
+                            PartNumber = response_storage_x_url.dict["StorageControllers"][controller]["PartNumber"]
+                            DurableNameFormat = response_storage_x_url.dict["StorageControllers"][controller]["Identifiers"][0]["DurableNameFormat"]
+                            DurableName = response_storage_x_url.dict["StorageControllers"][controller]["Identifiers"][0]["DurableName"]
+                            storage_controller[Manufacturer] = Manufacturer
+                            storage_controller["Model"] = Model
+                            storage_controller["SerialNumber"] = SerialNumber
+                            storage_controller["FirmwareVersion"] = FirmwareVersion
+                            storage_controller["PartNumber"] = PartNumber
+                            storage_controller["DurableNameFormat"] = DurableNameFormat
+                            storage_controller["DurableName"] = DurableName
+                            storage_details.append(storage_controller)
+                    else:
+                        result = {'ret': False,'msg': "response storage url Error code %s" % response_storage_url.status}
+                        REDFISH_OBJ.logout()
+            else:
+                result = {'ret': False, 'msg': "response_storage_x_url code %s" % rresponse_storage_x_url.status}
+                REDFISH_OBJ.logout()
+                return result
+        else:
+            result = {'ret': False, 'msg': "response_system_url Error code %s" % response_system_url.status}
+            REDFISH_OBJ.logout()
+            return result
+
+    result['ret'] = True
+    result['entries'] = storage_details
+    # Logout of the current session
+    REDFISH_OBJ.logout()
+    return result
 
 
-## Create a REDFISH object
-REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account, \
-                          password=login_password, default_prefix='/redfish/v1')
-
-# Login into the server and create a session
-REDFISH_OBJ.login(auth="session")
-
-# GET the ComputerSystem resource
-system_url = utils.get_system_url("/redfish/v1", REDFISH_OBJ)
-response_system_url = REDFISH_OBJ.get(system_url, None)
-
-# GET the Storage resources from the ComputerSystem resource
-storage_url = response_system_url.dict["Storage"]["@odata.id"]
-response_storage_url = REDFISH_OBJ.get(storage_url, None)
-storage_count = response_storage_url.dict["Members@odata.count"]
-
-storage = 0
-for nic in range (0, storage_count):
-    storage_x_url = response_storage_url.dict["Members"][nic]["@odata.id"]
-    response_storage_x_url = REDFISH_OBJ.get(storage_x_url, None)
-    sys.stdout.write("Storage # %s\n" % response_storage_x_url.dict["Id"])
-    sys.stdout.write("  Name              : %s\n" % response_storage_x_url.dict["Name"])
-    sys.stdout.write("  Storage Controllers       :\n")
-
-    controller_count = response_storage_x_url.dict["StorageControllers@odata.count"]
-    controller = 0 
-    # GET the StorageControllers instances resources from each of the Storage resources
-    for controller in range (0, controller_count):
-        sys.stdout.write("  Controller # %s\n" % controller)
-        sys.stdout.write("  Manufacturer               : %s\n" % response_storage_x_url.dict["StorageControllers"][controller]["Manufacturer"])
-        sys.stdout.write("  Model                      : %s\n" % response_storage_x_url.dict["StorageControllers"][controller]["Model"])
-        sys.stdout.write("  Serial Number              : %s\n" % response_storage_x_url.dict["StorageControllers"][controller]["SerialNumber"])
-        sys.stdout.write("  Firmware Version           : %s\n" % response_storage_x_url.dict["StorageControllers"][controller]["FirmwareVersion"])
-        sys.stdout.write("  Part Number                : %s\n" % response_storage_x_url.dict["StorageControllers"][controller]["PartNumber"])
-        sys.stdout.write("  %s                      : %s\n" % 
-                           (response_storage_x_url.dict["StorageControllers"][controller]["Identifiers"][0]["DurableNameFormat"], 
-                           response_storage_x_url.dict["StorageControllers"][controller]["Identifiers"][0]["DurableName"]))
-
-
-        sys.stdout.write("\n")
-    sys.stdout.write("\n")
-
-# Logout of the current session
-REDFISH_OBJ.logout()
+if __name__ == '__main__':
+    # ip = '10.10.10.10'
+    # login_account = 'USERID'
+    # login_password = 'PASSW0RD'
+    ip = sys.argv[1]
+    login_account = sys.argv[2]
+    login_password = sys.argv[3]
+    result = get_storage_info(ip, login_account, login_password)
+    if result['ret'] is True:
+        del result['ret']
+        sys.stdout.write(json.dumps(result['entries'], sort_keys=True, indent=2))
+    else:
+        sys.stderr.write(result['msg'])
