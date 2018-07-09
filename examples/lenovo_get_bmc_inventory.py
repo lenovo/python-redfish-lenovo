@@ -21,14 +21,23 @@
 
 
 import sys
-import logging
 import json
 import redfish
-from redfish import redfish_logger
 import lenovo_utils as utils
 
 
 def get_bmc_info(ip, login_account, login_password, system_id):
+    """Get BMC inventory    
+    :params ip: BMC IP address
+    :type ip: string
+    :params login_account: BMC user name
+    :type login_account: string
+    :params login_password: BMC user password
+    :type login_password: string
+    :params system_id: ComputerSystem instance id(None: first instance, All: all instances)
+    :type system_id: None or string
+    :returns: returns BMC inventory when succeeded or error message when failed
+    """
     result = {}
     login_host = "https://" + ip
     try:
@@ -68,8 +77,14 @@ def get_bmc_info(ip, login_account, login_password, system_id):
             nics_url = response_manager_url.dict["EthernetInterfaces"]["@odata.id"]
 
             FirmwareVersion = response_manager_url.dict["FirmwareVersion"]
-            Model = response_manager_url.dict["Model"]
-            DateTime = response_manager_url.dict["DateTime"]
+            if 'Model' in response_manager_url.dict:
+                Model = response_manager_url.dict["Model"]
+            else:
+                Model = ""
+            if 'DateTime' in response_manager_url.dict:
+                DateTime = response_manager_url.dict["DateTime"]
+            else:
+                DateTime = ""
             bmc_info['FirmwareVersion'] = FirmwareVersion
             bmc_info['Model'] = Model
             bmc_info['DateTime'] = DateTime
@@ -84,12 +99,24 @@ def get_bmc_info(ip, login_account, login_password, system_id):
             HostName = response_network_protocol_url.dict["HostName"]
             HTTP = response_network_protocol_url.dict["HTTP"]["Port"]
             HTTPs = response_network_protocol_url.dict["HTTPS"]["Port"]
-            KVMIP = response_network_protocol_url.dict["KVMIP"]["Port"]
-            IPMI = response_network_protocol_url.dict["IPMI"]["Port"]
-            SSDP = response_network_protocol_url.dict["SSDP"]["Port"]
             SSH = response_network_protocol_url.dict["SSH"]["Port"]
             SNMP = response_network_protocol_url.dict["SNMP"]["Port"]
-            Virtual_Media = response_network_protocol_url.dict["VirtualMedia"]["Port"]
+            if "KVMIP" in response_network_protocol_url.dict :
+                KVMIP = response_network_protocol_url.dict["KVMIP"]["Port"]
+            else:
+                KVMIP = ""
+            if "Port" in response_network_protocol_url.dict :
+                IPMI = response_network_protocol_url.dict["IPMI"]["Port"]
+            else:
+                IPMI = ""
+            if "SSDP" in response_network_protocol_url.dict :
+                SSDP = response_network_protocol_url.dict["SSDP"]["Port"]
+            else:
+                SSDP = ""
+            if "VirtualMedia" in response_network_protocol_url.dict :
+                Virtual_Media = response_network_protocol_url.dict["VirtualMedia"]["Port"]
+            else:
+                Virtual_Media = ""
             bmc_info['FQDN'] = FQDN
             bmc_info['HostName'] = HostName
             bmc_info['HTTP'] = HTTP
@@ -108,7 +135,7 @@ def get_bmc_info(ip, login_account, login_password, system_id):
         if response_nics_url.status == 200:
             nic_count = response_nics_url.dict["Members@odata.count"]
             x = 0
-            for x in range (0, 1):  #for now
+            for x in range (0, 1):  
                 nic_x_url = response_nics_url.dict["Members"][x]["@odata.id"]
                 response_nic_x_url = REDFISH_OBJ.get(nic_x_url, None)
         else:
@@ -157,18 +184,19 @@ def get_bmc_info(ip, login_account, login_password, system_id):
 
 
 if __name__ == '__main__':
-    # ip = '10.10.10.10'
-    # login_account = 'USERID'
-    # login_password = 'PASSW0RD'
-    ip = sys.argv[1]
-    login_account = sys.argv[2]
-    login_password = sys.argv[3]
-    try:
-        system_id = sys.argv[4]
-    except IndexError:
-        system_id = None
+    # Get parameters from config.ini and/or command line
+    argget = utils.create_common_parameter_list()
+    args = argget.parse_args()
+    parameter_info = utils.parse_parameter(args)
+    
+    # Get connection info from the parameters user specified
+    ip = parameter_info['ip']
+    login_account = parameter_info["user"]
+    login_password = parameter_info["passwd"]
+    system_id = parameter_info['sysid']
+    
+    # Get BMC inventory and check result
     result = get_bmc_info(ip, login_account, login_password, system_id)
-
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['entries'], sort_keys=True, indent=2))

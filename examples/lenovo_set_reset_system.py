@@ -22,13 +22,24 @@
 
 import sys
 import json
-import logging
 import redfish
-from redfish import redfish_logger
 import lenovo_utils as utils
 
 
 def set_reset_system(ip, login_account, login_password, system_id, reset_type):
+    """Reset system    
+    :params ip: BMC IP address
+    :type ip: string
+    :params login_account: BMC user name
+    :type login_account: string
+    :params login_password: BMC user password
+    :type login_password: string
+    :params system_id: ComputerSystem instance id(None: first instance, All: all instances)
+    :type system_id: None or string
+    :params reset_type: reset system type by user specified
+    :type reset_type: string
+    :returns: returns reset system type result when succeeded or error message when failed
+    """
     result = {}
     login_host = "https://" + ip
     try:
@@ -55,17 +66,14 @@ def set_reset_system(ip, login_account, login_password, system_id, reset_type):
             # Find the Reset Action target URL
             target_url = response_system_url.dict["Actions"]["#ComputerSystem.Reset"]["target"]
             # Prepare POST body
-            post_body = {"ResetType": ""}
-            post_body["ResetType"] = reset_type
+            post_body = {"ResetType": reset_type}
             # POST Reset Action
             post_response = REDFISH_OBJ.post(target_url, body=post_body)
-
-            # If Response return 200/OK, return successful , else print the response Extended Error message
-            if post_response.status == 200:
-                result = {'ret': True, 'msg': "reset system %s successful" % reset_type}
+            # If Response return 200/OK, return successful , else print the response Error code
+            if post_response.status in [200, 204]:
+                result = {'ret': True, 'msg': "reset system '%s' successful" % reset_type}
             else:
-                message = utils.get_extended_error(post_response)
-                result = {'ret': False, 'msg': "Error message is %s" % message}
+                result = {'ret': False, 'msg': "post response error code is %s" % post_response.status}
         else:
             result = {'ret': False, 'msg': "response_system_url Error code %s" % response_system_url.status}
             REDFISH_OBJ.logout()
@@ -76,21 +84,34 @@ def set_reset_system(ip, login_account, login_password, system_id, reset_type):
     return result
 
 
+import argparse
+def add_parameter():
+    """Add reset system parameter"""
+    argget = utils.create_common_parameter_list()
+    argget.add_argument('--resettype', type=str, help='Input the reset system type("On", "Nmi", "GracefulShutdown", "GracefulRestart", "ForceOn", "ForceOff", "ForceRestart")')
+    args = argget.parse_args()
+    parameter_info = utils.parse_parameter(args)
+    return parameter_info
+
+
 if __name__ == '__main__':
-    # ip = '10.10.10.10'
-    # login_account = 'USERID'
-    # login_password = 'PASSW0RD'
-    ip = sys.argv[1]
-    login_account = sys.argv[2]
-    login_password = sys.argv[3]
+    # Get parameters from config.ini and/or command line
+    parameter_info = add_parameter()
+
+    # Get connection info from the parameters user specified
+    ip = parameter_info['ip']
+    login_account = parameter_info["user"]
+    login_password = parameter_info["passwd"]
+    system_id = parameter_info['sysid']
+
+    # Get set info from the parameters user specified
     try:
-        system_id = sys.argv[4]
-        # "On", "Nmi", "GracefulShutdown", "GracefulRestart", "ForceOn", "ForceOff", "ForceRestart"
-        reset_type = sys.argv[5]
-    except IndexError:
-        system_id = None
-        # "On", "Nmi", "GracefulShutdown", "GracefulRestart", "ForceOn", "ForceOff", "ForceRestart"
-        reset_type = sys.argv[4]
+        reset_type = parameter_info['reset_type']
+    except:
+        sys.stderr.write("Please run the command 'python %s -h' to view the help info" % sys.argv[0])
+        sys.exit(1)
+
+    # Reset system result and check result
     result = set_reset_system(ip, login_account, login_password,system_id, reset_type)
     if result['ret'] is True:
         del result['ret']

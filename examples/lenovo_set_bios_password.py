@@ -28,10 +28,23 @@ import lenovo_utils as utils
 
 
 def set_bios_password(ip, login_account, login_password, system_id, bios_password_name, bios_password):
+    """Set Bios attribute    
+    :params ip: BMC IP address
+    :type ip: string
+    :params login_account: BMC user name
+    :type login_account: string
+    :params login_password: BMC user password
+    :type login_password: string
+    :params system_id: ComputerSystem instance id(None: first instance, All: all instances)
+    :type system_id: None or string
+    :params bios_password_name: Bios password name by user specified
+    :type bios_password_name: string
+    :params bios_password: Bios password by user specified
+    :type bios_password: string
+    :returns: returns set bios password result when succeeded or error message when failed
+    """
     result = {}
-
     login_host = "https://" + ip
-
     try:
         # Connect using the BMC address, account name, and password
         # Create a REDFISH object
@@ -72,38 +85,48 @@ def set_bios_password(ip, login_account, login_password, system_id, bios_passwor
             if response_change_password.status == 200:
                 result = {'ret': True, 'msg': 'set bios password successful'}
             else:
-                # result = {'ret': False, 'msg': 'response change password Error code %s'% response_change_password.status}
-                result = {'ret': False,
-                          'msg': 'response change password Error code %s' % response_change_password.dict["error"]["@Message.ExtendedInfo"][0]}
+                result = {'ret': False, 'msg': 'response change password Error code %s'% response_change_password.status}
                 REDFISH_OBJ.logout()
                 return result
         else:
             result = {'ret': False, 'msg': "response bios url Error code %s" % response_bios_url.status}
             REDFISH_OBJ.logout()
             return result
-
-
+    # Logout of the current session
     REDFISH_OBJ.logout()
     return result
 
 
+import argparse
+def add_parameter():
+    """Add set bios password parameter"""
+    argget = utils.create_common_parameter_list()
+    argget.add_argument('--name', type=str, help='Input the bios password name("UefiAdminPassword" or "UefiPowerOnPassword")')
+    argget.add_argument('--biospasswd', type=str, help='Input the new bios password')
+    args = argget.parse_args()
+    parameter_info = utils.parse_parameter(args)
+    return parameter_info
+
+
 if __name__ == '__main__':
-    # ip = '10.10.10.10'
-    # login_account = 'USERID'
-    # login_password = 'PASSW0RD'
-    ip = sys.argv[1]
-    login_account = sys.argv[2]
-    login_password = sys.argv[3]
+    # Get parameters from config.ini and/or command line
+    parameter_info = add_parameter()
+
+    # Get connection info from the parameters user specified
+    ip = parameter_info['ip']
+    login_account = parameter_info["user"]
+    login_password = parameter_info["passwd"]
+    system_id = parameter_info['sysid']
+
+    # Get set info from the parameters user specified
     try:
-        system_id = sys.argv[4]
-        # "UefiAdminPassword" or "UefiPowerOnPassword"
-        bios_password_name = sys.argv[5]
-        bios_password = sys.argv[6]
-    except IndexError:
-        system_id = None
-        # "UefiAdminPassword" or "UefiPowerOnPassword"
-        bios_password_name = sys.argv[4]
-        bios_password = sys.argv[5]
+        bios_password_name = parameter_info['bios_password_name']
+        bios_password = parameter_info['bios_password']
+    except:
+        sys.stderr.write("Please run the command 'python %s -h' to view the help info" % sys.argv[0])
+        sys.exit(1)
+
+    # Set bios password result and check result
     result = set_bios_password(ip, login_account, login_password, system_id, bios_password_name, bios_password)
     if result['ret'] is True:
         del result['ret']

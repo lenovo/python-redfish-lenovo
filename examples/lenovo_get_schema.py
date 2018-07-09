@@ -23,11 +23,21 @@
 import sys
 import redfish
 import json
+import lenovo_utils as utils
 
-
-def get_schema(ip, login_account, login_password):
+def get_schema(ip, login_account, login_password, schema_prefix):
+    """Get schema ingfo    
+    :params ip: BMC IP address
+    :type ip: string
+    :params login_account: BMC user name
+    :type login_account: string
+    :params login_password: BMC user password
+    :type login_password: string
+    :params ntp_server: ntp_server by user specified
+    :type ntp_server: list
+    :returns: returns set manager ntp result when succeeded or error message when failed
+    """
     result = {}
-    # login_host = ip
     login_host = 'https://' + ip
     try:
         # Connect using the BMC address, account name, and password
@@ -47,41 +57,86 @@ def get_schema(ip, login_account, login_password):
         Json_Schemas = response_base_url.dict['JsonSchemas']['@odata.id']
         response_json_schemas = REDFISH_OBJ.get(Json_Schemas, None)
         if response_json_schemas.status == 200:
-            for schema in response_json_schemas.dict['Members']:
-                schema_prefix = "ComputerSystem"
-                if schema_prefix in schema["@odata.id"]:
-                    response = REDFISH_OBJ.get(schema["@odata.id"], None)
+            # Get the all schema list
+            schema_list = response_json_schemas.dict['Members']
+            schema_prefix = schema_prefix
+            schema_uri_info = []
+            if schema_prefix == 'all':
+                for schema in schema_list:
+                    schema_url = schema["@odata.id"]
+                    schema_prefix = schema_url.split('/')[-1]
+                    response = REDFISH_OBJ.get(schema_url, None)
                     for location in response.dict["Location"]:
                         uri = location["Uri"]
                         response_uri = REDFISH_OBJ.get(uri, None)
                         if response_uri.status == 200:
-                            result = {'ret': True, 'msg':"Found " + schema_prefix + " at " + uri }
+                            schema = {}
+                            msg = "Found " + schema_prefix + " at " + uri
+                            schema[schema_prefix] = msg
+                            schema_uri_info.append(schema)
                         else:
-                            result = {'ret': False, 'msg': schema_prefix + " not found at " + uri}
-                            REDFISH_OBJ.logout()
-                            return result
+                            schema = {}
+                            msg = schema_prefix + " not found at " + uri
+                            schema[schema_prefix] = msg
+                            schema_uri_info.append(schema)
+            else:
+                for schema in schema_list:
+                    if schema_prefix in schema["@odata.id"]:
+                        schema_url = schema["@odata.id"]
+                        response = REDFISH_OBJ.get(schema_url, None)
+                        for location in response.dict["Location"]:
+                            uri = location["Uri"]
+                            response_uri = REDFISH_OBJ.get(uri, None)
+                            if response_uri.status == 200:
+                                msg = "Found " + schema_prefix + " at " + uri
+                                schema_uri_info.append(msg)
+                            else:
+                                result = {'ret': False, 'msg': schema_prefix + " not found at " + uri}
+                                REDFISH_OBJ.logout()
+                                return result
         else:
             result = {'ret': False, 'msg': "response json schemas Error code %s" % response_json_schemas.status}
             REDFISH_OBJ.logout()
             return result
     else:
-        print("Error code %s" % response_base_url.status)
         result = {'ret': False, 'msg': "Error code %s" % response_base_url.status}
 
+    result['ret'] = True
+    result['entries'] = schema_uri_info
     REDFISH_OBJ.logout()
     return result
 
 
+import argparse
+def add_parameter():
+    """Add get schema parameter"""
+    argget = utils.create_common_parameter_list()
+    argget.add_argument('--schema', type=str, help="Input the schema prefix get this schema uri or input the 'all' get all schema list")
+    args = argget.parse_args()
+    parameter_info = utils.parse_parameter(args)
+    return parameter_info
+
+
 if __name__ == '__main__':
-    # ip = '10.10.10.10'
-    # login_account = 'USERID'
-    # login_password = 'PASSW0RD'
-    ip = sys.argv[1]
-    login_account = sys.argv[2]
-    login_password = sys.argv[3]
-    result = get_schema(ip, login_account, login_password)
+     # Get parameters from config.ini and/or command line
+    parameter_info = add_parameter()
+
+    # Get connection info from the parameters user specified
+    ip = parameter_info['ip']
+    login_account = parameter_info["user"]
+    login_password = parameter_info["passwd"]
+
+    # Get set info from the parameters user specified
+    try:
+        schema_prefix = parameter_info['schemaprefix']
+    except:
+        sys.stderr.write("Please run the coommand 'python %s -h' to view the help info" % sys.argv[0])
+        sys.exit(1)
+
+    # Get schema and check result
+    result = get_schema(ip, login_account, login_password, schema_prefix)
     if result['ret'] is True:
         del result['ret']
-        sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
+        sys.stdout.write(json.dumps(result['entries'], sort_keys=True, indent=2))
     else:
         sys.stderr.write(result['msg'])

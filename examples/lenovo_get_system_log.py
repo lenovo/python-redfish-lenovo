@@ -27,8 +27,18 @@ import lenovo_utils as utils
 
 
 def get_system_log(ip, login_account, login_password, system_id):
+    """Get system log    
+    :params ip: BMC IP address
+    :type ip: string
+    :params login_account: BMC user name
+    :type login_account: string
+    :params login_password: BMC user password
+    :type login_password: string
+    :params system_id: ComputerSystem instance id(None: first instance, All: all instances)
+    :type system_id: None or string
+    :returns: returns system log when succeeded or error message when failed
+    """
     result = {}
-    log_details = []
     login_host = 'https://' + ip
     try:
         # Connect using the BMC address, account name, and password
@@ -40,46 +50,57 @@ def get_system_log(ip, login_account, login_password, system_id):
     except:
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
         return result
-    # GET the ComputerSystem resource
-    system = utils.get_system_url("/redfish/v1",system_id, REDFISH_OBJ)
-    if not system:
-        result = {'ret': False, 'msg': "This system id is not exist or system member is None"}
+
+    # Get response_base_url resource
+    response_base_url = REDFISH_OBJ.get('/redfish/v1', None)
+    if response_base_url.status == 200:
+        managers_url = response_base_url.dict['Managers']['@odata.id']
+    else:
+        result = {'ret': False, 'msg': "response base url Error code %s" % response_base_url.status}
         REDFISH_OBJ.logout()
         return result
-    for i in range(len(system)):
-        system_url = system[i]
-        response_system_url = REDFISH_OBJ.get(system_url, None)
-        if response_system_url.status == 200:
-            # Get the ComputerProcessors resource
-            LogServices_url = response_system_url.dict['LogServices']['@odata.id']
+    # Get Managers url resource
+    response_managers_url = REDFISH_OBJ.get(managers_url, None)
+    if response_managers_url.status == 200:
+        manager_count = response_managers_url.dict['Members@odata.count']
+    else:
+        result = {'ret': False, 'msg': "response managers url Error code %s" % response_managers_url.status}
+        REDFISH_OBJ.logout()
+        return result
+    for i in range(manager_count):
+        manager_x_url = response_managers_url.dict['Members'][i]['@odata.id']
+        response_manager_x_url = REDFISH_OBJ.get(manager_x_url, None)
+        if response_manager_x_url.status == 200:
+            log_services_url = response_manager_x_url.dict['LogServices']['@odata.id']
         else:
-            result = {'ret': False, 'msg': "response system url Error code %s" % response_system_url.status}
+            result = {'ret': False, 'msg': "response managers url Error code %s" % response_manager_x_url.status}
             REDFISH_OBJ.logout()
             return result
-        response_logservices_url = REDFISH_OBJ.get(LogServices_url, None)
-        if response_logservices_url.status == 200:
-            members = response_logservices_url.dict['Members']
+        response_log_services_url = REDFISH_OBJ.get(log_services_url, None)
+        if response_log_services_url.status == 200:
+            # Get the log url collection
+            members = response_log_services_url.dict['Members']
         else:
-            
-            result = {'ret': False, 'msg': "response logservices url Error code %s" % response_logservices_url.status}
+            result = {'ret': False, 'msg': "response_log_services_url Error code %s" % response_log_services_url.status}
             REDFISH_OBJ.logout()
             return result
-
+        log_details = []
         for member in members:
             log_url = member['@odata.id']
-            temp_list = log_url.split('/')
-            log_name = temp_list[-2]
+            # Get the log url resource
             response_log_url = REDFISH_OBJ.get(log_url, None)
             if response_log_url.status == 200:
                 entries_url = response_log_url.dict['Entries']['@odata.id']
                 response_entries_url = REDFISH_OBJ.get(entries_url, None)
                 if response_entries_url.status == 200:
-                    description = response_entries_url.dict['Description']
+                    # description = response_entries_url.dict['Description']
                     for logEntry in response_entries_url.dict['Members']:
                         entry = {}
-                    
                         name = logEntry['Name']
-                        created = logEntry['Created']
+                        if 'Created' in logEntry:
+                            created = logEntry['Created']
+                        else:
+                            created = ""
                         message = logEntry['Message']
                         severity = logEntry['Severity']
 
@@ -106,16 +127,18 @@ def get_system_log(ip, login_account, login_password, system_id):
 
 
 if __name__ == '__main__':
-    # ip = '10.10.10.10'
-    # login_account = 'USERID'
-    # login_password = 'PASSW0RD'
-    ip = sys.argv[1]
-    login_account = sys.argv[2]
-    login_password = sys.argv[3]
-    try:
-        system_id = sys.argv[4]
-    except IndexError:
-        system_id = None
+    # Get parameters from config.ini and/or command line
+    argget = utils.create_common_parameter_list()
+    args = argget.parse_args()
+    parameter_info = utils.parse_parameter(args)
+    
+    # Get connection info from the parameters user specified
+    ip = parameter_info['ip']
+    login_account = parameter_info["user"]
+    login_password = parameter_info["passwd"]
+    system_id = parameter_info['sysid']
+    
+    # Get system log and check result
     result = get_system_log(ip, login_account, login_password, system_id)
     if result['ret'] is True:
         del result['ret']

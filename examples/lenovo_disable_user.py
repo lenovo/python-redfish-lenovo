@@ -23,9 +23,21 @@
 import sys
 import redfish
 import json
+import lenovo_utils as utils
 
 
 def disable_user(ip, login_account, login_password, userid):
+    """Disable user   
+    :params ip: BMC IP address
+    :type ip: string
+    :params login_account: BMC user name
+    :type login_account: string
+    :params login_password: BMC user password
+    :type login_password: string
+    :params system_id: ComputerSystem instance id(None: first instance, All: all instances)
+    :type system_id: None or string
+    :returns: returns disable user result when succeeded or error message when failed
+    """
     result = {}
     login_host = "https://" + ip
     try:
@@ -48,18 +60,24 @@ def disable_user(ip, login_account, login_password, userid):
         REDFISH_OBJ.logout()
         result = {'ret': False, 'msg': "response base url Error code %s" % response_base_url.status}
         return result
+    # Get AccountService resource
     response_account_service_url = REDFISH_OBJ.get(account_service_url, None)
     if response_account_service_url.status == 200:
         accounts_url = response_account_service_url.dict['Accounts']['@odata.id']
         userid = userid
-        accounts_url += str(userid)
-        
+        # Get the disable user account url
+        if accounts_url[-1] == '/':
+            accounts_url += str(userid)
+        else:
+            accounts_url = accounts_url + '/' + str(userid)
         response_account_url = REDFISH_OBJ.get(accounts_url, None)
-        etag = response_account_url.dict['@odata.etag']
+        if "@odata.etag" in response_account_url.dict:
+            etag = response_account_url.dict['@odata.etag']
+        else:
+            etag = ""
         username = response_account_url.dict['UserName']
-        
         headers = {"If-Match": etag,}
-        
+        # Set the body info
         parameter = {
                      "UserName":username,
                      "Enabled": False
@@ -80,17 +98,33 @@ def disable_user(ip, login_account, login_password, userid):
     return result
 
 
-if __name__ == '__main__':
-    # ip = '10.10.10.10'
-    # login_account = 'USERID'
-    # login_password = 'PASSW0RD'
-    ip = sys.argv[1]
-    login_account = sys.argv[2]
-    login_password = sys.argv[3]
-    # Input the user ID you want to modify.
-    # 1-12
-    userid = sys.argv[4]
+import argparse
+def add_parameter():
+    """Add disable user id parameter"""
+    argget = utils.create_common_parameter_list()
+    argget.add_argument('--userid', type=str, help='Input the disable userid(1-12)')
+    args = argget.parse_args()
+    parameter_info = utils.parse_parameter(args)
+    return parameter_info
 
+
+if __name__ == '__main__':
+    # Get parameters from config.ini and/or command line
+    parameter_info = add_parameter()
+
+    # Get connection info from the parameters user specified
+    ip = parameter_info['ip']
+    login_account = parameter_info["user"]
+    login_password = parameter_info["passwd"]
+
+    # Get set info from the parameters user specified
+    try:
+        userid = parameter_info['userid']
+    except:
+        sys.stderr.write("Please run the coommand 'python %s -h' to view the help info" % sys.argv[0])
+        sys.exit(1)
+
+    # Get disable user result and check result
     result = disable_user(ip, login_account, login_password, userid)
     if result['ret'] is True:
         del result['ret']

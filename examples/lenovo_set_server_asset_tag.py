@@ -26,7 +26,20 @@ import json
 import lenovo_utils as utils
 
 
-def set_server_asset_tag(ip, login_account, login_password, system_id):
+def set_server_asset_tag(ip, login_account, login_password, system_id, asset_tag):
+    """Set server asswt tag    
+    :params ip: BMC IP address
+    :type ip: string
+    :params login_account: BMC user name
+    :type login_account: string
+    :params login_password: BMC user password
+    :type login_password: string
+    :params system_id: ComputerSystem instance id(None: first instance, All: all instances)
+    :type system_id: None or string
+    :params asset_tag: asset tag by user specified
+    :type asset_tag: string
+    :returns: returns set asset tag result when succeeded or error message when failed
+    """
     result = {}
     try:
         # Connect using the BMC address, account name, and password
@@ -39,7 +52,6 @@ def set_server_asset_tag(ip, login_account, login_password, system_id):
     except:
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result
-
     # GET the ComputerSystem resource
     system = utils.get_system_url("/redfish/v1",system_id, REDFISH_OBJ)
     if not system:
@@ -48,7 +60,6 @@ def set_server_asset_tag(ip, login_account, login_password, system_id):
         return result
     for i in range(len(system)):
         system_url = system[i]
-        asset_tag = "assettaghere"
         parameter = {"AssetTag": asset_tag}
         response_asset_tag = REDFISH_OBJ.patch(system_url, body=parameter)
         if response_asset_tag.status == 200:
@@ -56,24 +67,40 @@ def set_server_asset_tag(ip, login_account, login_password, system_id):
                       'msg': "PATCH command successfully completed \"%s\" request for set server asset tag" % asset_tag}
         else:
             result = {'ret': False, 'msg': "Error code %s" % response_asset_tag.status}
-
+    # Logout of the current session       
     REDFISH_OBJ.logout()
     return result
 
 
+import argparse
+def add_parameter():
+    """Add set server asset tag parameter"""
+    argget = utils.create_common_parameter_list()
+    argget.add_argument('--assettag', type=str, help='Input the assettag info(Maximum string length of AssetTag is 32)')
+    args = argget.parse_args()
+    parameter_info = utils.parse_parameter(args)
+    return parameter_info
+
+
 if __name__ == '__main__':
-    # ip = '10.10.10.10'
-    # login_account = 'USERID'
-    # login_password = 'PASSW0RD'
+    # Get parameters from config.ini and/or command line
+    parameter_info = add_parameter()
+
+    # Get connection info from the parameters user specified
+    ip = parameter_info['ip']
+    login_account = parameter_info["user"]
+    login_password = parameter_info["passwd"]
+    system_id = parameter_info['sysid']
     
-    ip = sys.argv[1]
-    login_account = sys.argv[2]
-    login_password = sys.argv[3]
+    # Get set info from the parameters user specified
     try:
-        system_id = sys.argv[4]
-    except IndexError:
-        system_id = None
-    result = set_server_asset_tag(ip, login_account, login_password, system_id)
+        asset_tag = parameter_info['asset_tag']
+    except:
+        sys.stderr.write("Please run the command 'python %s -h' to view the help info" % sys.argv[0])
+        sys.exit(1)
+
+    # Set server asset tag result and check result
+    result = set_server_asset_tag(ip, login_account, login_password, system_id, asset_tag)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))

@@ -22,13 +22,22 @@
 
 import sys
 import json
-import logging
 import redfish
-from redfish import redfish_logger
 import lenovo_utils as utils
 
 
-def get_network_info(ip, login_account, login_password):
+def get_network_info(ip, login_account, login_password, system_id):
+    """Get nic inventory    
+    :params ip: BMC IP address
+    :type ip: string
+    :params login_account: BMC user name
+    :type login_account: string
+    :params login_password: BMC user password
+    :type login_password: string
+    :params system_id: ComputerSystem instance id(None: first instance, All: all instances)
+    :type system_id: None or string
+    :returns: returns nic inventory when succeeded or error message when failed
+    """
     result = {}
     login_host = "https://" + ip
     try:
@@ -63,7 +72,26 @@ def get_network_info(ip, login_account, login_password):
         response_chassis_url = REDFISH_OBJ.get(chassis_url, None)
         if response_chassis_url.status == 200:
             # GET the NetworkAdapters resource from the Chassis resource
-            nic_adapter_url = response_chassis_url.dict["NetworkAdapters"]["@odata.id"]
+            if "NetworkAdapters" in response_chassis_url.dict:
+                nic_adapter_url = response_chassis_url.dict["NetworkAdapters"]["@odata.id"]
+            else:
+                # GET the ComputerSystem resource
+                system = utils.get_system_url("/redfish/v1", system_id, REDFISH_OBJ)
+                if not system:
+                    result = {'ret': False, 'msg': "This system id is not exist or system member is None"}
+                    REDFISH_OBJ.logout()
+                    return result
+                for i in range(len(system)):
+                    system_url = system[i]
+                    response_system_url = REDFISH_OBJ.get(system_url, None)
+                    if response_system_url.status == 200:
+                        # Get the EthernetInterfaces url
+                         nic_adapter_url = response_system_url.dict['EthernetInterfaces']['@odata.id']
+                    else:
+                        result = {'ret': False, 'msg': "response_system_url Error code %s" % response_system_url.status}
+                        REDFISH_OBJ.logout()
+                        return result
+
             response_nic_adapter_url = REDFISH_OBJ.get(nic_adapter_url, None)
             if response_nic_adapter_url.status == 200:
                 nic_adapter_count = response_nic_adapter_url.dict["Members@odata.count"]
@@ -81,7 +109,26 @@ def get_network_info(ip, login_account, login_password):
                 if response_nic_adapter_x_url.status == 200:
                     Network_Adapter_id = response_nic_adapter_x_url.dict["Id"]
                     Name = response_nic_adapter_x_url.dict["Name"]
-                    Firmware_Version = response_nic_adapter_x_url.dict["Controllers"][0]["FirmwarePackageVersion"]
+                    if "Controllers" in response_nic_adapter_x_url.dict:
+                        Firmware_Version = response_nic_adapter_x_url.dict["Controllers"][0]["FirmwarePackageVersion"]
+                    else:
+                        # Get the other nic info
+                        MACAddress = response_nic_adapter_x_url.dict["MACAddress"]
+                        MTUSize = response_nic_adapter_x_url.dict["MTUSize"]
+                        FQDN = response_nic_adapter_x_url.dict["FQDN"]
+                        MTUSize = response_nic_adapter_x_url.dict["MTUSize"]
+                        AutoNeg = response_nic_adapter_x_url.dict["AutoNeg"]
+                        Adapter_Health = response_nic_adapter_x_url.dict["Status"]["Health"]
+                        network['Network_Adapter_id'] = Network_Adapter_id
+                        network['Name'] = Name
+                        network['MACAddress'] = MACAddress
+                        network['MTUSize'] = MTUSize
+                        network['FQDN'] = FQDN
+                        network['MTUSize'] = MTUSize
+                        network['AutoNeg'] = AutoNeg
+                        network['Adapter_Health'] = Adapter_Health
+                        nic_details.append(network)
+                        continue
                     Adapter_Health = response_nic_adapter_x_url.dict["Status"]["Health"]
                     network['Network_Adapter_id'] = Network_Adapter_id
                     network['Name'] = Name
@@ -166,14 +213,19 @@ def get_network_info(ip, login_account, login_password):
 
 
 if __name__ == '__main__':
-    # ip = '10.10.10.10'
-    # login_account = 'USERID'
-    # login_password = 'PASSW0RD'
-    ip = sys.argv[1]
-    login_account = sys.argv[2]
-    login_password = sys.argv[3]
-    result = get_network_info(ip, login_account, login_password)
-
+    # Get parameters from config.ini and/or command line
+    argget = utils.create_common_parameter_list()
+    args = argget.parse_args()
+    parameter_info = utils.parse_parameter(args)
+    
+    # Get connection info from the parameters user specified
+    ip = parameter_info['ip']
+    login_account = parameter_info["user"]
+    login_password = parameter_info["passwd"]
+    system_id = parameter_info['sysid']
+    
+    # Get nic inventory and check result
+    result = get_network_info(ip, login_account, login_password, system_id)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['entries'], sort_keys=True, indent=2))

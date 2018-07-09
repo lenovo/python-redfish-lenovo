@@ -27,7 +27,22 @@ import redfish
 import lenovo_utils as utils
 
 
-def set_bios_attribute(ip, login_account, login_password,system_id,attribute_name, attribute_value):
+def set_bios_attribute(ip,login_account,login_password,system_id,attribute_name,attribute_value):
+    """Set Bios attribute    
+    :params ip: BMC IP address
+    :type ip: string
+    :params login_account: BMC user name
+    :type login_account: string
+    :params login_password: BMC user password
+    :type login_password: string
+    :params system_id: ComputerSystem instance id(None: first instance, All: all instances)
+    :type system_id: None or string
+    :params attribute_name: Bios attribute name by user specified
+    :type attribute_name: string
+    :params attribute_value: Bios attribute value by user specified
+    :type attribute_value: string
+    :returns: returns set bios attribute result when succeeded or error message when failed
+    """
     result = {}
     login_host = "https://" + ip
     try:
@@ -56,7 +71,7 @@ def set_bios_attribute(ip, login_account, login_password,system_id,attribute_nam
             result = {'ret': False, 'msg': "response system url Error code %s" % response_system_url.status}
             REDFISH_OBJ.logout()
             return result
-
+        # Get bios url resource
         response_bios_url = REDFISH_OBJ.get(bios_url, None)
         if response_bios_url.status == 200:
             pending_url = response_bios_url.dict['@Redfish.Settings']['SettingsObject']['@odata.id']
@@ -64,7 +79,6 @@ def set_bios_attribute(ip, login_account, login_password,system_id,attribute_nam
             result = {'ret': False, 'msg': "response bios url Error code %s" % response_bios_url.status}
             REDFISH_OBJ.logout()
             return result
-        # parameter = {"DevicesandIOPorts_Device_Slot6": "Disabled"}
         parameter = {attribute_name: attribute_value}
         attribute = {"Attributes": parameter}
         response_pending_url = REDFISH_OBJ.patch(pending_url, body=attribute)
@@ -75,33 +89,43 @@ def set_bios_attribute(ip, login_account, login_password,system_id,attribute_nam
         elif response_pending_url.status == 405:
             result = {'ret': False, 'msg': "Resource not supported"}
         else:
-            result = {'ret': False, 'msg': "Error code %s" % str(response_pending_url.status)}
-
+            result = {'ret': False, 'msg': "response pending url Error code %s" % response_pending_url.status}
+    # Logout of the current session
     REDFISH_OBJ.logout()
     return result
 
 
-if __name__ == '__main__':
-    # ip = '10.10.10.10'
-    # login_account = 'USERID'
-    # login_password = 'PASSW0RD'
-    ip = sys.argv[1]
-    login_account = sys.argv[2]
-    login_password = sys.argv[3]
-    try:
-        system_id = sys.argv[4]
-        # attribute_name: DevicesandIOPorts_Device_Slot6
-        attribute_name = sys.argv[5]
-        # attribute_value: Disabled
-        attribute_value = sys.argv[6]
-    except IndexError:
-        system_id = None
-        # attribute_name: DevicesandIOPorts_Device_Slot6
-        attribute_name = sys.argv[4]
-        # attribute_value: Disabled
-        attribute_value = sys.argv[5]
-    result = set_bios_attribute(ip, login_account, login_password, system_id, attribute_name, attribute_value)
+import argparse
+def add_parameter():
+    """Add set bios attribute parameter"""
+    argget = utils.create_common_parameter_list()
+    argget.add_argument('--name', type=str, help='Input the attribute name(This is the manufacturer/provider specific list of BIOS attributes.)')
+    argget.add_argument('--value', type=str, help='Input the attribute value(This is the manufacturer/provider specific list of BIOS attributes.)')
+    args = argget.parse_args()
+    parameter_info = utils.parse_parameter(args)
+    return parameter_info
 
+
+if __name__ == '__main__':
+    # Get parameters from config.ini and/or command line
+    parameter_info = add_parameter()
+
+    # Get connection info from the parameters user specified
+    ip = parameter_info['ip']
+    login_account = parameter_info["user"]
+    login_password = parameter_info["passwd"]
+    system_id = parameter_info['sysid']
+
+    # Get set info from the parameters user specified
+    try:
+        attribute_name = parameter_info['attribute_name']
+        attribute_value = parameter_info['attribute_value']
+    except:
+        sys.stderr.write("Please run the command 'python %s -h' to view the help info" % sys.argv[0])
+        sys.exit(1)
+
+    # Set bios sttribute result and check result
+    result = set_bios_attribute(ip, login_account, login_password, system_id, attribute_name, attribute_value)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))

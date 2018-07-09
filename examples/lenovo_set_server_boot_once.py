@@ -22,13 +22,24 @@
 
 import sys
 import json
-import logging
 import redfish
-from redfish import redfish_logger
 import lenovo_utils as utils
 
 
-def set_server_boot_once(ip, login_account, login_password,system_id, boot_source):
+def set_server_boot_once(ip, login_account, login_password, system_id, boot_source):
+    """Set server boot once    
+    :params ip: BMC IP address
+    :type ip: string
+    :params login_account: BMC user name
+    :type login_account: string
+    :params login_password: BMC user password
+    :type login_password: string
+    :params system_id: ComputerSystem instance id(None: first instance, All: all instances)
+    :type system_id: None or string
+    :params boot_source: Boot source type by user specified
+    :type boot_source: string
+    :returns: returns set server boot once result when succeeded or error message when failed
+    """
     result = {}
     login_host = "https://" + ip
     try:
@@ -65,23 +76,35 @@ def set_server_boot_once(ip, login_account, login_password,system_id, boot_sourc
     return result
 
 
-if __name__ == '__main__':
-    # ip = '10.10.10.10'
-    # login_account = 'USERID'
-    # login_password = 'PASSW0RD'
-    ip = sys.argv[1]
-    login_account = sys.argv[2]
-    login_password = sys.argv[3]
-    try:
-        system_id = sys.argv[4]
-        # example: "None", "Pxe", "Cd", "Usb","Hdd","BiosSetup","Diags","UefiTarget"
-        boot_source = sys.argv[5]
-    except IndexError:
-        system_id = None
-        # example: "None", "Pxe", "Cd", "Usb","Hdd","BiosSetup","Diags","UefiTarget"
-        boot_source = sys.argv[4]
-    result = set_server_boot_once(ip, login_account, login_password,system_id, boot_source)
+import argparse
+def add_parameter():
+    """Add set server boot source parameter"""
+    argget = utils.create_common_parameter_list()
+    argget.add_argument('--bootsource', type=str, help='Input the set server boot("None", "Pxe", "Cd", "Usb","Hdd","BiosSetup","Diags","UefiTarget")')
+    args = argget.parse_args()
+    parameter_info = utils.parse_parameter(args)
+    return parameter_info
 
+
+if __name__ == '__main__':
+    # Get parameters from config.ini and/or command line
+    parameter_info = add_parameter()
+
+    # Get connection info from the parameters user specified
+    ip = parameter_info['ip']
+    login_account = parameter_info["user"]
+    login_password = parameter_info["passwd"]
+    system_id = parameter_info['sysid']
+
+    # Get set info from the parameters user specified
+    try:
+        boot_source = parameter_info['boot_source']
+    except:
+        sys.stderr.write("Please run the command 'python %s -h' to view the help info" % sys.argv[0])
+        sys.exit(1)
+
+    # Set server boot once result and check result
+    result = set_server_boot_once(ip, login_account, login_password, system_id, boot_source)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['entries'], sort_keys=True, indent=2))

@@ -24,10 +24,19 @@ import sys
 import logging
 import json
 import redfish
-from redfish import redfish_logger
+import lenovo_utils as utils
 
 
 def get_bmc_user_accounts(ip, login_account, login_password):
+    """Get BMC user accounts    
+    :params ip: BMC IP address
+    :type ip: string
+    :params login_account: BMC user name
+    :type login_account: string
+    :params login_password: BMC user password
+    :type login_password: string
+    :returns: returns BMC user accounts when succeeded or error message when failed
+    """
     result = {}
     login_host = "https://" + ip
     try:
@@ -75,18 +84,31 @@ def get_bmc_user_accounts(ip, login_account, login_password):
             if response_account_x_url.dict["UserName"]:
                 Name = response_account_x_url.dict["Name"]
                 UserName = response_account_x_url.dict["UserName"]
-                Enabled = response_account_x_url.dict["Enabled"]
-                Locked = response_account_x_url.dict["Locked"]
+                if 'Enabled' in response_account_x_url.dict:
+                    Enabled = response_account_x_url.dict["Enabled"]
+                else:
+                    Enabled = ''
+                if 'Locked' in response_account_x_url.dict:
+                    Locked = response_account_x_url.dict["Locked"]
+                else:
+                    Locked = ''
                 bmc_user['Name'] = Name
                 bmc_user['UserName'] = UserName
                 bmc_user['Enabled'] = Enabled
                 bmc_user['Locked'] = Locked
                 # Get account privileges
-                accounts_role_url = response_account_x_url.dict["Links"]["Role"]["@odata.id"]
+                if "Links" in response_account_x_url.dict:
+                    accounts_role_url = response_account_x_url.dict["Links"]["Role"]["@odata.id"]
+                else:
+                    user_details.append(bmc_user)
+                    continue
                 response_accounts_role_url = REDFISH_OBJ.get(accounts_role_url, None)
                 if response_accounts_role_url.status == 200:
                     AssignedPrivileges = response_accounts_role_url.dict["AssignedPrivileges"]
-                    OemPrivileges = response_accounts_role_url.dict["OemPrivileges"]
+                    if "OemPrivileges" in response_accounts_role_url.dict:
+                        OemPrivileges = response_accounts_role_url.dict["OemPrivileges"]
+                    else:
+                        OemPrivileges = []
                     bmc_user['AssignedPrivileges'] = AssignedPrivileges
                     bmc_user['OemPrivileges'] = OemPrivileges
                     user_details.append(bmc_user)
@@ -108,12 +130,17 @@ def get_bmc_user_accounts(ip, login_account, login_password):
 
 
 if __name__ == '__main__':
-    # ip = '10.10.10.10'
-    # login_account = 'USERID'
-    # login_password = 'PASSW0RD'
-    ip = sys.argv[1]
-    login_account = sys.argv[2]
-    login_password = sys.argv[3]
+    # Get parameters from config.ini and/or command line
+    argget = utils.create_common_parameter_list()
+    args = argget.parse_args()
+    parameter_info = utils.parse_parameter(args)
+    
+    # Get connection info from the parameters user specified
+    ip = parameter_info['ip']
+    login_account = parameter_info["user"]
+    login_password = parameter_info["passwd"]
+    
+    # Get BMC inventory and check result
     result = get_bmc_user_accounts(ip, login_account, login_password)
 
     if result['ret'] is True:

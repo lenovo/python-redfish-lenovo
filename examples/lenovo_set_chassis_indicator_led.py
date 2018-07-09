@@ -22,19 +22,29 @@
 import redfish
 import sys
 import json
+import lenovo_utils as utils
 
 
 def set_chassis_indicator_led(ip, login_account, login_password, led_status):
+    """Get BMC inventory    
+    :params ip: BMC IP address
+    :type ip: string
+    :params login_account: BMC user name
+    :type login_account: string
+    :params login_password: BMC user password
+    :type login_password: string
+    :params led_status: Led status by user specified
+    :type led_status: string
+    :returns: returns set chassis indicator led result when succeeded or error message when failed
+    """
     result = {}
     login_host = "https://" + ip
-    
-    # Connect using the BMC address, account name, and password
-    # Create a REDFISH object
-    REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
-                                         password=login_password, default_prefix='/redfish/v1')
-
-    # Login into the server and create a session
     try:
+        # Connect using the BMC address, account name, and password
+        # Create a REDFISH object
+        REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
+                                         password=login_password, default_prefix='/redfish/v1')
+        # Login into the server and create a session
         REDFISH_OBJ.login(auth="session")
     except:
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
@@ -49,7 +59,7 @@ def set_chassis_indicator_led(ip, login_account, login_password, led_status):
         result = {'ret': False, 'msg': "response base url Error code %s" % response_base_url.status}
         REDFISH_OBJ.logout()
         return result
-
+    # Get response chassis url resource
     response_chassis_url = REDFISH_OBJ.get(chassis_url, None)
     if response_chassis_url.status == 200:
         for i in range(response_chassis_url.dict['Members@odata.count']):
@@ -72,17 +82,33 @@ def set_chassis_indicator_led(ip, login_account, login_password, led_status):
     return result
 
 
+import argparse
+def add_parameter():
+    """Add set chassis indicator led parameter"""
+    argget = utils.create_common_parameter_list()
+    argget.add_argument('--ledstatus', type=str, help='Input the status of the LED light(Off, Lit, Blinking)')
+    args = argget.parse_args()
+    parameter_info = utils.parse_parameter(args)
+    return parameter_info
+
+
 if __name__ == '__main__':
-    # ip = '10.10.10.10'
-    # login_account = 'USERID'
-    # login_password = 'PASSW0RD'
-    
-    ip = sys.argv[1]
-    login_account = sys.argv[2]
-    login_password = sys.argv[3]
-    # Input the status of the LED light(Off, Lit, Blinking)
-    led_status = sys.argv[4]
-    
+     # Get parameters from config.ini and/or command line
+    parameter_info = add_parameter()
+
+    # Get connection info from the parameters user specified
+    ip = parameter_info['ip']
+    login_account = parameter_info["user"]
+    login_password = parameter_info["passwd"]
+
+    # Get set info from the parameters user specified
+    try:
+        led_status = parameter_info['ledstatus']
+    except:
+        sys.stderr.write("Please run the command 'python %s -h' to view the help info" % sys.argv[0])
+        sys.exit(1)
+
+    # Set chassis indicator led result and check result
     result = set_chassis_indicator_led(ip, login_account, login_password, led_status)
     if result['ret'] is True:
         del result['ret']

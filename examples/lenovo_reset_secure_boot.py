@@ -27,6 +27,19 @@ import lenovo_utils as utils
 
 
 def reset_secure_boot(ip, login_account, login_password, system_id, reset_keys_type):
+    """reset secure boot    
+    :params ip: BMC IP address
+    :type ip: string
+    :params login_account: BMC user name
+    :type login_account: string
+    :params login_password: BMC user password
+    :type login_password: string
+    :params system_id: ComputerSystem instance id(None: first instance, All: all instances)
+    :type system_id: None or string
+    :params reset_keys_type: secure boot types
+    :type reset_keys_type: string
+    :returns: returns set bios attribute result when succeeded or error message when failed
+    """
     result = {}
     login_host = "https://" + ip
     try:
@@ -59,6 +72,7 @@ def reset_secure_boot(ip, login_account, login_password, system_id, reset_keys_t
 
         response_secure_boot_url = REDFISH_OBJ.get(secure_boot_url, None)
         if response_secure_boot_url.status == 200:
+            # Get the reset secure boot url
             reset_action_url = response_secure_boot_url.dict["Actions"]["#SecureBoot.ResetKeys"]["target"]
             body = {"ResetKeysType": reset_keys_type}
             response_reset_url = REDFISH_OBJ.post(reset_action_url, body=body)
@@ -75,23 +89,35 @@ def reset_secure_boot(ip, login_account, login_password, system_id, reset_keys_t
     return result
 
 
-if __name__ == '__main__':
-    # ip = '10.10.10.10'
-    # login_account = 'USERID'
-    # login_password = 'PASSW0RD'
-    ip = sys.argv[1]
-    login_account = sys.argv[2]
-    login_password = sys.argv[3]
-    try:
-        system_id = sys.argv[4]
-        # "DeleteAllKeys" or "DeletePK" or "ResetAllKeysToDefault"
-        reset_keys_type = sys.argv[5]
-    except IndexError:
-        system_id = None
-        # "DeleteAllKeys" or "DeletePK" or "ResetAllKeysToDefault"
-        reset_keys_type = sys.argv[4]
-    result = reset_secure_boot(ip, login_account, login_password, system_id, reset_keys_type)
+import argparse
+def add_parameter():
+    """Add reset secure boot parameter"""
+    argget = utils.create_common_parameter_list()
+    argget.add_argument('--resettype', type=str, help='Input the reset secure boot type("DeleteAllKeys" or "DeletePK" or "ResetAllKeysToDefault")')
+    args = argget.parse_args()
+    parameter_info = utils.parse_parameter(args)
+    return parameter_info
 
+
+if __name__ == '__main__':
+    # Get parameters from config.ini and/or command line
+    parameter_info = add_parameter()
+
+    # Get connection info from the parameters user specified
+    ip = parameter_info['ip']
+    login_account = parameter_info["user"]
+    login_password = parameter_info["passwd"]
+    system_id = parameter_info['sysid']
+
+    # Get set info from the parameters user specified
+    try:
+        reset_keys_type = parameter_info['reset_keys_type']
+    except:
+        sys.stderr.write("Please run the coommand 'python %s -h' to view the help info" % sys.argv[0])
+        sys.exit(1)
+
+    # Get reset secure boot result and check result
+    result = reset_secure_boot(ip, login_account, login_password, system_id, reset_keys_type)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))

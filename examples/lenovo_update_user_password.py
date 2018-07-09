@@ -23,18 +23,32 @@
 import sys
 import redfish
 import json
-
+import lenovo_utils as utils
 
 def update_user_password(ip, login_account, login_password, userid, password):
+    """update user password    
+    :params ip: BMC IP address
+    :type ip: string
+    :params login_account: BMC user name
+    :type login_account: string
+    :params login_password: BMC user password
+    :type login_password: string
+    :params system_id: ComputerSystem instance id(None: first instance, All: all instances)
+    :type system_id: None or string
+    :params userid: UserID to be modified by the user
+    :type userid: string
+    :params password: New password to be modified by the user
+    :type password: string
+    :returns: returns update user password result when succeeded or error message when failed
+    """
     result = {}
-    # Connect using the BMC address, account name, and password
-    # Create a REDFISH object
-    login_host = "https://" + ip
-    REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
-                                         password=login_password, default_prefix='/redfish/v1')
-
-    # Login into the server and create a session
     try:
+        # Connect using the BMC address, account name, and password
+        # Create a REDFISH object
+        login_host = "https://" + ip
+        REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
+                                             password=login_password, default_prefix='/redfish/v1')
+        # Login into the server and create a session
         REDFISH_OBJ.login(auth="session")
     except:
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
@@ -53,9 +67,15 @@ def update_user_password(ip, login_account, login_password, userid, password):
     if response_account_service_url.status == 200:
         accounts_url = response_account_service_url.dict['Accounts']['@odata.id']
         userid = userid
-        accounts_url += str(userid)
+        if accounts_url[-1] == '/':
+            accounts_url += str(userid)
+        else:
+            accounts_url = accounts_url + '/' + str(userid)
         response_account_url = REDFISH_OBJ.get(accounts_url, None)
-        etag = response_account_url.dict['@odata.etag']
+        if "@odata.etag" in response_account_url.dict:
+            etag = response_account_url.dict['@odata.etag']
+        else:
+            etag = ""
         headers = {"If-Match": etag}
         parameter = {"Password": password}
         response_accounts_url = REDFISH_OBJ.patch(accounts_url, body=parameter, headers=headers)
@@ -72,21 +92,35 @@ def update_user_password(ip, login_account, login_password, userid, password):
     return result
 
 
-if __name__ == '__main__':
-    # ip = '10.10.10.10'
-    # login_account = 'USERID'
-    # login_password = 'PASSW0RD'
-    
-    ip = sys.argv[1]
-    login_account = sys.argv[2]
-    login_password = sys.argv[3]
-    # Input the user ID you want to modify.
-    # 1-12
-    userid = sys.argv[4]
-    # modify password
-    password = sys.argv[5]
+import argparse
+def add_parameter():
+    """Add update user password parameter"""
+    argget = utils.create_common_parameter_list()
+    argget.add_argument('--userid', type=str, help='Input the update user userid')
+    argget.add_argument('--newpasswd', type=str, help='Input the user new passwd')
+    args = argget.parse_args()
+    parameter_info = utils.parse_parameter(args)
+    return parameter_info
 
-    
+
+if __name__ == '__main__':
+    # Get parameters from config.ini and/or command line
+    parameter_info = add_parameter()
+
+    # Get connection info from the parameters user specified
+    ip = parameter_info['ip']
+    login_account = parameter_info["user"]
+    login_password = parameter_info["passwd"]
+
+    # Get set info from the parameters user specified
+    try:
+        userid = parameter_info['userid']
+        password = parameter_info['new_passwd']
+    except:
+        sys.stderr.write("Please run the command 'python %s -h' to view the help info" % sys.argv[0])
+        sys.exit(1)
+
+    # Update user password result and check result   
     result = update_user_password(ip, login_account, login_password, userid, password)
     if result['ret'] is True:
         del result['ret']

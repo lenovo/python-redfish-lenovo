@@ -28,6 +28,17 @@ import lenovo_utils as utils
 
 
 def get_cpu_info(ip, login_account, login_password, system_id):
+    """Get cpu inventory    
+    :params ip: BMC IP address
+    :type ip: string
+    :params login_account: BMC user name
+    :type login_account: string
+    :params login_password: BMC user password
+    :type login_password: string
+    :params system_id: ComputerSystem instance id(None: first instance, All: all instances)
+    :type system_id: None or string
+    :returns: returns cpu inventory when succeeded or error message when failed
+    """
     result = {}
     login_host = "https://" + ip
     try:
@@ -61,7 +72,7 @@ def get_cpu_info(ip, login_account, login_password, system_id):
         response_processors_url = REDFISH_OBJ.get(processors_url, None)
 
         if response_processors_url.status == 200:
-            # Get Members_url
+            # Get Members url
             members_count = response_processors_url.dict['Members@odata.count']
         else:
             result = {'ret': False, 'msg': "response_processors_url Error code %s" % response_processors_url.status}
@@ -70,6 +81,7 @@ def get_cpu_info(ip, login_account, login_password, system_id):
 
         for i in range(members_count):
             cpu = {}
+            # Get members url resource
             members_url = response_processors_url.dict['Members'][i]['@odata.id']
             response_members_url = REDFISH_OBJ.get(members_url, None)
             if response_members_url.status == 200:
@@ -77,12 +89,14 @@ def get_cpu_info(ip, login_account, login_password, system_id):
                 odata_id = response_members_url.dict["@odata.id"]
                 total_threads = response_members_url.dict["TotalThreads"]
                 instructionsset = response_members_url.dict['InstructionSet']
-                description = response_members_url.dict['Description']
-                status_state = response_members_url.dict['Status']['State']
+                if "State" in response_members_url.dict:
+                    status_state = response_members_url.dict['Status']['State']
+                else:
+                    status_state = ""
                 if "Health" in response_members_url.dict:
                     status_Health = response_members_url.dict['Status']['Health']
                 else:
-                    status_Health = "None"
+                    status_Health = ""
                 processor_type = response_members_url.dict['ProcessorType']
                 total_cores = response_members_url.dict['TotalCores']
                 odata_type = response_members_url.dict['@odata.type']
@@ -115,18 +129,19 @@ def get_cpu_info(ip, login_account, login_password, system_id):
 
 
 if __name__ == '__main__':
-    # ip = '10.10.10.10'
-    # login_account = 'USERID'
-    # login_password = 'PASSW0RD'
-    ip = sys.argv[1]
-    login_account = sys.argv[2]
-    login_password = sys.argv[3]
-    try:
-        system_id = sys.argv[4]
-    except IndexError:
-        system_id = None
+    # Get parameters from config.ini and/or command line
+    argget = utils.create_common_parameter_list()
+    args = argget.parse_args()
+    parameter_info = utils.parse_parameter(args)
+    
+    # Get connection info from the parameters user specified
+    ip = parameter_info['ip']
+    login_account = parameter_info["user"]
+    login_password = parameter_info["passwd"]
+    system_id = parameter_info['sysid']
+    
+    # Get cpu inventory and check result
     result = get_cpu_info(ip, login_account, login_password, system_id)
-
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['entries'], sort_keys=True, indent=2))

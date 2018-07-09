@@ -23,9 +23,23 @@
 import sys
 import redfish
 import json
+import lenovo_utils as utils
 
 
-def set_manager_ntp(ip, login_account, login_password,  ntp_server, ProtocolEnabled):
+def set_manager_ntp(ip, login_account, login_password, ntp_server, ProtocolEnabled):
+    """Set Bios attribute    
+    :params ip: BMC IP address
+    :type ip: string
+    :params login_account: BMC user name
+    :type login_account: string
+    :params login_password: BMC user password
+    :type login_password: string
+    :params ntp_server: ntp_server by user specified
+    :type ntp_server: list
+    :params ProtocolEnabled: ProtocolEnabled by user specified
+    :type ProtocolEnabled: string
+    :returns: returns set manager ntp result when succeeded or error message when failed
+    """
     result = {}
     login_host = "https://" + ip
 
@@ -79,19 +93,34 @@ def set_manager_ntp(ip, login_account, login_password,  ntp_server, ProtocolEnab
     return result
 
 
-if __name__ == '__main__':
-    # ip = '10.10.10.10'
-    # login_account = 'USERID'
-    # login_password = 'PASSW0RD'
-    ip = sys.argv[1]
-    login_account = sys.argv[2]
-    login_password = sys.argv[3]
-    # ["64.113.44.54","","",""]
-    ntp_server = sys.argv[4]
-    # "ProtocolEnabled": True
-    # 0:false, 1:true
-    ProtocolEnabled = sys.argv[5]
+import argparse
+def add_parameter():
+    """Add set manager ntp parameter"""
+    argget = utils.create_common_parameter_list()
+    argget.add_argument('--ntpserver', type=str, help='Input the ntp server(array  Items: string,Item count: 4)')
+    argget.add_argument('--protocol', type=str, help='Input the rotocolEnabled (0:false, 1:true)')
+    args = argget.parse_args()
+    parameter_info = utils.parse_parameter(args)
+    return parameter_info
 
+if __name__ == '__main__':
+    # Get parameters from config.ini and/or command line
+    parameter_info = add_parameter()
+
+    # Get connection info from the parameters user specified
+    ip = parameter_info['ip']
+    login_account = parameter_info["user"]
+    login_password = parameter_info["passwd"]
+
+    # Get set info from the parameters user specified
+    try:
+        ntp_server = parameter_info['ntp_server']
+        ProtocolEnabled = parameter_info['ProtocolEnabled']
+    except:
+        sys.stderr.write("Please run the command 'python %s -h' to view the help info" % sys.argv[0])
+        sys.exit(1)
+
+    # Set manager ntp result and check result
     result = set_manager_ntp(ip, login_account, login_password, ntp_server, ProtocolEnabled)
     if result['ret'] is True:
         del result['ret']

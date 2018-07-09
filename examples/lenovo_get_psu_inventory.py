@@ -27,6 +27,17 @@ import lenovo_utils as utils
 
 
 def get_psu_info(ip, login_account, login_password, system_id):
+    """Get power supply unit inventory 
+    :params ip: BMC IP address
+    :type ip: string
+    :params login_account: BMC user name
+    :type login_account: string
+    :params login_password: BMC user password
+    :type login_password: string
+    :params system_id: ComputerSystem instance id(None: first instance, All: all instances)
+    :type system_id: None or string
+    :returns: returns power supply unit inventory when succeeded or error message when failed
+    """
     result = {}
     psu_details = []
     login_host = 'https://' + ip
@@ -110,17 +121,18 @@ def get_psu_info(ip, login_account, login_password, system_id):
 
 
 if __name__ == '__main__':
-    # ip = '10.10.10.10'
-    # login_account = 'USERID'
-    # login_password = 'PASSW0RD'
+    # Get parameters from config.ini and/or command line
+    argget = utils.create_common_parameter_list()
+    args = argget.parse_args()
+    parameter_info = utils.parse_parameter(args)
     
-    ip = sys.argv[1]
-    login_account = sys.argv[2]
-    login_password = sys.argv[3]
-    try:
-        system_id = sys.argv[4]
-    except IndexError:
-        system_id = None
+    # Get connection info from the parameters user specified
+    ip = parameter_info['ip']
+    login_account = parameter_info["user"]
+    login_password = parameter_info["passwd"]
+    system_id = parameter_info['sysid']
+    
+    # Get power supply unit inventory and check result
     result = get_psu_info(ip, login_account, login_password, system_id)
     if result['ret'] is True:
         del result['ret']

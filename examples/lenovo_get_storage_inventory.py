@@ -27,6 +27,17 @@ import lenovo_utils as utils
 
 
 def get_storage_info(ip, login_account, login_passwprd, system_id):
+    """Get storage inventory    
+    :params ip: BMC IP address
+    :type ip: string
+    :params login_account: BMC user name
+    :type login_account: string
+    :params login_password: BMC user password
+    :type login_password: string
+    :params system_id: ComputerSystem instance id(None: first instance, All: all instances)
+    :type system_id: None or string
+    :returns: returns storage inventory when succeeded or error message when failed
+    """
     result = {}
     login_host = "https://" + ip
     try:
@@ -51,7 +62,10 @@ def get_storage_info(ip, login_account, login_passwprd, system_id):
         response_system_url = REDFISH_OBJ.get(system_url, None)
         if response_system_url.status == 200:
             # GET the Storage resources from the ComputerSystem resource
-            storage_url = response_system_url.dict["Storage"]["@odata.id"]
+            if "Storage" in response_system_url.dict:
+                storage_url = response_system_url.dict["Storage"]["@odata.id"]
+            else:
+                storage_url = response_system_url.dict["SimpleStorage"]["@odata.id"]
             response_storage_url = REDFISH_OBJ.get(storage_url, None)
             if response_storage_url.status == 200:
                 storage_count = response_storage_url.dict["Members@odata.count"]
@@ -65,6 +79,19 @@ def get_storage_info(ip, login_account, login_passwprd, system_id):
                         Name = response_storage_x_url.dict["Name"]
                         storage['Id'] = Storage_id
                         storage['Name'] = Name
+                        if "Devices" in response_storage_x_url.dict:
+                            Devices_list = response_storage_x_url.dict['Devices']
+                            for storage_info in Devices_list:
+                                Manufacturer = storage_info['Manufacturer']
+                                Model = storage_info['Model']
+                                CapacityBytes = storage_info['CapacityBytes']
+                                Devies_Name = storage_info['Name']
+                                storage['Manufacturer'] = Manufacturer
+                                storage['Model'] = Model
+                                storage['CapacityBytes'] = CapacityBytes
+                                storage['Devies_Name'] = Devies_Name
+                                storage_details.append(storage)
+                            continue
                         controller_count = response_storage_x_url.dict["StorageControllers@odata.count"]
                         controller = 0
                         # GET the StorageControllers instances resources from each of the Storage resources
@@ -78,12 +105,9 @@ def get_storage_info(ip, login_account, login_passwprd, system_id):
                             FirmwareVersion = response_storage_x_url.dict["StorageControllers"][controller][
                                 "FirmwareVersion"]
                             PartNumber = response_storage_x_url.dict["StorageControllers"][controller]["PartNumber"]
-                            DurableNameFormat = \
-                            response_storage_x_url.dict["StorageControllers"][controller]["Identifiers"][0][
+                            DurableNameFormat = response_storage_x_url.dict["StorageControllers"][controller]["Identifiers"][0][
                                 "DurableNameFormat"]
-                            DurableName = \
-                            response_storage_x_url.dict["StorageControllers"][controller]["Identifiers"][0][
-                                "DurableName"]
+                            DurableName = response_storage_x_url.dict["StorageControllers"][controller]["Identifiers"][0]["DurableName"]
                             storage_controller[Manufacturer] = Manufacturer
                             storage_controller["Model"] = Model
                             storage_controller["SerialNumber"] = SerialNumber
@@ -115,16 +139,18 @@ def get_storage_info(ip, login_account, login_passwprd, system_id):
 
 
 if __name__ == '__main__':
-    # ip = '10.10.10.10'
-    # login_account = 'USERID'
-    # login_password = 'PASSW0RD'
-    ip = sys.argv[1]
-    login_account = sys.argv[2]
-    login_password = sys.argv[3]
-    try:
-        system_id = sys.argv[4]
-    except IndexError:
-        system_id = None
+    # Get parameters from config.ini and/or command line
+    argget = utils.create_common_parameter_list()
+    args = argget.parse_args()
+    parameter_info = utils.parse_parameter(args)
+    
+    # Get connection info from the parameters user specified
+    ip = parameter_info['ip']
+    login_account = parameter_info["user"]
+    login_password = parameter_info["passwd"]
+    system_id = parameter_info['sysid']
+    
+    # Get storage inventory and check result
     result = get_storage_info(ip, login_account, login_password, system_id)
     if result['ret'] is True:
         del result['ret']
