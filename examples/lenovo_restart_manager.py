@@ -1,6 +1,6 @@
 ###
 #
-# Lenovo Redfish examples - Get the current System Boot Once target
+# Lenovo Redfish examples - restart manager
 #
 # Copyright Notice:
 #
@@ -21,14 +21,12 @@
 
 
 import sys
-import json
 import redfish
-from redfish import redfish_logger
+import json
 import lenovo_utils as utils
 
-
-def get_server_boot_once(ip, login_account, login_password, system_id):
-    """Get server boot once item    
+def restart_manager(ip, login_account, login_password):
+    """Get restart manager result    
     :params ip: BMC IP address
     :type ip: string
     :params login_account: BMC user name
@@ -37,10 +35,10 @@ def get_server_boot_once(ip, login_account, login_password, system_id):
     :type login_password: string
     :params system_id: ComputerSystem instance id(None: first instance, All: all instances)
     :type system_id: None or string
-    :returns: returns server boot once item when succeeded or error message when failed
+    :returns: returns restart manager result when succeeded or error message when failed
     """
     result = {}
-    login_host = "https://" + ip
+    login_host = "https://"+ip
     try:
         # Connect using the BMC address, account name, and password
         # Create a REDFISH object
@@ -51,30 +49,40 @@ def get_server_boot_once(ip, login_account, login_password, system_id):
     except:
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
         return result
-    # GET the ComputerSystem resource
-    boot_details = []
-    system = utils.get_system_url("/redfish/v1", system_id, REDFISH_OBJ)
-    if not system:
-        result = {'ret': False, 'msg': "This system id is not exist or system member is None"}
+    # GET the managers url
+    base_url = "/redfish/v1"
+    response_base_url = REDFISH_OBJ.get(base_url, None)
+    if response_base_url.status == 200:
+        managers_url = response_base_url.dict['Managers']['@odata.id']
+    else:
+        result = {'ret': False, 'msg': "response_base_url Error code %s" % response_base_url.status}
         REDFISH_OBJ.logout()
         return result
-    for i in range(len(system)):
-        system_url = system[i]
-        response_system_url = REDFISH_OBJ.get(system_url, None)
-        if response_system_url.status == 200:
-            # Get the response
-            boot_server = {}
-            BootSourceOverrideTarget = response_system_url.dict["Boot"]["BootSourceOverrideTarget"]
-            boot_server["BootSourceOverrideTarget"] = BootSourceOverrideTarget
-            boot_details.append(boot_server)
-        else:
-            result = {'ret': False, 'msg': "response_system_url Error code %s" % response_system_url.status}
-            REDFISH_OBJ.logout()
-            return result
+    response_managers_url = REDFISH_OBJ.get(managers_url, None)
+    if response_managers_url.status == 200:
+        count = response_managers_url.dict["Members@odata.count"]
+        for i in range(count):
+            manager_url = response_managers_url.dict['Members'][i]['@odata.id']
+            response_manager_url = REDFISH_OBJ.get(manager_url, None)
+            if response_manager_url.status == 200:
+                restart_manager_url = response_manager_url.dict['Actions']['#Manager.Reset']['target']
+                parameter = {'ResetType': 'GracefulRestart'}
+                response_restart = REDFISH_OBJ.post(restart_manager_url, body=parameter)
+    
+                if response_restart.status in [200, 204]:  
+                    result = {'ret': True, 'msg': "Restart Successful"}       
+                else:
+                    result = {'ret': False, 'msg': "response restart Error code %s" % response_restart.status}
+                    REDFISH_OBJ.logout()
+                    return result
+            else:
+                result = {'ret': False, 'msg': "response manager url Error code %s" % response_manager_url.status}
+                REDFISH_OBJ.logout()
+                return result
+    else:
+        result = {'ret': False, 'msg': "response managers url Error code %s" % response_managers_url.status}
+        return result
 
-    result['ret'] = True
-    result['entries'] = boot_details
-    # Logout of the current session
     REDFISH_OBJ.logout()
     return result
 
@@ -91,10 +99,10 @@ if __name__ == '__main__':
     login_password = parameter_info["passwd"]
     system_id = parameter_info['sysid']
     
-    # Get server boot once item and check result
-    result = get_server_boot_once(ip, login_account, login_password, system_id)
+    # Get restart manager result and check result
+    result = restart_manager(ip, login_account, login_password)
     if result['ret'] is True:
         del result['ret']
-        sys.stdout.write(json.dumps(result['entries'], sort_keys=True, indent=2))
+        sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
     else:
         sys.stderr.write(result['msg'])

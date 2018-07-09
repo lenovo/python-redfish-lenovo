@@ -1,6 +1,6 @@
 ###
 #
-# Lenovo Redfish examples - Get the current System Boot Once target
+# Lenovo Redfish examples - Set server asset tag
 #
 # Copyright Notice:
 #
@@ -21,13 +21,13 @@
 
 
 import sys
-import json
 import redfish
+import json
 import lenovo_utils as utils
 
 
-def get_reset_types(ip, login_account, login_password, system_id):
-    """Get reset types    
+def set_server_asset_tag(ip, login_account, login_password, system_id, asset_tag):
+    """Set server asswt tag    
     :params ip: BMC IP address
     :type ip: string
     :params login_account: BMC user name
@@ -36,65 +36,73 @@ def get_reset_types(ip, login_account, login_password, system_id):
     :type login_password: string
     :params system_id: ComputerSystem instance id(None: first instance, All: all instances)
     :type system_id: None or string
-    :returns: returns reset types when succeeded or error message when failed
+    :params asset_tag: asset tag by user specified
+    :type asset_tag: string
+    :returns: returns set asset tag result when succeeded or error message when failed
     """
     result = {}
-    login_host = "https://" + ip
     try:
         # Connect using the BMC address, account name, and password
         # Create a REDFISH object
+        login_host = "https://" + ip
         REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
                                              password=login_password, default_prefix='/redfish/v1')
         # Login into the server and create a session
         REDFISH_OBJ.login(auth="session")
     except:
-        result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
+        result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result
     # GET the ComputerSystem resource
-    reset_details = []
-    system = utils.get_system_url("/redfish/v1", system_id, REDFISH_OBJ)
+    system = utils.get_system_url("/redfish/v1",system_id, REDFISH_OBJ)
     if not system:
         result = {'ret': False, 'msg': "This system id is not exist or system member is None"}
         REDFISH_OBJ.logout()
         return result
     for i in range(len(system)):
         system_url = system[i]
-        response_system_url = REDFISH_OBJ.get(system_url, None)
-        if response_system_url.status == 200:
-            # Get the response
-            reset_types = {}
-            Computer_reset = response_system_url.dict["Actions"]["#ComputerSystem.Reset"]["ResetType@Redfish.AllowableValues"]
-            reset_types["ResetType@Redfish.AllowableValues"] = Computer_reset
-            reset_details.append(reset_types)
+        parameter = {"AssetTag": asset_tag}
+        response_asset_tag = REDFISH_OBJ.patch(system_url, body=parameter)
+        if response_asset_tag.status == 200:
+            result = {'ret': True,
+                      'msg': "PATCH command successfully completed \"%s\" request for set server asset tag" % asset_tag}
         else:
-            result = {'ret': False, 'msg': "response_system_url Error code %s" % response_system_url.status}
-            REDFISH_OBJ.logout()
-            return result
-
-    result['ret'] = True
-    result['entries'] = reset_details
-    # Logout of the current session
+            result = {'ret': False, 'msg': "Error code %s" % response_asset_tag.status}
+    # Logout of the current session       
     REDFISH_OBJ.logout()
     return result
 
 
-if __name__ == '__main__':
-    # Get parameters from config.ini and/or command line
+import argparse
+def add_parameter():
+    """Add set server asset tag parameter"""
     argget = utils.create_common_parameter_list()
+    argget.add_argument('--assettag', type=str, help='Input the assettag info(Maximum string length of AssetTag is 32)')
     args = argget.parse_args()
     parameter_info = utils.parse_parameter(args)
-    
+    return parameter_info
+
+
+if __name__ == '__main__':
+    # Get parameters from config.ini and/or command line
+    parameter_info = add_parameter()
+
     # Get connection info from the parameters user specified
     ip = parameter_info['ip']
     login_account = parameter_info["user"]
     login_password = parameter_info["passwd"]
     system_id = parameter_info['sysid']
     
-    # Get reset types and check result
-    result = get_reset_types(ip, login_account, login_password, system_id)
+    # Get set info from the parameters user specified
+    try:
+        asset_tag = parameter_info['asset_tag']
+    except:
+        sys.stderr.write("Please run the command 'python %s -h' to view the help info" % sys.argv[0])
+        sys.exit(1)
+
+    # Set server asset tag result and check result
+    result = set_server_asset_tag(ip, login_account, login_password, system_id, asset_tag)
     if result['ret'] is True:
         del result['ret']
-        sys.stdout.write(json.dumps(result['entries'], sort_keys=True, indent=2))
+        sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
     else:
         sys.stderr.write(result['msg'])
-

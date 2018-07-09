@@ -1,6 +1,6 @@
 ###
 #
-# Lenovo Redfish examples - Get the current System Boot Once target
+# Lenovo Redfish examples - Enable secure boot
 #
 # Copyright Notice:
 #
@@ -21,13 +21,13 @@
 
 
 import sys
-import json
 import redfish
 import lenovo_utils as utils
+import json
 
 
-def get_reset_types(ip, login_account, login_password, system_id):
-    """Get reset types    
+def enable_secure_boot(ip, login_account, login_password, system_id):
+    """Enable secure boot    
     :params ip: BMC IP address
     :type ip: string
     :params login_account: BMC user name
@@ -36,10 +36,10 @@ def get_reset_types(ip, login_account, login_password, system_id):
     :type login_password: string
     :params system_id: ComputerSystem instance id(None: first instance, All: all instances)
     :type system_id: None or string
-    :returns: returns reset types when succeeded or error message when failed
+    :returns: returns enable secure boot result when succeeded or error message when failed
     """
     result = {}
-    login_host = "https://" + ip
+    login_host = 'https://' + ip
     try:
         # Connect using the BMC address, account name, and password
         # Create a REDFISH object
@@ -48,32 +48,35 @@ def get_reset_types(ip, login_account, login_password, system_id):
         # Login into the server and create a session
         REDFISH_OBJ.login(auth="session")
     except:
-        result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
+        result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result
     # GET the ComputerSystem resource
-    reset_details = []
     system = utils.get_system_url("/redfish/v1", system_id, REDFISH_OBJ)
     if not system:
         result = {'ret': False, 'msg': "This system id is not exist or system member is None"}
         REDFISH_OBJ.logout()
         return result
+
     for i in range(len(system)):
         system_url = system[i]
         response_system_url = REDFISH_OBJ.get(system_url, None)
-        if response_system_url.status == 200:
-            # Get the response
-            reset_types = {}
-            Computer_reset = response_system_url.dict["Actions"]["#ComputerSystem.Reset"]["ResetType@Redfish.AllowableValues"]
-            reset_types["ResetType@Redfish.AllowableValues"] = Computer_reset
-            reset_details.append(reset_types)
-        else:
-            result = {'ret': False, 'msg': "response_system_url Error code %s" % response_system_url.status}
-            REDFISH_OBJ.logout()
-            return result
 
-    result['ret'] = True
-    result['entries'] = reset_details
-    # Logout of the current session
+        if response_system_url.status == 200:
+            # Get the Chassis resource
+            secureboot_url = response_system_url.dict['SecureBoot']['@odata.id']
+            secure_boot_enable = True
+            parameter = {"SecureBootEnable": secure_boot_enable}
+            response_secureboot = REDFISH_OBJ.patch(secureboot_url, body=parameter)
+            if response_secureboot.status == 200:
+                result = {'ret': True,
+                          'msg': "PATCH command successfully completed \"%s\" request for enable secure boot" % secure_boot_enable}
+            else:
+                result = {'ret': False, 'msg': "response secureboot Error code %s" % response_secureboot.status}
+                REDFISH_OBJ.logout()
+                return result
+        else:
+            result = {'ret': False, 'msg': "response system url Error code %s" % response_system_url.status}
+
     REDFISH_OBJ.logout()
     return result
 
@@ -90,11 +93,10 @@ if __name__ == '__main__':
     login_password = parameter_info["passwd"]
     system_id = parameter_info['sysid']
     
-    # Get reset types and check result
-    result = get_reset_types(ip, login_account, login_password, system_id)
+    # Get enable secure boot result and check result
+    result = enable_secure_boot(ip, login_account, login_password, system_id)
     if result['ret'] is True:
         del result['ret']
-        sys.stdout.write(json.dumps(result['entries'], sort_keys=True, indent=2))
+        sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
     else:
         sys.stderr.write(result['msg'])
-

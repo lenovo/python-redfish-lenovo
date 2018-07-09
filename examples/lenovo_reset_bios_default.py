@@ -1,6 +1,6 @@
 ###
 #
-# Lenovo Redfish examples - Get the current System Boot Once target
+# Lenovo Redfish examples - Get Bios attribute
 #
 # Copyright Notice:
 #
@@ -20,14 +20,15 @@
 ###
 
 
+
 import sys
 import json
 import redfish
 import lenovo_utils as utils
 
 
-def get_reset_types(ip, login_account, login_password, system_id):
-    """Get reset types    
+def reset_bios_default(ip, login_account, login_password, system_id):
+    """Get reset bios default result    
     :params ip: BMC IP address
     :type ip: string
     :params login_account: BMC user name
@@ -36,7 +37,7 @@ def get_reset_types(ip, login_account, login_password, system_id):
     :type login_password: string
     :params system_id: ComputerSystem instance id(None: first instance, All: all instances)
     :type system_id: None or string
-    :returns: returns reset types when succeeded or error message when failed
+    :returns: returns reset bios default result when succeeded or error message when failed
     """
     result = {}
     login_host = "https://" + ip
@@ -50,8 +51,8 @@ def get_reset_types(ip, login_account, login_password, system_id):
     except:
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
         return result
+
     # GET the ComputerSystem resource
-    reset_details = []
     system = utils.get_system_url("/redfish/v1", system_id, REDFISH_OBJ)
     if not system:
         result = {'ret': False, 'msg': "This system id is not exist or system member is None"}
@@ -61,19 +62,28 @@ def get_reset_types(ip, login_account, login_password, system_id):
         system_url = system[i]
         response_system_url = REDFISH_OBJ.get(system_url, None)
         if response_system_url.status == 200:
-            # Get the response
-            reset_types = {}
-            Computer_reset = response_system_url.dict["Actions"]["#ComputerSystem.Reset"]["ResetType@Redfish.AllowableValues"]
-            reset_types["ResetType@Redfish.AllowableValues"] = Computer_reset
-            reset_details.append(reset_types)
+            # Get the ComputerBios resource
+            bios_url = response_system_url.dict['Bios']['@odata.id']
         else:
-            result = {'ret': False, 'msg': "response_system_url Error code %s" % response_system_url.status}
+            result = {'ret': False, 'msg': "response system url Error code %s" % response_system_url.status}
             REDFISH_OBJ.logout()
             return result
-
-    result['ret'] = True
-    result['entries'] = reset_details
-    # Logout of the current session
+        response_bios_url = REDFISH_OBJ.get(bios_url, None)
+        if response_bios_url.status == 200:
+            # Get the Bios reset url
+            reset_bios_url = response_bios_url.dict['Actions']['#Bios.ResetBios']['target']
+            # Reset bios default
+            response_reset_bios = REDFISH_OBJ.post(reset_bios_url, None)
+            if response_reset_bios.status == 200:
+                result = {'ret': True, 'msg': 'reset bios default successful'}
+            else:
+                result = {'ret': False, 'msg': 'response reset bios Error code %s'% response_reset_bios.status}
+                REDFISH_OBJ.logout()
+                return result
+        else:
+            result = {'ret': False, 'msg': "response bios url Error code %s" % response_bios_url.status}
+            REDFISH_OBJ.logout()
+            return result
     REDFISH_OBJ.logout()
     return result
 
@@ -90,11 +100,10 @@ if __name__ == '__main__':
     login_password = parameter_info["passwd"]
     system_id = parameter_info['sysid']
     
-    # Get reset types and check result
-    result = get_reset_types(ip, login_account, login_password, system_id)
+    # Get reset bios default result and check result
+    result = reset_bios_default(ip, login_account, login_password, system_id)
     if result['ret'] is True:
         del result['ret']
-        sys.stdout.write(json.dumps(result['entries'], sort_keys=True, indent=2))
+        sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
     else:
         sys.stderr.write(result['msg'])
-

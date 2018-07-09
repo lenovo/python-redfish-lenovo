@@ -1,6 +1,6 @@
 ###
 #
-# Lenovo Redfish examples - Reset System with the selected Reset Type
+# Lenovo Redfish examples - Get Bios attribute
 #
 # Copyright Notice:
 #
@@ -20,14 +20,15 @@
 ###
 
 
+
 import sys
 import json
 import redfish
 import lenovo_utils as utils
 
 
-def set_reset_system(ip, login_account, login_password, system_id, reset_type):
-    """Reset system    
+def get_bios_attribute(ip, login_account, login_password, system_id, bios_get):
+    """Get all bios attribute    
     :params ip: BMC IP address
     :type ip: string
     :params login_account: BMC user name
@@ -36,59 +37,76 @@ def set_reset_system(ip, login_account, login_password, system_id, reset_type):
     :type login_password: string
     :params system_id: ComputerSystem instance id(None: first instance, All: all instances)
     :type system_id: None or string
-    :params reset_type: reset system type by user specified
-    :type reset_type: string
-    :returns: returns reset system type result when succeeded or error message when failed
+    :returns: returns all bios attribute when succeeded or error message when failed
     """
     result = {}
-    login_host = "https://" + ip
     try:
-        # Connect using the address, account name, and password
+        # Connect using the BMC address, account name, and password
         # Create a REDFISH object
+        login_host = "https://" + ip
         REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
                                              password=login_password, default_prefix='/redfish/v1')
         # Login into the server and create a session
         REDFISH_OBJ.login(auth="session")
     except:
-        sys.stdout.write("Please check the username, password, IP is correct\n")
-        sys.exit(1)
+        result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
+        return result
+
     # GET the ComputerSystem resource
-    system = utils.get_system_url("/redfish/v1",system_id,  REDFISH_OBJ)
+    system = utils.get_system_url("/redfish/v1", system_id, REDFISH_OBJ)
     if not system:
         result = {'ret': False, 'msg': "This system id is not exist or system member is None"}
         REDFISH_OBJ.logout()
         return result
+    attributes = []
     for i in range(len(system)):
         system_url = system[i]
-        # GET the ComputerSystem resource
         response_system_url = REDFISH_OBJ.get(system_url, None)
         if response_system_url.status == 200:
-            # Find the Reset Action target URL
-            target_url = response_system_url.dict["Actions"]["#ComputerSystem.Reset"]["target"]
-            # Prepare POST body
-            post_body = {"ResetType": reset_type}
-            # POST Reset Action
-            post_response = REDFISH_OBJ.post(target_url, body=post_body)
-            # If Response return 200/OK, return successful , else print the response Error code
-            if post_response.status in [200, 204]:
-                result = {'ret': True, 'msg': "reset system '%s' successful" % reset_type}
-            else:
-                result = {'ret': False, 'msg': "post response error code is %s" % post_response.status}
+            # Get the current url
+            bios_url = response_system_url.dict['Bios']['@odata.id']
         else:
-            result = {'ret': False, 'msg': "response_system_url Error code %s" % response_system_url.status}
+            result = {'ret': False, 'msg': "response system url Error code %s" % response_system_url.status}
+            REDFISH_OBJ.logout()
+            return result
+        response_bios_url = REDFISH_OBJ.get(bios_url, None)
+        if response_bios_url.status == 200:
+            if bios_get == "current":
+                # Get the bios url resource
+                attribute = response_bios_url.dict['Attributes']
+                attributes.append(attribute)
+            elif bios_get == "pending":
+                # Get pending url
+                pending_url = response_bios_url.dict['@Redfish.Settings']['SettingsObject']['@odata.id']
+                response_pending_url = REDFISH_OBJ.get(pending_url, None)
+                if response_pending_url.status == 200:
+                    # Get the pending url resource
+                    attribute = response_pending_url.dict['Attributes']
+                    attributes.append(attribute)
+                else:
+                    result = {'ret': False, 'msg': "response pending url Error code %s" % response_pending_url.status}
+                    REDFISH_OBJ.logout()
+                    return result
+            else:
+                result = {'ret': False, 'msg': "Please input '--bios current' or '--bios pending'"}
+                REDFISH_OBJ.logout()
+                return result
+        else:
+            result = {'ret': False, 'msg': "response bios url Error code %s" % response_bios_url.status}
             REDFISH_OBJ.logout()
             return result
 
-    # Logout of the current session
+    result['ret'] = True
+    result['attributes'] = attributes
     REDFISH_OBJ.logout()
     return result
 
 
 import argparse
 def add_parameter():
-    """Add reset system parameter"""
+    """Add get all bios attribute parameter"""
     argget = utils.create_common_parameter_list()
-    argget.add_argument('--resettype', type=str, help='Input the reset system type("On", "Nmi", "GracefulShutdown", "GracefulRestart", "ForceOn", "ForceOff", "ForceRestart")')
+    argget.add_argument('--bios', default='current', type=str, help='Input the bios attribute get the current setting or the pending setting(current or pending)')
     args = argget.parse_args()
     parameter_info = utils.parse_parameter(args)
     return parameter_info
@@ -102,19 +120,19 @@ if __name__ == '__main__':
     ip = parameter_info['ip']
     login_account = parameter_info["user"]
     login_password = parameter_info["passwd"]
-    system_id = parameter_info['sysid']
+    system_id = parameter_info["sysid"]
 
     # Get set info from the parameters user specified
     try:
-        reset_type = parameter_info['reset_type']
+        bios_get = parameter_info['bios_get']
     except:
         sys.stderr.write("Please run the command 'python %s -h' to view the help info" % sys.argv[0])
         sys.exit(1)
 
-    # Reset system result and check result
-    result = set_reset_system(ip, login_account, login_password,system_id, reset_type)
+    # Get all bios attribute and check result
+    result = get_bios_attribute(ip, login_account, login_password, system_id, bios_get)
     if result['ret'] is True:
         del result['ret']
-        sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
+        sys.stdout.write(json.dumps(result['attributes'], sort_keys=True, indent=2))
     else:
         sys.stderr.write(result['msg'])

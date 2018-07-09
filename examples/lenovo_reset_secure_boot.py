@@ -1,6 +1,6 @@
 ###
 #
-# Lenovo Redfish examples - Get the current System Boot Once target
+# Lenovo Redfish examples - Reset secure boot
 #
 # Copyright Notice:
 #
@@ -21,13 +21,13 @@
 
 
 import sys
-import json
 import redfish
+import json
 import lenovo_utils as utils
 
 
-def get_reset_types(ip, login_account, login_password, system_id):
-    """Get reset types    
+def reset_secure_boot(ip, login_account, login_password, system_id, reset_keys_type):
+    """reset secure boot    
     :params ip: BMC IP address
     :type ip: string
     :params login_account: BMC user name
@@ -36,7 +36,9 @@ def get_reset_types(ip, login_account, login_password, system_id):
     :type login_password: string
     :params system_id: ComputerSystem instance id(None: first instance, All: all instances)
     :type system_id: None or string
-    :returns: returns reset types when succeeded or error message when failed
+    :params reset_keys_type: secure boot types
+    :type reset_keys_type: string
+    :returns: returns set bios attribute result when succeeded or error message when failed
     """
     result = {}
     login_host = "https://" + ip
@@ -51,7 +53,6 @@ def get_reset_types(ip, login_account, login_password, system_id):
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
         return result
     # GET the ComputerSystem resource
-    reset_details = []
     system = utils.get_system_url("/redfish/v1", system_id, REDFISH_OBJ)
     if not system:
         result = {'ret': False, 'msg': "This system id is not exist or system member is None"}
@@ -60,41 +61,65 @@ def get_reset_types(ip, login_account, login_password, system_id):
     for i in range(len(system)):
         system_url = system[i]
         response_system_url = REDFISH_OBJ.get(system_url, None)
+        # Get the ComputerEthernetInterfaces resource
         if response_system_url.status == 200:
-            # Get the response
-            reset_types = {}
-            Computer_reset = response_system_url.dict["Actions"]["#ComputerSystem.Reset"]["ResetType@Redfish.AllowableValues"]
-            reset_types["ResetType@Redfish.AllowableValues"] = Computer_reset
-            reset_details.append(reset_types)
+            secure_boot_url = response_system_url.dict['SecureBoot']['@odata.id']
         else:
-            result = {'ret': False, 'msg': "response_system_url Error code %s" % response_system_url.status}
+            print("response_system_url Error code %s" % response_system_url.status)
+            result = {'ret': False, 'msg': "response system url Error code %s" % response_system_url.status}
             REDFISH_OBJ.logout()
             return result
 
-    result['ret'] = True
-    result['entries'] = reset_details
-    # Logout of the current session
+        response_secure_boot_url = REDFISH_OBJ.get(secure_boot_url, None)
+        if response_secure_boot_url.status == 200:
+            # Get the reset secure boot url
+            reset_action_url = response_secure_boot_url.dict["Actions"]["#SecureBoot.ResetKeys"]["target"]
+            body = {"ResetKeysType": reset_keys_type}
+            response_reset_url = REDFISH_OBJ.post(reset_action_url, body=body)
+            if response_reset_url.status == 200:
+                result = {'ret': True, 'msg': "clear all keys successful"}
+            else:
+                result = {'ret': False, 'msg': " response reset url Error code %s" % response_reset_url.status}
+                REDFISH_OBJ.logout()
+                return result
+        else:
+            result = {'ret': False, 'msg': " response secure boot url Error code %s" % response_secure_boot_url.status}
+
     REDFISH_OBJ.logout()
     return result
 
 
-if __name__ == '__main__':
-    # Get parameters from config.ini and/or command line
+import argparse
+def add_parameter():
+    """Add reset secure boot parameter"""
     argget = utils.create_common_parameter_list()
+    argget.add_argument('--resettype', type=str, help='Input the reset secure boot type("DeleteAllKeys" or "DeletePK" or "ResetAllKeysToDefault")')
     args = argget.parse_args()
     parameter_info = utils.parse_parameter(args)
-    
+    return parameter_info
+
+
+if __name__ == '__main__':
+    # Get parameters from config.ini and/or command line
+    parameter_info = add_parameter()
+
     # Get connection info from the parameters user specified
     ip = parameter_info['ip']
     login_account = parameter_info["user"]
     login_password = parameter_info["passwd"]
     system_id = parameter_info['sysid']
-    
-    # Get reset types and check result
-    result = get_reset_types(ip, login_account, login_password, system_id)
+
+    # Get set info from the parameters user specified
+    try:
+        reset_keys_type = parameter_info['reset_keys_type']
+    except:
+        sys.stderr.write("Please run the coommand 'python %s -h' to view the help info" % sys.argv[0])
+        sys.exit(1)
+
+    # Get reset secure boot result and check result
+    result = reset_secure_boot(ip, login_account, login_password, system_id, reset_keys_type)
     if result['ret'] is True:
         del result['ret']
-        sys.stdout.write(json.dumps(result['entries'], sort_keys=True, indent=2))
+        sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
     else:
         sys.stderr.write(result['msg'])
-

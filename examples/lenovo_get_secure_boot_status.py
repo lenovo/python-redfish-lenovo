@@ -1,6 +1,6 @@
 ###
 #
-# Lenovo Redfish examples - Get the current System Boot Once target
+# Lenovo Redfish examples - Get secure boot status
 #
 # Copyright Notice:
 #
@@ -21,13 +21,13 @@
 
 
 import sys
-import json
 import redfish
 import lenovo_utils as utils
+import json
 
 
-def get_reset_types(ip, login_account, login_password, system_id):
-    """Get reset types    
+def get_secure_boot_status(ip, login_account, login_password, system_id):
+    """Get secure boot status    
     :params ip: BMC IP address
     :type ip: string
     :params login_account: BMC user name
@@ -36,7 +36,7 @@ def get_reset_types(ip, login_account, login_password, system_id):
     :type login_password: string
     :params system_id: ComputerSystem instance id(None: first instance, All: all instances)
     :type system_id: None or string
-    :returns: returns reset types when succeeded or error message when failed
+    :returns: returns secure boot status when succeeded or error message when failed
     """
     result = {}
     login_host = "https://" + ip
@@ -51,7 +51,7 @@ def get_reset_types(ip, login_account, login_password, system_id):
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
         return result
     # GET the ComputerSystem resource
-    reset_details = []
+    secure_details = []
     system = utils.get_system_url("/redfish/v1", system_id, REDFISH_OBJ)
     if not system:
         result = {'ret': False, 'msg': "This system id is not exist or system member is None"}
@@ -60,19 +60,30 @@ def get_reset_types(ip, login_account, login_password, system_id):
     for i in range(len(system)):
         system_url = system[i]
         response_system_url = REDFISH_OBJ.get(system_url, None)
+        # Get the ComputerEthernetInterfaces resource
         if response_system_url.status == 200:
-            # Get the response
-            reset_types = {}
-            Computer_reset = response_system_url.dict["Actions"]["#ComputerSystem.Reset"]["ResetType@Redfish.AllowableValues"]
-            reset_types["ResetType@Redfish.AllowableValues"] = Computer_reset
-            reset_details.append(reset_types)
+            secure_boot_url = response_system_url.dict['SecureBoot']['@odata.id']
+            
         else:
+            print("response_system_url Error code %s" % response_system_url.status)
             result = {'ret': False, 'msg': "response_system_url Error code %s" % response_system_url.status}
+            return result
+        # Get the secure boot url resource
+        response_secure_boot_url = REDFISH_OBJ.get(secure_boot_url, None)
+        if response_secure_boot_url.status == 200:
+            secure = {}
+            secure_boot_enable = response_secure_boot_url.dict["SecureBootEnable"]
+            secure_boot_mode = response_secure_boot_url.dict["SecureBootMode"]
+            secure['SecureBootEnable'] = secure_boot_enable
+            secure['SecureBootMode'] = secure_boot_mode
+            secure_details.append(secure)
+        else:
+            result = {'ret': False, 'msg': " response_secure_boot_url Error code %s" %  response_secure_boot_url.status}
             REDFISH_OBJ.logout()
             return result
 
     result['ret'] = True
-    result['entries'] = reset_details
+    result['entries'] = secure_details
     # Logout of the current session
     REDFISH_OBJ.logout()
     return result
@@ -90,11 +101,11 @@ if __name__ == '__main__':
     login_password = parameter_info["passwd"]
     system_id = parameter_info['sysid']
     
-    # Get reset types and check result
-    result = get_reset_types(ip, login_account, login_password, system_id)
+    # Get secure boot status and check result
+    result = get_secure_boot_status(ip, login_account, login_password, system_id)
+    
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['entries'], sort_keys=True, indent=2))
     else:
         sys.stderr.write(result['msg'])
-

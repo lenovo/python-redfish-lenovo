@@ -1,6 +1,6 @@
 ###
 #
-# Lenovo Redfish examples - Get the current System Boot Once target
+# Lenovo Redfish examples - set_bios_bootmode_legacy
 #
 # Copyright Notice:
 #
@@ -20,14 +20,13 @@
 ###
 
 
-import sys
-import json
+import json, sys
 import redfish
 import lenovo_utils as utils
 
 
-def get_reset_types(ip, login_account, login_password, system_id):
-    """Get reset types    
+def set_bios_bootmode_legacy(ip, login_account, login_password, system_id):
+    """Get set bios bootmode legacy result   
     :params ip: BMC IP address
     :type ip: string
     :params login_account: BMC user name
@@ -36,7 +35,7 @@ def get_reset_types(ip, login_account, login_password, system_id):
     :type login_password: string
     :params system_id: ComputerSystem instance id(None: first instance, All: all instances)
     :type system_id: None or string
-    :returns: returns reset types when succeeded or error message when failed
+    :returns: returns set bios bootmode legacy result when succeeded or error message when failed
     """
     result = {}
     login_host = "https://" + ip
@@ -51,7 +50,6 @@ def get_reset_types(ip, login_account, login_password, system_id):
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
         return result
     # GET the ComputerSystem resource
-    reset_details = []
     system = utils.get_system_url("/redfish/v1", system_id, REDFISH_OBJ)
     if not system:
         result = {'ret': False, 'msg': "This system id is not exist or system member is None"}
@@ -59,20 +57,22 @@ def get_reset_types(ip, login_account, login_password, system_id):
         return result
     for i in range(len(system)):
         system_url = system[i]
-        response_system_url = REDFISH_OBJ.get(system_url, None)
-        if response_system_url.status == 200:
-            # Get the response
-            reset_types = {}
-            Computer_reset = response_system_url.dict["Actions"]["#ComputerSystem.Reset"]["ResetType@Redfish.AllowableValues"]
-            reset_types["ResetType@Redfish.AllowableValues"] = Computer_reset
-            reset_details.append(reset_types)
-        else:
-            result = {'ret': False, 'msg': "response_system_url Error code %s" % response_system_url.status}
-            REDFISH_OBJ.logout()
-            return result
+        attributes = {}
+        attributes['bios_attr_name'] = "BootSourceOverrideMode"
+        attributes['bios_attr_value'] = "Legacy"
+        bios_attributes = "{\"" + attributes['bios_attr_name'] + "\":\"" + attributes['bios_attr_value'] + "\"}"
 
-    result['ret'] = True
-    result['entries'] = reset_details
+        parameter = {"Boot": json.loads(bios_attributes)}
+        response_system_url = REDFISH_OBJ.patch(system_url, body=parameter)
+
+        if response_system_url.status == 200:
+            result = {'ret': True, 'msg': 'set bios bootmode legacy successful'}
+        elif response_system_url.status == 400:
+            result = {'ret': False, 'msg': 'Not supported on this platform'}
+        elif response_system_url.status == 405:
+            result = {'ret': False, 'msg': "Resource not supported"}
+        else:
+            result = {'ret': False, 'msg': "set bios bootmode legacy failed"}
     # Logout of the current session
     REDFISH_OBJ.logout()
     return result
@@ -90,11 +90,10 @@ if __name__ == '__main__':
     login_password = parameter_info["passwd"]
     system_id = parameter_info['sysid']
     
-    # Get reset types and check result
-    result = get_reset_types(ip, login_account, login_password, system_id)
+    # Get set bios bootmode legacy result and check result
+    result = set_bios_bootmode_legacy(ip, login_account, login_password, system_id)
     if result['ret'] is True:
         del result['ret']
-        sys.stdout.write(json.dumps(result['entries'], sort_keys=True, indent=2))
+        sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
     else:
         sys.stderr.write(result['msg'])
-
