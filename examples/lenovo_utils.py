@@ -233,7 +233,15 @@ def parse_parameter(args):
             parameter_info['protocol'] = args.protocol
     except:
          pass
-
+    # Set serial interfaces attribute
+    try:
+        if args.bitrate is not None or args.stopbits is not None or args.parity is not None or args.interface is not None:
+            parameter_info['bitrate'] = args.bitrate
+            parameter_info['stopbits'] = args.stopbits
+            parameter_info['parity'] = args.parity
+            parameter_info['interface'] = args.interface
+    except:
+        pass
     # Use parameters from command line to overrided Configuration file
     for key in parameter_info:
         if parameter_info[key]:
