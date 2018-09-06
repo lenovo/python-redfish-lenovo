@@ -12,9 +12,7 @@ Installing
 
 .. code-block:: console
 
-	python setup.py dist –formats=zip
-	cd dist
-	pip install redfish-2.0.0.zip
+	python setup.py install
 
 * To install Ansible:
 
