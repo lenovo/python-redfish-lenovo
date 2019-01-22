@@ -1,7 +1,0 @@
-- hosts: 127.0.0.1
-  tasks:
-  - name: run setter scripts based on script_name and parameter
-    command: python ../examples/{{script_name}} {{parameter}}
-    register: script_output
-
-  - debug: var=script_output.stdout
