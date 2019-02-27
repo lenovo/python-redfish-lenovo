@@ -52,45 +52,57 @@ def set_reset_system(ip, login_account, login_password, system_id, reset_type):
     except:
         sys.stdout.write("Please check the username, password, IP is correct\n")
         sys.exit(1)
-    # GET the ComputerSystem resource
-    system = utils.get_system_url("/redfish/v1",system_id,  REDFISH_OBJ)
-    if not system:
-        result = {'ret': False, 'msg': "This system id is not exist or system member is None"}
-        REDFISH_OBJ.logout()
-        return result
-    for i in range(len(system)):
-        system_url = system[i]
+    try:
         # GET the ComputerSystem resource
-        response_system_url = REDFISH_OBJ.get(system_url, None)
-        if response_system_url.status == 200:
-            # Find the Reset Action target URL
-            target_url = response_system_url.dict["Actions"]["#ComputerSystem.Reset"]["target"]
-            # Prepare POST body
-            post_body = {"ResetType": reset_type}
-            # POST Reset Action
-            post_response = REDFISH_OBJ.post(target_url, body=post_body)
-            # If Response return 200/OK, return successful , else print the response Error code
-            if post_response.status in [200, 204]:
-                result = {'ret': True, 'msg': "reset system '%s' successful" % reset_type}
-            else:
-                result = {'ret': False, 'msg': "post response error code is %s" % post_response.status}
-        else:
-            result = {'ret': False, 'msg': "response_system_url Error code %s" % response_system_url.status}
+        system = utils.get_system_url("/redfish/v1", system_id,  REDFISH_OBJ)
+        if not system:
+            result = {'ret': False, 'msg': "This system id is not exist or system member is None"}
             REDFISH_OBJ.logout()
             return result
+        for i in range(len(system)):
+            system_url = system[i]
+            # GET the ComputerSystem resource
+            response_system_url = REDFISH_OBJ.get(system_url, None)
+            if response_system_url.status == 200:
+                # Find the Reset Action target URL
+                target_url = response_system_url.dict["Actions"]["#ComputerSystem.Reset"]["target"]
+                # Prepare POST body
+                post_body = {"ResetType": reset_type}
+                # POST Reset Action
+                post_response = REDFISH_OBJ.post(target_url, body=post_body)
+                # If Response return 200/OK, return successful , else print the response Error code
+                if post_response.status in [200, 204]:
+                    result = {'ret': True, 'msg': "reset system '%s' successful" % reset_type}
+                else:
+                    error_message = utils.get_extended_error(post_response)
+                    result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                        target_url, post_response.status, error_message)}
+                    return result
+            else:
+                error_message = utils.get_extended_error(response_system_url)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                system_url, response_system_url.status, error_message)}
+                return result
 
-    # Logout of the current session
-    REDFISH_OBJ.logout()
-    return result
+    except Exception as e:
+        result = {'ret': False, 'msg': "error_message: %s" % e}
+    finally:
+        # Logout of the current session
+        REDFISH_OBJ.logout()
+        return result
 
 
-import argparse
+def add_helpmessage(argget):
+    argget.add_argument('--resettype', type=str, required=True, help='Input the reset system type("On", "Nmi", "GracefulShutdown", "GracefulRestart", "ForceOn", "ForceOff", "ForceRestart")')
+
+
 def add_parameter():
     """Add reset system parameter"""
     argget = utils.create_common_parameter_list()
-    argget.add_argument('--resettype', type=str, help='Input the reset system type("On", "Nmi", "GracefulShutdown", "GracefulRestart", "ForceOn", "ForceOff", "ForceRestart")')
+    add_helpmessage(argget)
     args = argget.parse_args()
     parameter_info = utils.parse_parameter(args)
+    parameter_info['reset_type'] = args.resettype
     return parameter_info
 
 
