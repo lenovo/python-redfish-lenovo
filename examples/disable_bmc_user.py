@@ -26,7 +26,7 @@ import json
 import lenovo_utils as utils
 
 
-def disable_user(ip, login_account, login_password, userid):
+def disable_user(ip, login_account, login_password, username):
     """Disable user   
     :params ip: BMC IP address
     :type ip: string
@@ -34,8 +34,8 @@ def disable_user(ip, login_account, login_password, userid):
     :type login_account: string
     :params login_password: BMC user password
     :type login_password: string
-    :params system_id: ComputerSystem instance id(None: first instance, All: all instances)
-    :type system_id: None or string
+    :params username: Specify the BMC user name to be disabled.
+    :type username: None or string
     :returns: returns disable user result when succeeded or error message when failed
     """
     result = {}
@@ -50,61 +50,89 @@ def disable_user(ip, login_account, login_password, userid):
     except:
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result
-    # Get ServiceRoot resource
-    response_base_url = REDFISH_OBJ.get('/redfish/v1', None)
-
-    # Get response_account_service_url
-    if response_base_url.status == 200:
-        account_service_url = response_base_url.dict['AccountService']['@odata.id']
-    else:
-        REDFISH_OBJ.logout()
-        result = {'ret': False, 'msg': "response base url Error code %s" % response_base_url.status}
-        return result
-    # Get AccountService resource
-    response_account_service_url = REDFISH_OBJ.get(account_service_url, None)
-    if response_account_service_url.status == 200:
-        accounts_url = response_account_service_url.dict['Accounts']['@odata.id']
-        userid = userid
-        # Get the disable user account url
-        if accounts_url[-1] == '/':
-            accounts_url += str(userid)
+    try:
+        # Get response_base_url resource
+        response_base_url = REDFISH_OBJ.get('/redfish/v1', None)
+        # Get account service url
+        if response_base_url.status == 200:
+            account_service_url = response_base_url.dict['AccountService']['@odata.id']
         else:
-            accounts_url = accounts_url + '/' + str(userid)
-        response_account_url = REDFISH_OBJ.get(accounts_url, None)
-        if "@odata.etag" in response_account_url.dict:
-            etag = response_account_url.dict['@odata.etag']
-        else:
-            etag = ""
-        username = response_account_url.dict['UserName']
-        headers = {"If-Match": etag,}
-        # Set the body info
-        parameter = {
-                     "UserName":username,
-                     "Enabled": False
-                     }
-        response_accounts_url = REDFISH_OBJ.patch(accounts_url, body=parameter, headers=headers)
-      
-        if response_accounts_url.status == 200:
-            
-            result = {'ret': True, 'msg': "User %s disabled successfully" %userid}
-        else:    
-            result = {'ret': False, 'msg': "response account url Error code %s" % response_accounts_url.status}
-            REDFISH_OBJ.logout()
+            error_message = utils.get_extended_error(response_base_url)
+            result = {'ret': False, 'msg': "Url '/redfish/v1' response Error code %s \nerror_message: %s" % (
+                response_base_url.status, error_message)}
             return result
-    else:
-        result = {'ret': False, 'msg': "response account service url Error code %s" % response_account_service_url.status}
 
-    REDFISH_OBJ.logout()
-    return result
+        # Get AccountService resource
+        response_account_service_url = REDFISH_OBJ.get(account_service_url, None)
+        if response_account_service_url.status == 200:
+            accounts_url = response_account_service_url.dict['Accounts']['@odata.id']
+        else:
+            error_message = utils.get_extended_error(response_account_service_url)
+            result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                account_service_url, response_account_service_url.status, error_message)}
+            return result
+
+        # Get url accounts resource
+        response_accounts_url = REDFISH_OBJ.get(accounts_url, None)
+        if response_accounts_url.status == 200:
+            account_count = response_accounts_url.dict["Members@odata.count"]
+
+            # Loop the BMC user list and get all the bmc username
+            for x in range(0, account_count):
+                account_x_url = response_accounts_url.dict["Members"][x]["@odata.id"]
+                response_account_x_url = REDFISH_OBJ.get(account_x_url, None)
+                if response_account_x_url.status == 200:
+                    bmc_username = response_account_x_url.dict['UserName']
+
+                    # Disabled the BMC user when the specified BMC username is in the BMC user list.
+                    if bmc_username == username:
+                        Enabled = response_account_x_url.dict['Enabled']
+                        if Enabled is False:
+                            result = {'ret': True, 'msg': "BMC user %s is already disabled" % username}
+                            return result
+                        # Set the body info
+                        if "@odata.etag" in response_account_x_url.dict:
+                            etag = response_account_x_url.dict['@odata.etag']
+                        else:
+                            etag = ""
+                        headers = {"If-Match": etag}
+                        parameter = {"Enabled": False, "UserName": username}
+
+                        response_enable_user = REDFISH_OBJ.patch(account_x_url, body=parameter, headers=headers)
+                        if response_enable_user.status == 200:
+                            result = {'ret': True, 'msg': "BMC User %s disabled successfully" % username}
+                            return result
+                        else:
+                            error_message = utils.get_extended_error(response_enable_user)
+                            result = {'ret': False, 'msg': "Disabled BMC user failed, url '%s' response Error code %s \nerror_message: %s" % (account_x_url, response_enable_user.status, error_message)}
+                            return result
+                else:
+                    error_message = utils.get_extended_error(response_account_x_url)
+                    result = {'ret': False, 'msg': "Url '%s' response error code %s \nerror_message: %s" % (
+                        account_x_url, response_account_x_url.status, error_message)}
+                    return result
+            result = {'ret': False, 'msg': "Specified BMC username doesn't exist. Please check whether the BMC username is correct."}
+        else:
+            error_message = utils.get_extended_error(response_accounts_url)
+            result = {'ret': False, 'msg': "Url '%s' response error code %s \nerror_message: %s" % (accounts_url,
+                                                                                                    response_accounts_url.status,
+                                                                                                    error_message)}
+    except Exception as e:
+        result = {'ret':False, 'msg':"error message %s" %e}
+    finally:
+        # Logout of the current session
+        REDFISH_OBJ.logout()
+        return result
 
 
-import argparse
 def add_parameter():
-    """Add disable user id parameter"""
+    """Add disable user name parameter"""
     argget = utils.create_common_parameter_list()
-    argget.add_argument('--userid', type=str, help='Input the disable userid(1-12)')
+    argget.add_argument('--username', type=str, help='Input the set disabled BMC user name')
     args = argget.parse_args()
     parameter_info = utils.parse_parameter(args)
+    if args.username is not None:
+        parameter_info["username"] = args.username
     return parameter_info
 
 
@@ -119,13 +147,13 @@ if __name__ == '__main__':
 
     # Get set info from the parameters user specified
     try:
-        userid = parameter_info['userid']
+        username = parameter_info['username']
     except:
         sys.stderr.write("Please run the coommand 'python %s -h' to view the help info" % sys.argv[0])
         sys.exit(1)
 
     # Get disable user result and check result
-    result = disable_user(ip, login_account, login_password, userid)
+    result = disable_user(ip, login_account, login_password, username)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
