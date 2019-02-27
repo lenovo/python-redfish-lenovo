@@ -27,7 +27,7 @@ import lenovo_utils as utils
 
 
 def set_server_asset_tag(ip, login_account, login_password, system_id, asset_tag):
-    """Set server asswt tag    
+    """Set server asset tag
     :params ip: BMC IP address
     :type ip: string
     :params login_account: BMC user name
@@ -38,7 +38,7 @@ def set_server_asset_tag(ip, login_account, login_password, system_id, asset_tag
     :type system_id: None or string
     :params asset_tag: asset tag by user specified
     :type asset_tag: string
-    :returns: returns set asset tag result when succeeded or error message when failed
+    :returns: returns set server asset tag result when succeeded or error message when failed
     """
     result = {}
     try:
@@ -52,33 +52,44 @@ def set_server_asset_tag(ip, login_account, login_password, system_id, asset_tag
     except:
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result
-    # GET the ComputerSystem resource
-    system = utils.get_system_url("/redfish/v1",system_id, REDFISH_OBJ)
-    if not system:
-        result = {'ret': False, 'msg': "This system id is not exist or system member is None"}
+    try:
+        # GET the ComputerSystem resource
+        system = utils.get_system_url("/redfish/v1",system_id, REDFISH_OBJ)
+        if not system:
+            result = {'ret': False, 'msg': "This system id is not exist or system member is None"}
+            return result
+
+        for i in range(len(system)):
+            system_url = system[i]
+            parameter = {"AssetTag": asset_tag}
+            response_asset_tag = REDFISH_OBJ.patch(system_url, body=parameter)
+            if response_asset_tag.status in [200, 204]:
+                result = {'ret': True,
+                          'msg': "PATCH command successfully completed for set server asset tag to %s" % asset_tag}
+            else:
+                error_message = utils.get_extended_error(response_asset_tag)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                    system_url, response_asset_tag.status, error_message)}
+    except Exception as e:
+        result = {'ret': False, 'msg': "error_message: %s" % e}
+    finally:
+        # Logout of the current session
         REDFISH_OBJ.logout()
         return result
-    for i in range(len(system)):
-        system_url = system[i]
-        parameter = {"AssetTag": asset_tag}
-        response_asset_tag = REDFISH_OBJ.patch(system_url, body=parameter)
-        if response_asset_tag.status == 200:
-            result = {'ret': True,
-                      'msg': "PATCH command successfully completed \"%s\" request for set server asset tag" % asset_tag}
-        else:
-            result = {'ret': False, 'msg': "Error code %s" % response_asset_tag.status}
-    # Logout of the current session       
-    REDFISH_OBJ.logout()
-    return result
 
 
 import argparse
+def add_helpmessage(parser):
+    parser.add_argument('--assettag', type=str, required=True, help='Input the assettag info(Maximum string length of AssetTag is 32)')
+
+
 def add_parameter():
     """Add set server asset tag parameter"""
     argget = utils.create_common_parameter_list()
-    argget.add_argument('--assettag', type=str, help='Input the assettag info(Maximum string length of AssetTag is 32)')
+    add_helpmessage(argget)
     args = argget.parse_args()
     parameter_info = utils.parse_parameter(args)
+    parameter_info['asset_tag'] = args.assettag
     return parameter_info
 
 
