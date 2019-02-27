@@ -17,11 +17,10 @@
 ###
 
 
-import sys
-import redfish
+import sys, os
 import argparse
 import configparser
-
+import redfish
 
 def get_system_url(base_url, system_id, redfish_obj):
     """Get ComputerSystem instance URL    
@@ -71,9 +70,17 @@ def get_extended_error(response_body):
     :params response_body: Response from HTTP
     :type response_body: class 'redfish.rest.v1.RestResponse'
     """
-    expected_dict = response_body.dict
-    message_dict = expected_dict["error"]["@Message.ExtendedInfo"][0]
-    return str(message_dict["Message"])
+    try:
+        expected_dict = response_body.dict
+        message_dict = expected_dict["error"]["@Message.ExtendedInfo"][0]
+        if "Message" in message_dict:
+            message = str(message_dict["Message"])
+        else:
+            message = str(message_dict["MessageId"])
+        return message
+    except:
+        message = response_body
+        return message
 
 
 def read_config(config_file):
@@ -83,6 +90,9 @@ def read_config(config_file):
     """
     cfg = configparser.ConfigParser()
     try:
+        cur_dir = os.path.dirname(os.path.abspath(__file__))
+        if os.sep not in config_file:
+            config_file = cur_dir + os.sep + config_file
         cfg.read(config_file)
         config_ini_info = {}
         # Get the ConnectCfg info
@@ -96,14 +106,24 @@ def read_config(config_file):
     return config_ini_info
 
 
-def create_common_parameter_list():
+def create_common_parameter_list(description_string="This tool can be used to perform system management via Redfish.", prog_string=None):
     """Add common parameter"""
-    argget = argparse.ArgumentParser(description="This tool can be used to perform system management via Redfish")
+    # Set prog and description
+    if not description_string.endswith('.'):
+        description_string = description_string + '.'
+    description_fullstring = description_string + " BMC connect information (ip/username/password) is needed. Set them by command line -i,-u,-p or using configuration file (default config.ini)."
+    if prog_string:
+        argget = argparse.ArgumentParser(prog=prog_string, description=description_fullstring)
+    else:
+        argget = argparse.ArgumentParser(description=description_fullstring)
+    
+    # Add connect parameter
     argget.add_argument('-c', '--config', type=str, default='config.ini', help=('Configuration file(may be overrided by parameters from command line)'))
     argget.add_argument('-i', '--ip', type=str, help=('BMC IP address'))
     argget.add_argument('-u', '--user', type=str, help='BMC user name')
     argget.add_argument('-p', '--passwd', type=str, help='BMC user password')
     argget.add_argument('-s', '--sysid', type=str, default=None, help='ComputerSystem instance id(None: first instance, All: all instances)')
+    
     return argget
 
 
@@ -127,124 +147,15 @@ def parse_parameter(args):
         parameter_info["passwd"] = args.passwd
     if args.sysid is not None:
         parameter_info['sysid'] = args.sysid
-    # Get the set chassis indicator led parameter info
-    try:
-        if args.ledstatus is not None:
-            parameter_info['ledstatus'] = args.ledstatus
-    except:
-        pass
-    # Get the reset system parameter info
-    try:    
-        if args.resettype is not None:
-            parameter_info['reset_keys_type'] = args.resettype
-    except:
-         pass    
-    # Get the disable , enable userid info
-    try:    
-        if args.userid is not None:
-            parameter_info['userid'] = args.userid
-    except:
-        pass
-    # Get the set reset system parameter info
-    try:    
-        if args.resettype is not None:
-            parameter_info['reset_type'] = args.resettype
-    except:
-         pass
-    # Get the set server assettag parameter info
-    try:    
-        if args.assettag is not None:
-            parameter_info['asset_tag'] = args.assettag
-    except:
-         pass
-    # Get the set server boot once parameter info 
-    try:    
-        if args.bootsource is not None:
-            parameter_info['boot_source'] = args.bootsource
-    except:
-         pass
-    # Get the set bios attribute parameter info
-    try:    
-        if args.name is not None and args.value is not None:
-            parameter_info['attribute_name'] = args.name
-            parameter_info['attribute_value'] = args.value
-    except:
-         pass
-    # Get the set bios password parameter info
-    try:    
-        if args.name is not None and args.biospasswd is not None:
-            parameter_info['bios_password_name'] = args.name
-            parameter_info['bios_password'] = args.biospasswd
-    except:
-         pass
-    # Get the set vlanid parameter info
-    try:    
-        if args.vlanid is not None and args.vlanenable is not None:
-            parameter_info['vlanid'] = args.vlanid
-            parameter_info['vlanEnable'] = args.vlanenable
-    except:
-         pass
-    # Get the set manager ntp parameter info
-    try:    
-        if args.ntpserver is not None and args.protocol is not None:
-            parameter_info['ntp_server'] = args.ntpserver
-            parameter_info['ProtocolEnabled'] = args.protocol
-    except:
-         pass
-    # Get the bios attribute parameter info  
-    try:    
-        if args.name is not None:
-            parameter_info['attribute_name'] = args.name
-    except:
-         pass
-    # Get the update user role parameter info
-    try:    
-        if args.userid is not None and args.roleid is not None:
-            parameter_info['userid'] = args.userid
-            parameter_info['roleid'] = args.roleid
-    except:
-         pass
-    # Get the update user password pasrmeter info
-    try:    
-        if args.userid is not None and args.newpasswd is not None:
-            parameter_info['userid'] = args.userid
-            parameter_info['new_passwd'] = args.newpasswd
-    except:
-         pass
-    # Get schema pasrmeter info
-    try:    
-        if args.schema is not None:
-            parameter_info['schemaprefix'] = args.schema
-    except:
-         pass
-    # Get bios attribute pasrmeter info
-    try:    
-        if args.bios is not None:
-            parameter_info['bios_get'] = args.bios
-        else:
-            parameter_info['bios_get'] = args.bios
-    except:
-         pass
-    # Update firmware
-    try:    
-        if args.imageurl is not None and args.targets is not None and args.protocol is not None:
-            parameter_info['imageurl'] = args.imageurl
-            parameter_info['targets'] = args.targets
-            parameter_info['protocol'] = args.protocol
-    except:
-         pass
-    # Set serial interfaces attribute
-    try:
-        if args.bitrate is not None or args.stopbits is not None or args.parity is not None or args.interface is not None:
-            parameter_info['bitrate'] = args.bitrate
-            parameter_info['stopbits'] = args.stopbits
-            parameter_info['parity'] = args.parity
-            parameter_info['interface'] = args.interface
-    except:
-        pass
+
     # Use parameters from command line to overrided Configuration file
     for key in parameter_info:
         if parameter_info[key]:
             config_ini_info[key] = parameter_info[key]
     
+    # Check connect information
+    if not config_ini_info['ip'] or not config_ini_info['user'] or not config_ini_info['passwd']:
+        sys.stderr.write("BMC connect information (ip/username/password) is needed. Please provide them by command line -i,-u,-p or configuration file (default config.ini).")
+        sys.exit(1)
+        
     return config_ini_info
