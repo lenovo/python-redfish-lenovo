@@ -26,7 +26,7 @@ import lenovo_utils as utils
 
 
 def set_chassis_indicator_led(ip, login_account, login_password, led_status):
-    """Get BMC inventory    
+    """set chassis indicator led
     :params ip: BMC IP address
     :type ip: string
     :params login_account: BMC user name
@@ -49,46 +49,58 @@ def set_chassis_indicator_led(ip, login_account, login_password, led_status):
     except:
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result
-    
-    # Get ComputerBase resource
-    response_base_url = REDFISH_OBJ.get('/redfish/v1', None)
-    # Get response_base_url
-    if response_base_url.status == 200:
-        chassis_url = response_base_url.dict['Chassis']['@odata.id']
-    else:
-        result = {'ret': False, 'msg': "response base url Error code %s" % response_base_url.status}
+    try:
+        # Get ComputerBase resource
+        response_base_url = REDFISH_OBJ.get('/redfish/v1', None)
+        # Get response_base_url
+        if response_base_url.status == 200:
+            chassis_url = response_base_url.dict['Chassis']['@odata.id']
+        else:
+            error_message = utils.get_extended_error(response_base_url)
+            result = {'ret': False, 'msg': "Url '/redfish/v1' response Error code %s \nerror_message: %s" % (
+                response_base_url.status, error_message)}
+            return result
+        # Get response chassis url resource
+        response_chassis_url = REDFISH_OBJ.get(chassis_url, None)
+        if response_chassis_url.status == 200:
+            for i in range(response_chassis_url.dict['Members@odata.count']):
+                led_url = response_chassis_url.dict['Members'][i]['@odata.id']
+                led_status = led_status
+                parameter = {"IndicatorLED": led_status}
+                headers = {"Content-Type": "application/json"}
+                response_url = REDFISH_OBJ.patch(led_url, body=parameter, headers=headers)
+                if response_url.status in [200, 204]:
+                    result = {'ret': True, 'msg': "PATCH command successfully completed '%s' request for chassis indicator LED" % led_status}
+                else:
+                    error_message = utils.get_extended_error(response_url)
+                    result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                        led_url, response_url.status, error_message)}
+                    return result
+        else:
+            error_message = utils.get_extended_error(response_chassis_url)
+            result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+            chassis_url, response_chassis_url.status, error_message)}
+            return result
+    except Exception as e:
+        result = {'ret': False, 'msg': "error_message: %s" % e}
+    finally:
+        # Logout of the current session
         REDFISH_OBJ.logout()
         return result
-    # Get response chassis url resource
-    response_chassis_url = REDFISH_OBJ.get(chassis_url, None)
-    if response_chassis_url.status == 200:
-        for i in range(response_chassis_url.dict['Members@odata.count']):
-            led_url = response_chassis_url.dict['Members'][i]['@odata.id']
-            led_status = led_status
-            parameter = {"IndicatorLED": led_status}
-            headers = {"Content-Type": "application/json"}
-            response_url = REDFISH_OBJ.patch(led_url, body=parameter, headers=headers)
-            if response_url.status == 200:
-                result = {'ret': True, 'msg': "PATCH command successfully completed '%s' request for chassis indicator LED" % led_status}
-            else:
-                result = {'ret': False, 'msg': "response url Error code %s" % response_url.status}
-                REDFISH_OBJ.logout()
-                return result
-    else:
-        print("response_chassis_url Error code %s" % response_chassis_url.status)
-        result = {'ret': False, 'msg': "response chassis url Error code %s" % response_chassis_url.status}
-
-    REDFISH_OBJ.logout()
-    return result
 
 
 import argparse
+def add_helpmessage(argget):
+    argget.add_argument('--ledstatus', type=str, required=True, help='Input the status of the LED light(Off, Lit, Blinking)')
+
+
 def add_parameter():
     """Add set chassis indicator led parameter"""
     argget = utils.create_common_parameter_list()
-    argget.add_argument('--ledstatus', type=str, help='Input the status of the LED light(Off, Lit, Blinking)')
+    add_helpmessage(argget)
     args = argget.parse_args()
     parameter_info = utils.parse_parameter(args)
+    parameter_info['ledstatus'] = args.ledstatus
     return parameter_info
 
 
