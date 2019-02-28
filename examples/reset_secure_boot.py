@@ -52,50 +52,62 @@ def reset_secure_boot(ip, login_account, login_password, system_id, reset_keys_t
     except:
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
         return result
-    # GET the ComputerSystem resource
-    system = utils.get_system_url("/redfish/v1", system_id, REDFISH_OBJ)
-    if not system:
-        result = {'ret': False, 'msg': "This system id is not exist or system member is None"}
+
+    try:
+        # GET the ComputerSystem resource
+        system = utils.get_system_url("/redfish/v1", system_id, REDFISH_OBJ)
+        if not system:
+            result = {'ret': False, 'msg': "This system id is not exist or system member is None"}
+            return result
+        for i in range(len(system)):
+            system_url = system[i]
+            response_system_url = REDFISH_OBJ.get(system_url, None)
+            # Get the ComputerEthernetInterfaces resource
+            if response_system_url.status == 200:
+                secure_boot_url = response_system_url.dict['SecureBoot']['@odata.id']
+            else:
+                error_message = utils.get_extended_error(response_system_url)
+                result = {'ret': False, 'msg': "Url '%s' response error code %s \nerror_message: %s" % (
+                    system_url, response_system_url.status, error_message)}
+                return result
+
+            response_secure_boot_url = REDFISH_OBJ.get(secure_boot_url, None)
+            if response_secure_boot_url.status == 200:
+                # Get the reset secure boot url
+                reset_action_url = response_secure_boot_url.dict["Actions"]["#SecureBoot.ResetKeys"]["target"]
+                body = {"ResetKeysType": reset_keys_type}
+                response_reset_url = REDFISH_OBJ.post(reset_action_url, body=body)
+                if response_reset_url.status == 200:
+                    result = {'ret': True, 'msg': "reset keys successfully"}
+                else:
+                    error_message = utils.get_extended_error(response_reset_url)
+                    result = {'ret': False, 'msg': "Url '%s' response error code %s \nerror_message: %s" % (
+                        reset_action_url, response_reset_url.status, error_message)}
+                    return result
+            else:
+                error_message = utils.get_extended_error(response_secure_boot_url)
+                result = {'ret': False, 'msg': "Url '%s' response error code %s \nerror_message: %s" % (
+                    secure_boot_url, response_secure_boot_url.status, error_message)}
+    except Exception as e:
+        result = {'ret': False, 'msg': "error message %s" % e}
+    finally:
+        # Logout of the current session
         REDFISH_OBJ.logout()
         return result
-    for i in range(len(system)):
-        system_url = system[i]
-        response_system_url = REDFISH_OBJ.get(system_url, None)
-        # Get the ComputerEthernetInterfaces resource
-        if response_system_url.status == 200:
-            secure_boot_url = response_system_url.dict['SecureBoot']['@odata.id']
-        else:
-            print("response_system_url Error code %s" % response_system_url.status)
-            result = {'ret': False, 'msg': "response system url Error code %s" % response_system_url.status}
-            REDFISH_OBJ.logout()
-            return result
 
-        response_secure_boot_url = REDFISH_OBJ.get(secure_boot_url, None)
-        if response_secure_boot_url.status == 200:
-            # Get the reset secure boot url
-            reset_action_url = response_secure_boot_url.dict["Actions"]["#SecureBoot.ResetKeys"]["target"]
-            body = {"ResetKeysType": reset_keys_type}
-            response_reset_url = REDFISH_OBJ.post(reset_action_url, body=body)
-            if response_reset_url.status == 200:
-                result = {'ret': True, 'msg': "clear all keys successful"}
-            else:
-                result = {'ret': False, 'msg': " response reset url Error code %s" % response_reset_url.status}
-                REDFISH_OBJ.logout()
-                return result
-        else:
-            result = {'ret': False, 'msg': " response secure boot url Error code %s" % response_secure_boot_url.status}
 
-    REDFISH_OBJ.logout()
-    return result
-
+def add_helpmessage(parser):
+    parser.add_argument('--resettype', type=str, required = True, choices=["DeleteAllKeys", "DeletePK", "ResetAllKeysToDefault"],
+                        help='Input the reset secure boot type("DeleteAllKeys" or "DeletePK" or "ResetAllKeysToDefault")')
 
 import argparse
 def add_parameter():
     """Add reset secure boot parameter"""
     argget = utils.create_common_parameter_list()
-    argget.add_argument('--resettype', type=str, help='Input the reset secure boot type("DeleteAllKeys" or "DeletePK" or "ResetAllKeysToDefault")')
+    add_helpmessage(argget)
     args = argget.parse_args()
     parameter_info = utils.parse_parameter(args)
+    parameter_info['reset_keys_type'] = args.resettype
     return parameter_info
 
 
