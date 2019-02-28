@@ -1,6 +1,6 @@
 ###
 #
-# Lenovo Redfish examples - Reset System with the selected Reset Type
+# Lenovo Redfish examples - Set server boot once
 #
 # Copyright Notice:
 #
@@ -52,37 +52,51 @@ def set_server_boot_once(ip, login_account, login_password, system_id, boot_sour
     except:
         sys.stdout.write("Please check the username, password, IP is correct\n")
         sys.exit(1)
-    # GET the ComputerSystem resource
-    system = utils.get_system_url("/redfish/v1",system_id, REDFISH_OBJ)
-    if not system:
-        result = {'ret': False, 'msg': "This system id is not exist or system member is None"}
+    try:
+        # GET the ComputerSystem resource
+        system = utils.get_system_url("/redfish/v1",system_id, REDFISH_OBJ)
+        if not system:
+            result = {'ret': False, 'msg': "This system id is not exist or system member is None"}
+            REDFISH_OBJ.logout()
+            return result
+        for i in range(len(system)):
+            system_url = system[i]
+
+            # Prepare PATCH Body to set Boot once to the user specified target
+            patch_body = {"Boot": {"BootSourceOverrideEnabled": "", "BootSourceOverrideTarget": ""}}
+            patch_body["Boot"]["BootSourceOverrideEnabled"] = "Once"
+            patch_body["Boot"]["BootSourceOverrideTarget"] = boot_source
+            if boot_source == "None":
+                patch_body["Boot"]["BootSourceOverrideEnabled"] = "Disabled"
+            patch_response = REDFISH_OBJ.patch(system_url, body=patch_body)
+
+            # If Response does not return 200/OK or 204, print the response Extended Error message
+            if patch_response.status in [200, 204]:
+                result = {'ret': True, 'msg': "Set server boot once '%s' successfully" % boot_source}
+            else:
+                message = utils.get_extended_error(patch_response)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s \n, Error message :%s" % (system_url, patch_response.status, message)}
+
+    except Exception as e:
+        result = {'ret': False, 'msg': "error_message: %s" % (e)}
+    finally:
+        # Logout of the current session
         REDFISH_OBJ.logout()
         return result
-    for i in range(len(system)):
-        system_url = system[i]
-        # Prepare PATCH Body to set Boot once to the user specified target
-        patch_body = {"Boot": {"BootSourceOverrideEnabled": "", "BootSourceOverrideTarget": ""}}
-        patch_body["Boot"]["BootSourceOverrideEnabled"] = "Once"
-        patch_body["Boot"]["BootSourceOverrideTarget"] = boot_source
-        patch_response = REDFISH_OBJ.patch(system_url, body=patch_body)
-        # If Response does not return 200/OK, print the response Extended Error message
-        if patch_response.status  == 200:
-            result = {'ret': False, 'msg': "Set server boot once %s successful" % boot_source}
-        else:
-            message = utils.get_extended_error(patch_response)
-            result = {'ret': False, 'msg': "Error message is %s" % message}
-    # Logout of the current session
-    REDFISH_OBJ.logout()
-    return result
 
 
 import argparse
+def add_helpmessage(argget):
+    argget.add_argument('--bootsource', type=str, choices=["None", "Pxe", "Cd", "Usb","Hdd","BiosSetup","Diags"], required=True, help='Specify the device for one-time boot at next server restart. The supported boot option(s) include :("None", "Pxe", "Cd", "Usb","Hdd","BiosSetup","Diags")')
+
+
 def add_parameter():
     """Add set server boot source parameter"""
     argget = utils.create_common_parameter_list()
-    argget.add_argument('--bootsource', type=str, help='Input the set server boot("None", "Pxe", "Cd", "Usb","Hdd","BiosSetup","Diags","UefiTarget")')
+    add_helpmessage(argget)
     args = argget.parse_args()
     parameter_info = utils.parse_parameter(args)
+    parameter_info['boot_source'] = args.bootsource
     return parameter_info
 
 
@@ -107,7 +121,7 @@ if __name__ == '__main__':
     result = set_server_boot_once(ip, login_account, login_password, system_id, boot_source)
     if result['ret'] is True:
         del result['ret']
-        sys.stdout.write(json.dumps(result['entries'], sort_keys=True, indent=2))
+        sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
     else:
         sys.stderr.write(result['msg'])
 
