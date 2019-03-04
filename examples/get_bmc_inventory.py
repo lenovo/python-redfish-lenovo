@@ -114,7 +114,7 @@ def get_bmc_info(ip, login_account, login_password, system_id):
             else:
                 SSDP = ""
             if "VirtualMedia" in response_network_protocol_url.dict :
-                Virtual_Media = response_network_protocol_url.dict["VirtualMedia"]["Port"]
+                Virtual_Media = response_network_protocol_url.dict["VirtualMedia"]
             else:
                 Virtual_Media = ""
             bmc_info['FQDN'] = FQDN
