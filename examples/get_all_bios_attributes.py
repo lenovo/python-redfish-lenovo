@@ -1,6 +1,6 @@
 ###
 #
-# Lenovo Redfish examples - Get Bios attribute
+# Lenovo Redfish examples - Get all Bios attribute
 #
 # Copyright Notice:
 #
@@ -51,64 +51,73 @@ def get_bios_attribute(ip, login_account, login_password, system_id, bios_get):
     except:
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
         return result
-
-    # GET the ComputerSystem resource
-    system = utils.get_system_url("/redfish/v1", system_id, REDFISH_OBJ)
-    if not system:
-        result = {'ret': False, 'msg': "This system id is not exist or system member is None"}
-        REDFISH_OBJ.logout()
-        return result
-    attributes = []
-    for i in range(len(system)):
-        system_url = system[i]
-        response_system_url = REDFISH_OBJ.get(system_url, None)
-        if response_system_url.status == 200:
-            # Get the current url
-            bios_url = response_system_url.dict['Bios']['@odata.id']
-        else:
-            result = {'ret': False, 'msg': "response system url Error code %s" % response_system_url.status}
+    try:
+        # GET the ComputerSystem resource
+        system = utils.get_system_url("/redfish/v1", system_id, REDFISH_OBJ)
+        if not system:
+            result = {'ret': False, 'msg': "This system id is not exist or system member is None"}
             REDFISH_OBJ.logout()
             return result
-        response_bios_url = REDFISH_OBJ.get(bios_url, None)
-        if response_bios_url.status == 200:
-            if bios_get == "current":
-                # Get the bios url resource
-                attribute = response_bios_url.dict['Attributes']
-                attributes.append(attribute)
-            elif bios_get == "pending":
-                # Get pending url
-                pending_url = response_bios_url.dict['@Redfish.Settings']['SettingsObject']['@odata.id']
-                response_pending_url = REDFISH_OBJ.get(pending_url, None)
-                if response_pending_url.status == 200:
-                    # Get the pending url resource
-                    attribute = response_pending_url.dict['Attributes']
-                    attributes.append(attribute)
-                else:
-                    result = {'ret': False, 'msg': "response pending url Error code %s" % response_pending_url.status}
-                    REDFISH_OBJ.logout()
-                    return result
+        attributes = []
+        for i in range(len(system)):
+            system_url = system[i]
+            response_system_url = REDFISH_OBJ.get(system_url, None)
+            if response_system_url.status == 200:
+                # Get the current url
+                bios_url = response_system_url.dict['Bios']['@odata.id']
             else:
-                result = {'ret': False, 'msg': "Please input '--bios current' or '--bios pending'"}
+                result = {'ret': False, 'msg': "response system url Error code %s" % response_system_url.status}
                 REDFISH_OBJ.logout()
                 return result
-        else:
-            result = {'ret': False, 'msg': "response bios url Error code %s" % response_bios_url.status}
-            REDFISH_OBJ.logout()
-            return result
-
-    result['ret'] = True
-    result['attributes'] = attributes
-    REDFISH_OBJ.logout()
-    return result
+            response_bios_url = REDFISH_OBJ.get(bios_url, None)
+            if response_bios_url.status == 200:
+                if bios_get == "current":
+                    # Get the bios url resource
+                    attribute = response_bios_url.dict['Attributes']
+                    attributes.append(attribute)
+                elif bios_get == "pending":
+                    # Get pending url
+                    pending_url = response_bios_url.dict['@Redfish.Settings']['SettingsObject']['@odata.id']
+                    response_pending_url = REDFISH_OBJ.get(pending_url, None)
+                    if response_pending_url.status == 200:
+                        # Get the pending url resource
+                        attribute = response_pending_url.dict['Attributes']
+                        attributes.append(attribute)
+                    else:
+                        error_message = utils.get_extended_error(response_pending_url)
+                        result = {'ret': False, 'msg': "Url '%s' response error code %s \nerror_message: %s" % (
+                            pending_url, response_pending_url.status, error_message)}
+                        return result
+                else:
+                    result = {'ret': False, 'msg': "Please input '--bios current' or '--bios pending'"}
+                    return result
+            else:
+                error_message = utils.get_extended_error(response_bios_url)
+                result = {'ret': False, 'msg': "Url '%s' response error code %s \nerror_message: %s" % (
+                    bios_url, response_bios_url.status, error_message)}
+                return result
+        result['ret'] = True
+        result['attributes'] = attributes
+    except Exception as e:
+        result = {'ret': False, 'msg': "error message %s" % e}
+    finally:
+        # Logout of the current session
+        REDFISH_OBJ.logout()
+        return result
 
 
 import argparse
+def add_helpmessage(parser):
+    parser.add_argument('--bios', default='current', type=str, choices=["current", "pending"], help='Input the bios attribute to get current setting or pending setting(default is current)')
+
+
 def add_parameter():
     """Add get all bios attribute parameter"""
     argget = utils.create_common_parameter_list()
-    argget.add_argument('--bios', default='current', type=str, help='Input the bios attribute get the current setting or the pending setting(current or pending)')
+    add_helpmessage(argget)
     args = argget.parse_args()
     parameter_info = utils.parse_parameter(args)
+    parameter_info['bios_get'] = args.bios
     return parameter_info
 
 

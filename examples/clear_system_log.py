@@ -50,55 +50,63 @@ def clear_system_log(ip, login_account, login_password, system_id):
     except:
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
         return result
+    try:
+        # Get response_base_url resource
+        response_base_url = REDFISH_OBJ.get('/redfish/v1', None)
+        if response_base_url.status == 200:
+            managers_url = response_base_url.dict['Managers']['@odata.id']
+        else:
+            error_message = utils.get_extended_error(response_base_url)
+            result = {'ret': False, 'msg': "Url '/redfish/v1' response Error code %s \nerror_message: %s" % (response_base_url.status, error_message)}
+            return result
 
-    # Get response_base_url resource
-    response_base_url = REDFISH_OBJ.get('/redfish/v1', None)
-    if response_base_url.status == 200:
-        managers_url = response_base_url.dict['Managers']['@odata.id']
-    else:
-        result = {'ret': False, 'msg': "response base url Error code %s" % response_base_url.status}
-        REDFISH_OBJ.logout()
-        return result
-    # Get managers url resource
-    response_managers_url = REDFISH_OBJ.get(managers_url, None)
-    if response_managers_url.status == 200:
-        manager_count = response_managers_url.dict['Members@odata.count']
-    else:
-        result = {'ret': False, 'msg': "response managers url Error code %s" % response_managers_url.status}
-        REDFISH_OBJ.logout()
-        return result
-    for i in range(manager_count):
-        manager_x_url = response_managers_url.dict['Members'][i]['@odata.id']
-        response_manager_x_url = REDFISH_OBJ.get(manager_x_url, None)
-        if response_manager_x_url.status == 200:
-            # Get the log server url
-            log_services_url = response_manager_x_url.dict['LogServices']['@odata.id']
+        # Get managers url resource
+        response_managers_url = REDFISH_OBJ.get(managers_url, None)
+        if response_managers_url.status == 200:
+            manager_count = response_managers_url.dict['Members@odata.count']
         else:
-            result = {'ret': False, 'msg': "response managers url Error code %s" % response_manager_x_url.status}
-            REDFISH_OBJ.logout()
+            error_message = utils.get_extended_error(response_managers_url)
+            result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (managers_url,response_managers_url.status, error_message)}
             return result
-        # Get the response log server resource
-        response_log_services_url = REDFISH_OBJ.get(log_services_url, None)
-        if response_log_services_url.status == 200:
-            members = response_log_services_url.dict['Members']
-        else:
-            result = {'ret': False, 'msg': "response_log_services_url Error code %s" % response_log_services_url.status}
-            REDFISH_OBJ.logout()
-            return result
-        for member in members:
-            log_url = member['@odata.id']
-            response_log_url = REDFISH_OBJ.get(log_url, None)
-            if "Actions" in response_log_url.dict:
-                if "#LogService.ClearLog" in response_log_url.dict["Actions"]:
-                    # Get the clear system log url
-                    clear_log_url = response_log_url.dict["Actions"]["#LogService.ClearLog"]["target"]
-                    # Clear the system log
-                    headers = {"Content-Type":"application/json"}
-                    response_clear_log = REDFISH_OBJ.post(clear_log_url, headers = headers)
-                    if response_clear_log.status in [200, 204]:
-                        result = {'ret': True, 'msg': "Clear log successfully"}
-                    else:
-                        result = {'ret': False, 'msg': "response clear log Error code %s" % response_clear_log.status}
+        for i in range(manager_count):
+            manager_x_url = response_managers_url.dict['Members'][i]['@odata.id']
+            response_manager_x_url = REDFISH_OBJ.get(manager_x_url, None)
+            if response_manager_x_url.status == 200:
+                # Get the log server url
+                log_services_url = response_manager_x_url.dict['LogServices']['@odata.id']
+            else:
+                error_message = utils.get_extended_error(response_manager_x_url)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (manager_x_url, response_manager_x_url.status, error_message)}
+                return result
+
+            # Get the response log server resource
+            response_log_services_url = REDFISH_OBJ.get(log_services_url, None)
+            if response_log_services_url.status == 200:
+                members = response_log_services_url.dict['Members']
+            else:
+                error_message = utils.get_extended_error(response_log_services_url)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (log_services_url, response_log_services_url.status,error_message)}
+                return result
+            for member in members:
+                log_url = member['@odata.id']
+                response_log_url = REDFISH_OBJ.get(log_url, None)
+                if "Actions" in response_log_url.dict:
+                    if "#LogService.ClearLog" in response_log_url.dict["Actions"]:
+                        # Get the clear system log url
+                        clear_log_url = response_log_url.dict["Actions"]["#LogService.ClearLog"]["target"]
+                        headers = {"Content-Type":"application/json"}
+
+                        # Build request body and send requests to clear the system log
+                        body = {"Action": "LogService.ClearLog"}
+                        response_clear_log = REDFISH_OBJ.post(clear_log_url, headers=headers, body=body)
+                        if response_clear_log.status in [200, 204]:
+                            result = {'ret': True, 'msg': "Clear log successfully"}
+                        else:
+                            error_message = utils.get_extended_error(response_clear_log)
+                            result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (clear_log_url, response_clear_log.status, error_message)}
+    except Exception as e:
+        result = {'ret': False, 'msg': "error_message: %s" % (e)}
+    finally:
         REDFISH_OBJ.logout()
         return result
 

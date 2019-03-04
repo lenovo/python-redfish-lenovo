@@ -27,7 +27,7 @@ import redfish
 import lenovo_utils as utils
 
 
-def set_bios_attribute(ip,login_account,login_password,system_id,attribute_name,attribute_value):
+def set_bios_attribute(ip, login_account, login_password, system_id, attribute_name, attribute_value):
     """Set Bios attribute    
     :params ip: BMC IP address
     :type ip: string
@@ -55,54 +55,72 @@ def set_bios_attribute(ip,login_account,login_password,system_id,attribute_name,
     except:
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
         return result
-    # GET the ComputerSystem resource
-    system = utils.get_system_url("/redfish/v1", system_id, REDFISH_OBJ)
-    if not system:
-        result = {'ret': False, 'msg': "This system id is not exist or system member is None"}
+
+    try:
+        # GET the ComputerSystem resource
+        system = utils.get_system_url("/redfish/v1", system_id, REDFISH_OBJ)
+        if not system:
+            result = {'ret': False, 'msg': "This system id is not exist or system member is None"}
+            REDFISH_OBJ.logout()
+            return result
+        for i in range(len(system)):
+            system_url = system[i]
+            response_system_url = REDFISH_OBJ.get(system_url, None)
+            if response_system_url.status == 200:
+                # Get the ComputerBios resource
+                bios_url = response_system_url.dict['Bios']['@odata.id']
+            else:
+                error_message = utils.get_extended_error(response_system_url)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                    system_url, response_system_url.status, error_message)}
+                return result
+
+            # Get bios url resource
+            response_bios_url = REDFISH_OBJ.get(bios_url, None)
+            if response_bios_url.status == 200:
+                pending_url = response_bios_url.dict['@Redfish.Settings']['SettingsObject']['@odata.id']
+            else:
+                error_message = utils.get_extended_error(response_bios_url)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                    bios_url, response_bios_url.status, error_message)}
+                return result
+
+            parameter = {attribute_name: attribute_value}
+            attribute = {"Attributes": parameter}
+            response_pending_url = REDFISH_OBJ.patch(pending_url, body=attribute)
+            if response_pending_url.status == 200:
+                result = {'ret': True, 'msg': '%s set Successful'% attribute_name }
+            elif response_pending_url.status == 400:
+                result = {'ret': False, 'msg': 'Not supported on this platform'}
+            elif response_pending_url.status == 405:
+                result = {'ret': False, 'msg': "Resource not supported"}
+            else:
+                error_message = utils.get_extended_error(response_pending_url)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                    pending_url, response_pending_url.status, error_message)}
+                return result
+    except Exception as e:
+        result = {'ret': False, 'msg': "error_message: %s" % (e)}
+    finally:
+        # Logout of the current session
         REDFISH_OBJ.logout()
         return result
-    for i in range(len(system)):
-        system_url = system[i]
-        response_system_url = REDFISH_OBJ.get(system_url, None)
-        if response_system_url.status == 200:
-            # Get the ComputerBios resource
-            bios_url = response_system_url.dict['Bios']['@odata.id']
-        else:
-            result = {'ret': False, 'msg': "response system url Error code %s" % response_system_url.status}
-            REDFISH_OBJ.logout()
-            return result
-        # Get bios url resource
-        response_bios_url = REDFISH_OBJ.get(bios_url, None)
-        if response_bios_url.status == 200:
-            pending_url = response_bios_url.dict['@Redfish.Settings']['SettingsObject']['@odata.id']
-        else:
-            result = {'ret': False, 'msg': "response bios url Error code %s" % response_bios_url.status}
-            REDFISH_OBJ.logout()
-            return result
-        parameter = {attribute_name: attribute_value}
-        attribute = {"Attributes": parameter}
-        response_pending_url = REDFISH_OBJ.patch(pending_url, body=attribute)
-        if response_pending_url.status == 200:
-            result = {'ret': True, 'msg': '%s set Successful'% attribute_name }
-        elif response_pending_url.status == 400:
-            result = {'ret': False, 'msg': 'Not supported on this platform'}
-        elif response_pending_url.status == 405:
-            result = {'ret': False, 'msg': "Resource not supported"}
-        else:
-            result = {'ret': False, 'msg': "response pending url Error code %s" % response_pending_url.status}
-    # Logout of the current session
-    REDFISH_OBJ.logout()
-    return result
 
 
 import argparse
+def add_helpmessage(parser):
+    parser.add_argument('--name', type=str, required=True, help='Input the attribute name(This is the manufacturer/provider specific list of BIOS attributes.)')
+    parser.add_argument('--value', type=str, required=True, help='Input the attribute value(This is the manufacturer/provider specific list of BIOS attributes.)')
+
+
 def add_parameter():
     """Add set bios attribute parameter"""
     argget = utils.create_common_parameter_list()
-    argget.add_argument('--name', type=str, help='Input the attribute name(This is the manufacturer/provider specific list of BIOS attributes.)')
-    argget.add_argument('--value', type=str, help='Input the attribute value(This is the manufacturer/provider specific list of BIOS attributes.)')
+    add_helpmessage(argget)
     args = argget.parse_args()
     parameter_info = utils.parse_parameter(args)
+    parameter_info['attribute_name'] = args.name
+    parameter_info['attribute_value'] = args.value
     return parameter_info
 
 
