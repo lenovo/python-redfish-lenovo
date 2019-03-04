@@ -86,20 +86,18 @@ def get_cpu_info(ip, login_account, login_password, system_id):
             response_members_url = REDFISH_OBJ.get(members_url, None)
             if response_members_url.status == 200:
                 name = response_members_url.dict['Name']
-                odata_id = response_members_url.dict["@odata.id"]
                 total_threads = response_members_url.dict["TotalThreads"]
                 instructionsset = response_members_url.dict['InstructionSet']
-                if "State" in response_members_url.dict:
+                if "Status" in response_members_url.dict and "State" in response_members_url.dict["Status"]:
                     status_state = response_members_url.dict['Status']['State']
                 else:
                     status_state = ""
-                if "Health" in response_members_url.dict:
+                if "Status" in response_members_url.dict and "Health" in response_members_url.dict["Status"]:
                     status_Health = response_members_url.dict['Status']['Health']
                 else:
                     status_Health = ""
                 processor_type = response_members_url.dict['ProcessorType']
                 total_cores = response_members_url.dict['TotalCores']
-                odata_type = response_members_url.dict['@odata.type']
                 id = response_members_url.dict['Id']
                 manufacturer = response_members_url.dict['Manufacturer']
                 max_speedMHz = response_members_url.dict['MaxSpeedMHz']
@@ -107,6 +105,7 @@ def get_cpu_info(ip, login_account, login_password, system_id):
                 socket = response_members_url.dict['Socket']
 
                 cpu['Name'] = name
+                cpu['id'] = id
                 cpu['ProcessorType'] = processor_type
                 cpu['InstructionSet'] = instructionsset
                 cpu['Manufacturer'] = manufacturer
