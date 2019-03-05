@@ -49,84 +49,98 @@ def get_bmc_user_accounts(ip, login_account, login_password):
     except:
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
         return result
-    # GET the Accounts resource
-    response_base_url = REDFISH_OBJ.get("/redfish/v1", None)
-    if response_base_url.status == 200:
-        account_service_url = response_base_url.dict["AccountService"]["@odata.id"]
-    else:
-        result = {'ret': False, 'msg': "response base url Error code %s" % response_base_url.status}
-        REDFISH_OBJ.logout()
-        return result
-    response_account_service_url = REDFISH_OBJ.get(account_service_url, None)
-    if response_account_service_url.status == 200:
-        accounts_url = response_account_service_url.dict["Accounts"]["@odata.id"]
-    else:
-        result = {'ret': False, 'msg': "response account service_url Error code %s" % response_account_service_url.status}
-        REDFISH_OBJ.logout()
-        return result
-
-    accounts_url_response = REDFISH_OBJ.get(accounts_url, None)
-    if accounts_url_response.status == 200:
-        # Loop through Accounts and print info
-        account_count = accounts_url_response.dict["Members@odata.count"]
-    else:
-        result = {'ret': False, 'msg': "accounts url response Error code %s" % accounts_url_response.status}
-        REDFISH_OBJ.logout()
-        return result
-    x = 0
-    user_details = []
-    for x in range(0, account_count):
-        bmc_user = {}
-        account_x_url = accounts_url_response.dict["Members"][x]["@odata.id"]
-        response_account_x_url = REDFISH_OBJ.get(account_x_url, None)
-        if response_account_x_url.status == 200:
-            # Print out account information if account is valid (UserName not blank)
-            if response_account_x_url.dict["UserName"]:
-                Name = response_account_x_url.dict["Name"]
-                UserName = response_account_x_url.dict["UserName"]
-                if 'Enabled' in response_account_x_url.dict:
-                    Enabled = response_account_x_url.dict["Enabled"]
-                else:
-                    Enabled = ''
-                if 'Locked' in response_account_x_url.dict:
-                    Locked = response_account_x_url.dict["Locked"]
-                else:
-                    Locked = ''
-                bmc_user['Name'] = Name
-                bmc_user['UserName'] = UserName
-                bmc_user['Enabled'] = Enabled
-                bmc_user['Locked'] = Locked
-                # Get account privileges
-                if "Links" in response_account_x_url.dict:
-                    accounts_role_url = response_account_x_url.dict["Links"]["Role"]["@odata.id"]
-                else:
-                    user_details.append(bmc_user)
-                    continue
-                response_accounts_role_url = REDFISH_OBJ.get(accounts_role_url, None)
-                if response_accounts_role_url.status == 200:
-                    AssignedPrivileges = response_accounts_role_url.dict["AssignedPrivileges"]
-                    if "OemPrivileges" in response_accounts_role_url.dict:
-                        OemPrivileges = response_accounts_role_url.dict["OemPrivileges"]
-                    else:
-                        OemPrivileges = []
-                    bmc_user['AssignedPrivileges'] = AssignedPrivileges
-                    bmc_user['OemPrivileges'] = OemPrivileges
-                    user_details.append(bmc_user)
-                else:
-                    result = {'ret': False,
-                              'msg': "response accounts role url Error code %s" % response_accounts_role_url.status}
-                    REDFISH_OBJ.logout()
-                    return result
+    try:
+        # GET the Accounts resource
+        response_base_url = REDFISH_OBJ.get("/redfish/v1", None)
+        if response_base_url.status == 200:
+            account_service_url = response_base_url.dict["AccountService"]["@odata.id"]
         else:
-            result = {'ret': False, 'msg': "response account_x_url Error code %s" % response_account_x_url.status}
-            REDFISH_OBJ.logout()
+            error_message = utils.get_extended_error(response_base_url)
+            result = {'ret': False, 'msg': "Url '/redfish/v1' response Error code %s \nerror_message: %s" % (
+                response_base_url.status, error_message)}
             return result
 
-    result['ret'] = True
-    result['entries'] = user_details
-    # Logout of the current session
-    REDFISH_OBJ.logout()
-    return result
+        response_account_service_url = REDFISH_OBJ.get(account_service_url, None)
+        if response_account_service_url.status == 200:
+            accounts_url = response_account_service_url.dict["Accounts"]["@odata.id"]
+        else:
+            error_message = utils.get_extended_error(response_account_service_url)
+            result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                account_service_url, response_account_service_url.status, error_message)}
+            return result
+
+        # Get all BMC user account
+        accounts_url_response = REDFISH_OBJ.get(accounts_url, None)
+        if accounts_url_response.status == 200:
+            # Loop through Accounts and print info
+            account_count = accounts_url_response.dict["Members@odata.count"]
+        else:
+            error_message = utils.get_extended_error(response_accounts_url)
+            result = {'ret': False,
+                      'msg': "Url '%s' response error code %s \nerror_message: %s" % (accounts_url,
+                                                                                      response_accounts_url.status,
+                                                                                      error_message)}
+            return result
+
+        user_details = []
+        for x in range(0, account_count):
+            bmc_user = {}
+            account_x_url = accounts_url_response.dict["Members"][x]["@odata.id"]
+            response_account_x_url = REDFISH_OBJ.get(account_x_url, None)
+            if response_account_x_url.status == 200:
+                # Print out account information if account is valid (UserName not blank)
+                if response_account_x_url.dict["UserName"]:
+                    Name = response_account_x_url.dict["Name"]
+                    UserName = response_account_x_url.dict["UserName"]
+                    if 'Enabled' in response_account_x_url.dict:
+                        Enabled = response_account_x_url.dict["Enabled"]
+                    else:
+                        Enabled = ''
+                    if 'Locked' in response_account_x_url.dict:
+                        Locked = response_account_x_url.dict["Locked"]
+                    else:
+                        Locked = ''
+                    bmc_user['Name'] = Name
+                    bmc_user['UserName'] = UserName
+                    bmc_user['Enabled'] = Enabled
+                    bmc_user['Locked'] = Locked
+                    # Get account privileges
+                    if "Links" in response_account_x_url.dict:
+                        accounts_role_url = response_account_x_url.dict["Links"]["Role"]["@odata.id"]
+                    else:
+                        user_details.append(bmc_user)
+                        continue
+                    # Get the BMC user privileges info
+                    response_accounts_role_url = REDFISH_OBJ.get(accounts_role_url, None)
+                    if response_accounts_role_url.status == 200:
+                        AssignedPrivileges = response_accounts_role_url.dict["AssignedPrivileges"]
+                        if "OemPrivileges" in response_accounts_role_url.dict:
+                            OemPrivileges = response_accounts_role_url.dict["OemPrivileges"]
+                        else:
+                            OemPrivileges = []
+                        bmc_user['AssignedPrivileges'] = AssignedPrivileges
+                        bmc_user['OemPrivileges'] = OemPrivileges
+                        user_details.append(bmc_user)
+                    else:
+                        error_message = utils.get_extended_error(response_accounts_role_url)
+
+                        result = {'ret': False,
+                                  'msg': "Url '%s'response error code %s \nerror_message: %s" % (accounts_role_url, response_accounts_role_url.status, error_message)}
+                        return result
+            else:
+                error_message = utils.get_extended_error(response_account_x_url)
+                result = {'ret': False, 'msg': "Url '%s' response error code %s \nerror_message: %s" % (
+                    account_x_url, response_account_x_url.status, error_message)}
+                return result
+        result['ret'] = True
+        result['entries'] = user_details
+
+    except Exception as e:
+        result = {'ret': False, 'msg': "Error message %s" %e}
+    finally:
+        # Logout of the current session
+        REDFISH_OBJ.logout()
+        return result
 
 
 if __name__ == '__main__':
