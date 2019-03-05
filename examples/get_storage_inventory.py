@@ -26,7 +26,7 @@ import redfish
 import lenovo_utils as utils
 
 
-def get_storage_info(ip, login_account, login_passwprd, system_id):
+def get_storage_info(ip, login_account, login_password, system_id):
     """Get storage inventory    
     :params ip: BMC IP address
     :type ip: string
@@ -79,44 +79,71 @@ def get_storage_info(ip, login_account, login_passwprd, system_id):
                         Name = response_storage_x_url.dict["Name"]
                         storage['Id'] = Storage_id
                         storage['Name'] = Name
-                        if "Devices" in response_storage_x_url.dict:
-                            Devices_list = response_storage_x_url.dict['Devices']
-                            for storage_info in Devices_list:
-                                Manufacturer = storage_info['Manufacturer']
-                                Model = storage_info['Model']
-                                CapacityBytes = storage_info['CapacityBytes']
-                                Devies_Name = storage_info['Name']
-                                storage['Manufacturer'] = Manufacturer
-                                storage['Model'] = Model
-                                storage['CapacityBytes'] = CapacityBytes
-                                storage['Devies_Name'] = Devies_Name
-                                storage_details.append(storage)
-                            continue
+
+                        # Get the disk inventory from each of the disk resources
+                        drive_list = []
+                        if "Drives" in response_storage_x_url.dict:
+                            for disk in response_storage_x_url.dict["Drives"]:
+                                disk_inventory = {}
+                                disk_url = disk["@odata.id"]
+                                response_disk_url = REDFISH_OBJ.get(disk_url, None)
+                                if response_disk_url.status == 200:
+                                    for key in response_disk_url.dict:
+                                        if key not in ["Description", "@odata.context", "@odata.id", "@odata.type",
+                                                       "@odata.etag", "Links"]:
+                                            disk_inventory[key] = response_disk_url.dict[key]
+                                    drive_list.append(disk_inventory)
+                                else:
+                                    error_message = utils.get_extended_error(response_disk_url)
+                                    result = {'ret': False,
+                                              'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                                                  disk_url, response_disk_url.status,
+                                                  error_message)}
+                                    return result
+                        storage['Drives'] = drive_list
+
+                        if "Volumes" in response_storage_x_url.dict:
+                            volumes_url = response_storage_x_url.dict["Volumes"]["@odata.id"]
+                            response_volumes_url = REDFISH_OBJ.get(volumes_url, None)
+                            if response_volumes_url.status == 200:
+                                volumes_list = []
+                                for volume in response_volumes_url.dict["Members"]:
+                                    volume_inventory = {}
+                                    volume_url = volume["@odata.id"]
+                                    response_volume_url = REDFISH_OBJ.get(volume_url, None)
+                                    if response_volume_url.status == 200:
+                                        for key in response_volume_url.dict:
+                                            if key not in ["Description", "@odata.context", "@odata.id", "@odata.type",
+                                                           "@odata.etag", "Links"]:
+                                                volume_inventory[key] = response_volume_url.dict[key]
+                                        volumes_list.append(volume_inventory)
+                                    else:
+                                        error_message = utils.get_extended_error(response_volume_url)
+                                        result = {'ret': False,
+                                                  'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                                                      volume_inventory, response_volume_url.status,
+                                                      error_message)}
+                                        return result
+                            else:
+                                error_message = utils.get_extended_error(response_volumes_url)
+                                result = {'ret': False,
+                                          'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                                              volumes_url, response_volumes_url.status,
+                                              error_message)}
+                                return result
+                        storage['Volumes'] = volumes_list
+
                         controller_count = response_storage_x_url.dict["StorageControllers@odata.count"]
-                        controller = 0
                         # GET the StorageControllers instances resources from each of the Storage resources
                         storage_list = []
                         for controller in range(0, controller_count):
                             storage_controller = {}
-                            Controller = controller
-                            Manufacturer = response_storage_x_url.dict["StorageControllers"][controller]["Manufacturer"]
-                            Model = response_storage_x_url.dict["StorageControllers"][controller]["Model"]
-                            SerialNumber = response_storage_x_url.dict["StorageControllers"][controller]["SerialNumber"]
-                            FirmwareVersion = response_storage_x_url.dict["StorageControllers"][controller][
-                                "FirmwareVersion"]
-                            PartNumber = response_storage_x_url.dict["StorageControllers"][controller]["PartNumber"]
-                            DurableNameFormat = response_storage_x_url.dict["StorageControllers"][controller]["Identifiers"][0][
-                                "DurableNameFormat"]
-                            DurableName = response_storage_x_url.dict["StorageControllers"][controller]["Identifiers"][0]["DurableName"]
-                            storage_controller[Manufacturer] = Manufacturer
-                            storage_controller["Model"] = Model
-                            storage_controller["SerialNumber"] = SerialNumber
-                            storage_controller["FirmwareVersion"] = FirmwareVersion
-                            storage_controller["PartNumber"] = PartNumber
-                            storage_controller["DurableNameFormat"] = DurableNameFormat
-                            storage_controller["DurableName"] = DurableName
+                            for key in response_storage_x_url.dict["StorageControllers"][controller]:
+                                if key not in ["Description", "@odata.context", "@odata.id", "@odata.type",
+                                               "@odata.etag", "Links"]:
+                                    storage_controller[key] = response_storage_x_url.dict["StorageControllers"][controller][key]
                             storage_list.append(storage_controller)
-                        storage['torage_controller'] = storage_list
+                        storage['storage_controller'] = storage_list
                         storage_details.append(storage)
                     else:
                         result = {'ret': False, 'msg': "response_storage_x_url code %s" % response_storage_x_url.status}
