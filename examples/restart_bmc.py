@@ -49,42 +49,60 @@ def restart_manager(ip, login_account, login_password):
     except:
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
         return result
-    # GET the managers url
-    base_url = "/redfish/v1"
-    response_base_url = REDFISH_OBJ.get(base_url, None)
-    if response_base_url.status == 200:
-        managers_url = response_base_url.dict['Managers']['@odata.id']
-    else:
-        result = {'ret': False, 'msg': "response_base_url Error code %s" % response_base_url.status}
+    try:
+        # GET the managers url from base url resource instance
+        base_url = "/redfish/v1"
+        response_base_url = REDFISH_OBJ.get(base_url, None)
+        if response_base_url.status == 200:
+            managers_url = response_base_url.dict['Managers']['@odata.id']
+        else:
+            error_message = utils.get_extended_error(response_base_url)
+            result = {'ret': False, 'msg': "Url '/redfish/v1' response Error code %s \nerror_message: %s" % (response_base_url.status, error_message)}
+            return result
+
+        response_managers_url = REDFISH_OBJ.get(managers_url, None)
+        if response_managers_url.status == 200:
+            count = response_managers_url.dict["Members@odata.count"]
+            # Get the manager url from Member list
+            for i in range(count):
+                manager_url = response_managers_url.dict['Members'][i]['@odata.id']
+                response_manager_url = REDFISH_OBJ.get(manager_url, None)
+                if response_manager_url.status == 200:
+                    restart_manager_url = response_manager_url.dict['Actions']['#Manager.Reset']['target']
+                    # Get resettype if the response manager resource instance contains Redfish.AllowableValues
+                    try:
+                        ResetType = response_manager_url.dict['Actions']['#Manager.Reset']['ResetType@Redfish.AllowableValues']
+                    except:
+                        ResetType = ''
+                    # Build request body and send requests to restart manager
+                    if 'GracefulRestart' in ResetType:
+                        body = {'ResetType': 'GracefulRestart'}
+                    elif 'ForceRestart' in ResetType:
+                        body = {'ResetType': 'ForceRestart'}
+                    else:
+                        body = {"Action": "Manager.Reset"}
+                    headers = {"Content-Type":"application/json"}
+                    response_restart = REDFISH_OBJ.post(restart_manager_url, headers=headers, body=body)
+                    if response_restart.status in [200, 204]:  
+                        result = {'ret': True, 'msg': "Restart BMC Successfully"}
+                    else:
+                        error_message = utils.get_extended_error(response_restart)
+                        result = {'ret': False, 'msg': "Restart BMC Falied, Url '%s' response Error code%s \nerror_message: %s" % (restart_manager_url, response_restart.status, error_message)}
+                        return result
+                else:
+                    error_message = utils.get_extended_error(response_manager_url)
+                    result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (manager_url, response_manager_url.status, error_message)}
+                    return result
+        else:
+            error_message = utils.get_extended_error(response_managers_url)
+            result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (managers_url, response_managers_url.status, error_message)}
+            return result
+    except Exception as e:
+        result = {'ret': False, 'msg': "error_message: %s" % (e)}
+    finally:
+        # Logout of the current session
         REDFISH_OBJ.logout()
         return result
-    response_managers_url = REDFISH_OBJ.get(managers_url, None)
-    if response_managers_url.status == 200:
-        count = response_managers_url.dict["Members@odata.count"]
-        for i in range(count):
-            manager_url = response_managers_url.dict['Members'][i]['@odata.id']
-            response_manager_url = REDFISH_OBJ.get(manager_url, None)
-            if response_manager_url.status == 200:
-                restart_manager_url = response_manager_url.dict['Actions']['#Manager.Reset']['target']
-                parameter = {'ResetType': 'GracefulRestart'}
-                response_restart = REDFISH_OBJ.post(restart_manager_url, body=parameter)
-    
-                if response_restart.status in [200, 204]:  
-                    result = {'ret': True, 'msg': "Restart Successful"}       
-                else:
-                    result = {'ret': False, 'msg': "response restart Error code %s" % response_restart.status}
-                    REDFISH_OBJ.logout()
-                    return result
-            else:
-                result = {'ret': False, 'msg': "response manager url Error code %s" % response_manager_url.status}
-                REDFISH_OBJ.logout()
-                return result
-    else:
-        result = {'ret': False, 'msg': "response managers url Error code %s" % response_managers_url.status}
-        return result
-
-    REDFISH_OBJ.logout()
-    return result
 
 
 if __name__ == '__main__':
