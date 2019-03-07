@@ -65,7 +65,7 @@ def set_bios_bootmode_legacy(ip, login_account, login_password, system_id):
         parameter = {"Boot": json.loads(bios_attributes)}
         response_system_url = REDFISH_OBJ.patch(system_url, body=parameter)
 
-        if response_system_url.status == 200:
+        if response_system_url.status in [200, 204]:
             result = {'ret': True, 'msg': 'set bios bootmode legacy successful'}
         elif response_system_url.status == 400:
             result = {'ret': False, 'msg': 'Not supported on this platform'}
