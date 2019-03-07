@@ -1,6 +1,6 @@
 ###
 #
-# Lenovo Redfish examples - Set manager vlan id
+# Lenovo Redfish examples - Set BMC vlan id
 #
 # Copyright Notice:
 #
@@ -27,7 +27,7 @@ import lenovo_utils as utils
 
 
 def set_manager_vlanid(ip, login_account, login_password, vlanid, vlanEnable):
-    """Set manager vlan id    
+    """Set BMC vlan id    
     :params ip: BMC IP address
     :type ip: string
     :params login_account: BMC user name
@@ -54,63 +54,81 @@ def set_manager_vlanid(ip, login_account, login_password, vlanid, vlanEnable):
     except:
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
         return result
-    # GET the managers url
-    base_url = "/redfish/v1"
-    response_base_url = REDFISH_OBJ.get(base_url, None)
-    if response_base_url.status == 200:
-        managers_url = response_base_url.dict['Managers']['@odata.id']
-    else:
-        result = {'ret': False, 'msg': "response base url Error code %s" % response_base_url.status}
-        REDFISH_OBJ.logout()
-        return result
-    response_managers_url = REDFISH_OBJ.get(managers_url, None)
-    if response_managers_url.status == 200:
-        count = response_managers_url.dict["Members@odata.count"]
-        for i in range(count):
-            manager_url = response_managers_url.dict['Members'][i]['@odata.id']
-            response_manager_url = REDFISH_OBJ.get(manager_url, None)
-            if response_manager_url.status == 200:
-                ethernet_interface = response_manager_url.dict['EthernetInterfaces']['@odata.id']
-                response_ethernet_interface = REDFISH_OBJ.get(ethernet_interface, None)
-                if response_ethernet_interface.status == 200:
-                    for i in range(response_ethernet_interface.dict['Members@odata.count']):
-                        interface_url = response_ethernet_interface.dict['Members'][i]['@odata.id']
-                        if "NIC" in interface_url:
-                            vlanid = vlanid
-                            parameter = {"VLAN":{"VLANId":vlanid,"VLANEnable": bool(int(vlanEnable))}}
-                            response_interface_url = REDFISH_OBJ.patch(interface_url, body=parameter)
-                            if response_interface_url.status == 200:
-                                result = {'ret': True, 'msg': "set manager vlanid successful"}
-                            else:
-                                result = {'ret': False, 'msg': "response interface url Error code %s" % response_interface_url.status}
-                                REDFISH_OBJ.logout()
-                                return result
+
+    try:
+        # GET the managers url
+        base_url = "/redfish/v1"
+        response_base_url = REDFISH_OBJ.get(base_url, None)
+        if response_base_url.status == 200:
+            managers_url = response_base_url.dict['Managers']['@odata.id']
+        else:
+            result = {'ret': False, 'msg': "response base url Error code %s" % response_base_url.status}
+            REDFISH_OBJ.logout()
+            return result
+        response_managers_url = REDFISH_OBJ.get(managers_url, None)
+        if response_managers_url.status == 200:
+            count = response_managers_url.dict["Members@odata.count"]
+            for i in range(count):
+                manager_url = response_managers_url.dict['Members'][i]['@odata.id']
+                response_manager_url = REDFISH_OBJ.get(manager_url, None)
+
+                # Get the ethernet interface url
+                if response_manager_url.status == 200:
+                    ethernet_interface = response_manager_url.dict['EthernetInterfaces']['@odata.id']
+                    response_ethernet_interface = REDFISH_OBJ.get(ethernet_interface, None)
+                    if response_ethernet_interface.status == 200:
+                        for i in range(response_ethernet_interface.dict['Members@odata.count']):
+                            interface_url = response_ethernet_interface.dict['Members'][i]['@odata.id']
+                            if "NIC" in interface_url:
+                                vlanid = vlanid
+                                parameter = {"VLAN":{"VLANId":vlanid,"VLANEnable": bool(int(vlanEnable))}}
+                                response_interface_url = REDFISH_OBJ.patch(interface_url, body=parameter)
+                                if response_interface_url.status == 200:
+                                    result = {'ret': True, 'msg': "set BMC vlanid successfully"}
+                                else:
+                                    error_message = utils.get_extended_error(response_interface_url)
+                                    result = {'ret': False,
+                                              'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                                                  interface_url, response_interface_url.status,
+                                                  error_message)}
+                                    return result
+                    else:
+                        error_message = utils.get_extended_error(response_ethernet_interface)
+                        result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                            ethernet_interface, response_ethernet_interface.status, error_message)}
+                        return result
                 else:
-                    result = {'ret': False, 'msg': "response ethernet interface Error code %s" % response_ethernet_interface.status}
-                    REDFISH_OBJ.logout()
+                    error_message = utils.get_extended_error(response_manager_url)
+                    result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                        manager_url, response_manager_url.status, error_message)}
                     return result
-            else:
-                result = {'ret': False, 'msg': "response manager url Error code %s" % response_manager_url.status}
-                REDFISH_OBJ.logout()
-                return result
-    else:
-        
-        result = {'ret': False, 'msg': "response managers url Error code %s" % response_managers_url.status}
+        else:
+            error_message = utils.get_extended_error(response_managers_url)
+            result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                managers_url, response_managers_url.status, error_message)}
+            return result
+    except Exception as e:
+        result = {'ret': False, 'msg': "error_message: %s" % (e)}
+    finally:
+        # Logout of the current session
         REDFISH_OBJ.logout()
         return result
-        
-    REDFISH_OBJ.logout()
-    return result
 
 
 import argparse
+def add_helpmessage(parser):
+    parser.add_argument('--vlanid', type=str, required=True, help='Input the vlanid of BMC')
+    parser.add_argument('--vlanenable', type=str, required=True, help='0:false, 1:true')
+
+
 def add_parameter():
     """Add manager vlanid parameter"""
     argget = utils.create_common_parameter_list()
-    argget.add_argument('--vlanid', type=str, help='Input the set manager vlanid')
-    argget.add_argument('--vlanenable', type=str, help='0:false, 1:true')
+    add_helpmessage(argget)
     args = argget.parse_args()
     parameter_info = utils.parse_parameter(args)
+    parameter_info['vlanid'] = args.vlanid
+    parameter_info['vlanEnable'] = args.vlanenable
     return parameter_info
 
 
