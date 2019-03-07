@@ -25,7 +25,7 @@ import redfish
 import json
 import lenovo_utils as utils
 
-def update_user_password(ip, login_account, login_password, userid, password):
+def update_user_password(ip, login_account, login_password, username, new_password):
     """update user password    
     :params ip: BMC IP address
     :type ip: string
@@ -35,10 +35,10 @@ def update_user_password(ip, login_account, login_password, userid, password):
     :type login_password: string
     :params system_id: ComputerSystem instance id(None: first instance, All: all instances)
     :type system_id: None or string
-    :params userid: UserID to be modified by the user
-    :type userid: string
-    :params password: New password to be modified by the user
-    :type password: string
+    :params username: Username to be modified by the user
+    :type username: string
+    :params new_password: New password to be modified by the user
+    :type new_password: string
     :returns: returns update user password result when succeeded or error message when failed
     """
     result = {}
@@ -53,53 +53,92 @@ def update_user_password(ip, login_account, login_password, userid, password):
     except:
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result
+    try:
+        # Get response_base_url resource
+        response_base_url = REDFISH_OBJ.get('/redfish/v1', None)
 
-    # Get ServiceBase resource
-    response_base_url = REDFISH_OBJ.get('/redfish/v1', None)
-    # Get response_base_url
-    if response_base_url.status == 200:
-        account_service_url = response_base_url.dict['AccountService']['@odata.id']
-    else:
-        result = {'ret': False, 'msg': " response base url Error code %s" % response_base_url.status}
+        # Get account service url
+        if response_base_url.status == 200:
+            account_service_url = response_base_url.dict['AccountService']['@odata.id']
+        else:
+            error_message = utils.get_extended_error(response_base_url)
+            result = {'ret': False, 'msg': "Url '/redfish/v1' response Error code %s \nerror_message: %s" % (
+            response_base_url.status, error_message)}
+            return result
+
+        # Get AccountService resource
+        response_account_service_url = REDFISH_OBJ.get(account_service_url, None)
+        if response_account_service_url.status == 200:
+            accounts_url = response_account_service_url.dict['Accounts']['@odata.id']
+        else:
+            error_message = utils.get_extended_error(response_account_service_url)
+            result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (account_service_url, response_account_service_url.status, error_message)}
+            return result
+
+        # Get url accounts resource
+        response_accounts_url = REDFISH_OBJ.get(accounts_url, None)
+        if response_accounts_url.status == 200:
+            account_count = response_accounts_url.dict["Members@odata.count"]
+            # Loop the BMC user list and get all the bmc username
+            for x in range(0, account_count):
+                account_x_url = response_accounts_url.dict["Members"][x]["@odata.id"]
+                response_account_x_url = REDFISH_OBJ.get(account_x_url, None)
+                if response_account_x_url.status == 200:
+                    bmc_username = response_account_x_url.dict['UserName']
+                    # Update the BMC user password when the specified BMC username is in the BMC user list.
+                    if bmc_username == username:
+                        if "@odata.etag" in response_account_x_url.dict:
+                            etag = response_account_x_url.dict['@odata.etag']
+                        else:
+                            etag = ""
+                        headers = {"If-Match": etag}
+                        parameter = {"Password": new_password}
+                        response_modified_password = REDFISH_OBJ.patch(account_x_url, body=parameter, headers=headers)
+                        if response_modified_password.status == 200:
+                            result = {'ret': True, 'msg': "The BMC user '%s' password is successfully updated." % username}
+                            return result
+                        else:
+                            error_message = utils.get_extended_error(response_modified_password)
+                            result = {'ret': False, 'msg': "Update BMC user password failed, url '%s' response error code %s \nerror_message: %s" % (account_x_url, response_modified_password.status, error_message)}
+                            return result
+
+                # account_x_url response failed
+                else:
+                    try:
+                        error_message = utils.get_extended_error(response_account_x_url)
+                    except:
+                        error_message = response_account_x_url
+                    result = {'ret': False, 'msg': "response_account_x_url Error code %s \nerror_message: %s" % (
+                        response_account_x_url.status, error_message)}
+                    return result
+            result = {'ret': False, 'msg': "Specified BMC username doesn't exist. Please check whether the BMC username is correct."}
+        else:
+            error_message = utils.get_extended_error(response_accounts_url)
+            result = {'ret': False, 'msg': "Url '%s' response error code %s \nerror_message: %s" % (accounts_url,
+            response_accounts_url.status, error_message)}
+    except Exception as e:
+        result = {'ret':False, 'msg':"Error message %s" %e}
+    finally:
+        # Logout of the current session
         REDFISH_OBJ.logout()
         return result
-    response_account_service_url = REDFISH_OBJ.get(account_service_url, None)
-    if response_account_service_url.status == 200:
-        accounts_url = response_account_service_url.dict['Accounts']['@odata.id']
-        userid = userid
-        if accounts_url[-1] == '/':
-            accounts_url += str(userid)
-        else:
-            accounts_url = accounts_url + '/' + str(userid)
-        response_account_url = REDFISH_OBJ.get(accounts_url, None)
-        if "@odata.etag" in response_account_url.dict:
-            etag = response_account_url.dict['@odata.etag']
-        else:
-            etag = ""
-        headers = {"If-Match": etag}
-        parameter = {"Password": password}
-        response_accounts_url = REDFISH_OBJ.patch(accounts_url, body=parameter, headers=headers)
-        if response_accounts_url.status == 200:
-            result = {'ret': True, 'msg': "update user password successful"}
-        else:
-            result = {'ret': False, 'msg': "response accounts url Error code %s" % response_accounts_url.status}
-            REDFISH_OBJ.logout()
-            return result
-    else:
-        result = {'ret': False, 'msg': "response account service url Error code %s" % response_account_service_url.status}
-
-    REDFISH_OBJ.logout()
-    return result
 
 
 import argparse
+def add_helpmessage(argget):
+    argget.add_argument('--username', type=str, required=True, help='Input the name of BMC user to be updated')
+    argget.add_argument('--newpasswd', type=str, required=True, help='Input new password of BMC user')
+
+
 def add_parameter():
     """Add update user password parameter"""
     argget = utils.create_common_parameter_list()
-    argget.add_argument('--userid', type=str, help='Input the update user userid')
-    argget.add_argument('--newpasswd', type=str, help='Input the user new passwd')
+    add_helpmessage(argget)
     args = argget.parse_args()
     parameter_info = utils.parse_parameter(args)
+    if args.username is not None and args.newpasswd is not None:
+        parameter_info["username"] = args.username
+        parameter_info["new_passwd"] = args.newpasswd
     return parameter_info
 
 
@@ -114,14 +153,14 @@ if __name__ == '__main__':
 
     # Get set info from the parameters user specified
     try:
-        userid = parameter_info['userid']
-        password = parameter_info['new_passwd']
+        username = parameter_info['username']
+        new_password = parameter_info['new_passwd']
     except:
         sys.stderr.write("Please run the command 'python %s -h' to view the help info" % sys.argv[0])
         sys.exit(1)
 
     # Update user password result and check result   
-    result = update_user_password(ip, login_account, login_password, userid, password)
+    result = update_user_password(ip, login_account, login_password, username, new_password)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
