@@ -54,48 +54,62 @@ def update_fw(ip, login_account, login_password, image_url, targets, protocol):
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
         return result
 
+    try:
+        # Get ServiceRoot resource
+        response_base_url = REDFISH_OBJ.get('/redfish/v1', None)
+        # Get response_update_service_url
+        if response_base_url.status == 200:
+            update_service_url = response_base_url.dict['UpdateService']['@odata.id']
+        else:
+            message = utils.get_extended_error(response_base_url)
+            result = {'ret': False, 'msg': "Url '%s' response Error code %s, \nError message :%s" % ('/redfish/v1', response_base_url.status, message)}
+            return result
 
-    # Get ServiceRoot resource
-    response_base_url = REDFISH_OBJ.get('/redfish/v1', None)
-    # Get response_update_service_url
-    if response_base_url.status == 200:
-        update_service_url = response_base_url.dict['UpdateService']['@odata.id']
-    else:
-        result = {'ret': False, 'msg': "response base url Error code %s" % response_base_url.status}
+        response_update_service_url = REDFISH_OBJ.get(update_service_url, None)
+        if response_update_service_url.status == 200:
+            firmware_inventory_url = response_update_service_url.dict['Actions']['#UpdateService.SimpleUpdate']['target']
+            parameter = {"ImageURI": image_url, "Targets": targets, "TransferProtocol": protocol}
+            response_firmware_inventory = REDFISH_OBJ.post(firmware_inventory_url, body=parameter)
+            if response_firmware_inventory.status in [200, 202, 204]:
+                result = {'ret': True, 'msg': "Update firmware successful"}
+            else:
+                message = utils.get_extended_error(response_firmware_inventory)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s, \nError message :%s" % (
+                firmware_inventory_url, response_firmware_inventory.status, message)}
+                return result
+        else:
+            message = utils.get_extended_error(response_update_service_url)
+            result = {'ret': False, 'msg': "Url '%s' response Error code %s, \nError message :%s" % (update_service_url, response_update_service_url.status, message)}
+            return result
+    except Exception as e:
+        result = {'ret': False, 'msg': "error_message: %s" % (e)}
+    finally:
+        # Logout of the current session
+        REDFISH_OBJ.logout()
         return result
 
-    response_update_service_url = REDFISH_OBJ.get(update_service_url, None)
-    if response_update_service_url.status == 200:
-        firmware_inventory_url = response_update_service_url.dict['Actions']['#UpdateService.SimpleUpdate']['target']
-        parameter = {"ImageURI": imageurl, "Targets": targets, "TransferProtocol": protocol}
-        response_firmware_inventory = REDFISH_OBJ.post(firmware_inventory_url, body=parameter)
-        if response_firmware_inventory.status in [200, 202, 204]:
-            result = {'ret': True, 'msg': "Update firmware successful"}
-        else:
-            result = {'ret': False, 'msg': "response firmware inventory Error code %s" % response_firmware_inventory.status}
-    else:
-        result = {'ret': False, 'msg': "response update service url Error code %s" % response_update_service_url.status}
-
-    REDFISH_OBJ.logout()
-    return result
-
-
 import argparse
+def add_helpmessage(argget):
+    argget.add_argument('--imageurl', type=str, required=True, help='Input the update firmware image url')
+    argget.add_argument('--targets', nargs='*', required=True, help='Input the targets list')
+    argget.add_argument('--protocol', type=str, required=True, help='Input the update firmware protocol')
+
+
 def add_parameter():
     """Add set bios attribute parameter"""
     argget = utils.create_common_parameter_list()
-    argget.add_argument('--imageurl', type=str, help='Input the update firmware image url')
-    argget.add_argument('--targets', type=str, help='Input the targets list')
-    argget.add_argument('--protocol', type=str, help='Input the update firmware protocol')
+    add_helpmessage(argget)
     args = argget.parse_args()
     parameter_info = utils.parse_parameter(args)
+    parameter_info["imageurl"] = args.imageurl
+    parameter_info["targets"] = args.targets
+    parameter_info["protocol"] = args.protocol
     return parameter_info
 
 
 if __name__ == '__main__':
     # Get parameters from config.ini and/or command line
     parameter_info = add_parameter()
-    print(parameter_info)
     # Get connection info from the parameters user specified
     ip = parameter_info['ip']
     login_account = parameter_info["user"]
