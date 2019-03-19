@@ -25,6 +25,7 @@ import logging
 import json
 import redfish
 import lenovo_utils as utils
+from collections import OrderedDict
 
 
 def get_bmc_user_accounts(ip, login_account, login_password):
@@ -84,7 +85,7 @@ def get_bmc_user_accounts(ip, login_account, login_password):
 
         user_details = []
         for x in range(0, account_count):
-            bmc_user = {}
+            bmc_user = OrderedDict()
             account_x_url = accounts_url_response.dict["Members"][x]["@odata.id"]
             response_account_x_url = REDFISH_OBJ.get(account_x_url, None)
             if response_account_x_url.status == 200:
@@ -100,12 +101,14 @@ def get_bmc_user_accounts(ip, login_account, login_password):
                         Locked = response_account_x_url.dict["Locked"]
                     else:
                         Locked = ''
+                    bmc_user['Id'] = response_account_x_url.dict['Id']
                     bmc_user['Name'] = Name
                     bmc_user['UserName'] = UserName
                     bmc_user['Enabled'] = Enabled
                     bmc_user['Locked'] = Locked
+                    bmc_user['RoleId'] = response_account_x_url.dict['RoleId']
                     # Get account privileges
-                    if "Links" in response_account_x_url.dict:
+                    if "Links" in response_account_x_url.dict and "Role" in response_account_x_url.dict["Links"]:
                         accounts_role_url = response_account_x_url.dict["Links"]["Role"]["@odata.id"]
                     else:
                         user_details.append(bmc_user)
@@ -159,6 +162,6 @@ if __name__ == '__main__':
 
     if result['ret'] is True:
         del result['ret']
-        sys.stdout.write(json.dumps(result['entries'], sort_keys=True, indent=2))
+        sys.stdout.write(json.dumps(result['entries'],indent=2))
     else:
         sys.stderr.write(result['msg'])
