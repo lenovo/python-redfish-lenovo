@@ -126,7 +126,7 @@ def export_ffdc_data(ip, login_account, login_password, exporturi, sftpuser, sft
                                     # Download FFDC data from download uri when the task completed
                                     download_sign = download_ffdc(ip, login_account, login_password, download_uri)
                                     if download_sign:
-                                        ffdc_file_name = os.getcwd() + "\\" + download_uri.split('/')[-1]
+                                        ffdc_file_name = os.getcwd() + os.sep + download_uri.split('/')[-1]
                                         time_end = time.time()    
                                         print('time cost: %.2f' %(time_end-time_start)+'s')
                                         result = {'ret': True, 'msg':  "The FFDC data is saved as %s "  %(ffdc_file_name)}
@@ -200,7 +200,7 @@ def download_ffdc(ip, login_account, login_password, download_uri):
         if response_download_uri.status_code == 200:
             ffdc_file_name = download_uri.split('/')[-1]
             get_cwd = os.getcwd()
-            with open(os.getcwd() + '\\' + ffdc_file_name, 'wb') as f:
+            with open(os.getcwd() + os.sep + ffdc_file_name, 'wb') as f:
                 f.write(response_download_uri.content)
                 # f.write(response_download_uri.text)
                 download_sign = True
