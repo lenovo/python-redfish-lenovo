@@ -49,7 +49,7 @@ def get_serial_interfaces(ip, login_account, login_password, interfaceid):
         # Login into the server and create a session
         REDFISH_OBJ.login(auth="session")
     except:
-        result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
+        result = {'ret': False, 'msg': "Please check if username, password, IP are correct"}
         return result
     try:
         base_response = REDFISH_OBJ.get('/redfish/v1', None)
@@ -105,34 +105,15 @@ def get_serial_interfaces(ip, login_account, login_password, interfaceid):
                 response_serial_interfaces_x_url = REDFISH_OBJ.get(serial_interfaces_x_url, None)
                 if response_serial_interfaces_x_url.status == 200:
                     serial_interfaces_dict = {}
-                    Id = response_serial_interfaces_x_url.dict['Id']
-                    InterfaceEnabled = response_serial_interfaces_x_url.dict['InterfaceEnabled']
-                    Name = response_serial_interfaces_x_url.dict['Name']
-                    SignalType = response_serial_interfaces_x_url.dict['SignalType']
-                    DataBits = response_serial_interfaces_x_url.dict['DataBits']
-                    StopBits = response_serial_interfaces_x_url.dict['StopBits']
-                    Parity = response_serial_interfaces_x_url.dict['Parity']
-                    BitRate = response_serial_interfaces_x_url.dict['BitRate']
-                    FlowControl = response_serial_interfaces_x_url.dict['FlowControl']
-                    # Get Lenovo oem attributes
-                    if "Oem" in response_serial_interfaces_x_url.dict:
-                        if "Lenovo" in response_serial_interfaces_x_url.dict['Oem']:
-                            CLIMode = response_serial_interfaces_x_url.dict['Oem']['Lenovo']['CLIMode']
-                            SerialInterfaceState = response_serial_interfaces_x_url.dict['Oem']['Lenovo']['SerialInterfaceState']
-                            EnterCLIKeySequence = response_serial_interfaces_x_url.dict['Oem']['Lenovo']['EnterCLIKeySequence']
-                            serial_interfaces_dict['CLIMode'] = CLIMode
-                            serial_interfaces_dict['SerialInterfaceState'] = SerialInterfaceState
-                            serial_interfaces_dict['EnterCLIKeySequence'] = EnterCLIKeySequence
-
-                    serial_interfaces_dict['Id'] = Id
-                    serial_interfaces_dict['InterfaceEnabled'] = InterfaceEnabled
-                    serial_interfaces_dict['Name'] = Name
-                    serial_interfaces_dict['SignalType'] = SignalType
-                    serial_interfaces_dict['DataBits'] = DataBits
-                    serial_interfaces_dict['StopBits'] = StopBits
-                    serial_interfaces_dict['Parity'] = Parity
-                    serial_interfaces_dict['BitRate'] = BitRate
-                    serial_interfaces_dict['FlowControl'] = FlowControl
+                    serial_interfaces_dict['Id'] = response_serial_interfaces_x_url.dict['Id']
+                    serial_interfaces_dict['InterfaceEnabled'] = response_serial_interfaces_x_url.dict['InterfaceEnabled']
+                    serial_interfaces_dict['Name'] = response_serial_interfaces_x_url.dict['Name']
+                    serial_interfaces_dict['SignalType'] = response_serial_interfaces_x_url.dict['SignalType']
+                    serial_interfaces_dict['DataBits'] = response_serial_interfaces_x_url.dict['DataBits']
+                    serial_interfaces_dict['StopBits'] = response_serial_interfaces_x_url.dict['StopBits']
+                    serial_interfaces_dict['Parity'] = response_serial_interfaces_x_url.dict['Parity']
+                    serial_interfaces_dict['BitRate'] = response_serial_interfaces_x_url.dict['BitRate']
+                    serial_interfaces_dict['FlowControl'] = response_serial_interfaces_x_url.dict['FlowControl']
                     serial_details.append(serial_interfaces_dict)
                 else:
                     error_message = utils.get_extended_error(response_serial_interfaces_x_ur)
@@ -155,7 +136,7 @@ import argparse
 def add_parameter():
     """Add set serial interfaces attribute parameter"""
     argget = utils.create_common_parameter_list()
-    argget.add_argument('--interfaceid', type=str, default='', help='serial interface instance id(default first instance)')
+    argget.add_argument('--interfaceid', type=str, default='', help='Serial interface instance id(default first instance)')
     args = argget.parse_args()
     parameter_info = utils.parse_parameter(args)
     # Parse the added parameters
