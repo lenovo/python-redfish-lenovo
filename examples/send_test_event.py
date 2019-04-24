@@ -1,0 +1,147 @@
+###
+#
+# Lenovo Redfish examples - Send test event
+#
+# Copyright Notice:
+#
+# Copyright 2019 Lenovo Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+###
+
+import sys
+import redfish
+import json
+import lenovo_utils as utils
+import datetime
+
+def send_test_event(ip, login_account, login_password,eventid,message,severity):
+    """Send test event
+        :params ip: BMC IP address
+        :type ip: string
+        :params login_account: BMC user name
+        :type login_account: string
+        :params login_password: BMC user password
+        :type login_password: string
+        :params eventid: event id
+        :type eventid: string
+        :params message: message of event
+        :type message: string
+        :params severity: severity of event
+        :type severity: string
+        :returns: returns Send test event result when succeeded or error message when failed
+        """
+    #check paramater
+    severitylist = ["OK","Warning","Critical"]
+    if severity not in severitylist:
+        result = {'ret': False,
+                  "msg": "Severity scope in [OK,Warning,Critical],please check your input"}
+        return result
+    result = {}
+    login_host = "https://" + ip
+
+    # Connect using the BMC address, account name, and password
+    # Create a REDFISH object
+    REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
+                                         password=login_password, default_prefix='/redfish/v1')
+
+    # Login into the server and create a session
+    try:
+        REDFISH_OBJ.login(auth="session")
+    except:
+        result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
+        return result
+    # Get ServiceBase resource
+    try:
+        response_base_url = REDFISH_OBJ.get('/redfish/v1', None)
+        if response_base_url.status == 200:
+            event_url = response_base_url.dict["EventService"]["@odata.id"]
+            response_event_url = REDFISH_OBJ.get(event_url,None)
+            if response_event_url.status == 200:
+                target_url = response_event_url.dict["Actions"]["#EventService.SubmitTestEvent"]["target"]
+                timestamp = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S+08:00')
+                headers = {"Content-Type": "application/json"}
+                parameter = {"EventId": eventid,
+                            "EventType": "Alert",
+                            "EventTimestamp": timestamp,
+                            "Message": message,
+                            "MessageArgs": [],
+                            "MessageId":"Base.1.1.GeneralError",
+                            "Severity": severity,
+                            "OriginOfCondition":"/redfish/v1/Systems/1/LogServices/StandardLog"}
+
+                response_send_event = REDFISH_OBJ.post(target_url,headers=headers,body=parameter)
+                if response_send_event.status == 200 or response_send_event.status == 204:
+                    result = {"ret":True,"msg":"Send event successsfully,event id is " + eventid \
+                              + ",EventType:Alert,EventTimestamp:" + timestamp + ",Message:" + message \
+                              + ",MessageArgs:[],MessageId:Base.1.1.GeneralError,Severity:" + severity\
+                              + ",OriginOfCondition:/redfish/v1/Systems/1/LogServices/StandardLog" }
+                    return result
+                else:
+                    error_message = utils.get_extended_error(response_send_event)
+                    result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                        target_url, response_send_event.status, error_message)}
+                    return result
+            else:
+                error_message = utils.get_extended_error(response_event_url)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                    event_url, response_event_url.status, error_message)}
+                return result
+        else:
+            error_message = utils.get_extended_error(response_base_url)
+            result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                '/redfish/v1', response_base_url.status, error_message)}
+            return result
+    except Exception as e:
+        result = {'ret': False, 'msg': "Exception msg %s" % e}
+        return result
+    finally:
+        REDFISH_OBJ.logout()
+
+def add_helpmessage(argget):
+    argget.add_argument('--eventid', type=str,default="40000001",help="The id of the event you want to set")
+    argget.add_argument('--message', type=str,default="test event", help="The mssage you want to set")
+    argget.add_argument('--severity', type=str, default="OK",
+                        help="The severity of the event,supported severity[OK,Warning,Critical]")
+
+def add_parameter():
+    """Send test event parameter"""
+    parameter_info = {}
+    argget = utils.create_common_parameter_list()
+    add_helpmessage(argget)
+    args = argget.parse_args()
+    parameter_info = utils.parse_parameter(args)
+    parameter_info["eventid"] = args.eventid
+    parameter_info["message"] = args.message
+    parameter_info["severity"] = args.severity
+    return parameter_info
+
+if __name__ == '__main__':
+    # Get parameters from config.ini and/or command line
+    parameter_info = add_parameter()
+
+    # Get connection info from the parameters user specified
+    ip = parameter_info['ip']
+    login_account = parameter_info["user"]
+    login_password = parameter_info["passwd"]
+    eventid = parameter_info["eventid"]
+    message = parameter_info["message"]
+    severity = parameter_info["severity"]
+
+    # Send test event and check result
+    result = send_test_event(ip, login_account,login_password,eventid,message,severity)
+    if result['ret'] is True:
+        del result['ret']
+        sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2) + "\n")
+    else:
+        sys.stderr.write(result['msg'])
