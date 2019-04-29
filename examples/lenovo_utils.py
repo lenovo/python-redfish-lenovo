@@ -93,13 +93,16 @@ def read_config(config_file):
         cur_dir = os.path.dirname(os.path.abspath(__file__))
         if os.sep not in config_file:
             config_file = cur_dir + os.sep + config_file
-        cfg.read(config_file)
-        config_ini_info = {}
-        # Get the ConnectCfg info
-        config_ini_info["ip"] = cfg.get('ConnectCfg', 'BmcIP')
-        config_ini_info["user"] = cfg.get('ConnectCfg', 'BmcUsername')
-        config_ini_info["passwd"] = cfg.get('ConnectCfg', 'BmcUserpassword')
-        config_ini_info['sysid'] = cfg.get('ConnectCfg', 'SystemId')
+
+        config_ini_info = {"ip": "", "user": "", "passwd": ""}
+        # Check whether the config file exists
+        if os.path.exists(config_file):
+            cfg.read(config_file)
+            # Get the ConnectCfg info
+            config_ini_info["ip"] = cfg.get('ConnectCfg', 'BmcIP')
+            config_ini_info["user"] = cfg.get('ConnectCfg', 'BmcUsername')
+            config_ini_info["passwd"] = cfg.get('ConnectCfg', 'BmcUserpassword')
+            config_ini_info['sysid'] = cfg.get('ConnectCfg', 'SystemId')
     except:
         sys.stderr.write("Please check the file path is correct")
         sys.exit(1)

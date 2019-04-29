@@ -121,7 +121,7 @@ def insert_virtual_media(ip, login_account, login_password, fsip, image, fsdir, 
                                 result = {'ret': True, 'msg': "'%s' mount successfully" % image}
                                 return result
                             else:
-                                error_message = utils.get_extended_error(response_managers_url)
+                                error_message = utils.get_extended_error(response)
                                 result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
                                     members_url, response.status, error_message)}
                                 return result
@@ -142,8 +142,8 @@ def insert_virtual_media(ip, login_account, login_password, fsip, image, fsdir, 
 
 
 def add_helpmessage(argget):
-    argget.add_argument('--fsip', type=str, nargs='?', required=True, help='Specify the file server ip, only HTTPFS and NFS(no credential required) protocols are supported.')
-    argget.add_argument('--fsdir', type=str, nargs='?', required=True, help='File path of the image')
+    argget.add_argument('--fsip', type=str, help='Specify the file server ip, only HTTPFS and NFS(no credential required) protocols are supported.')
+    argget.add_argument('--fsdir', type=str, help='File path of the image')
     argget.add_argument('--image', type=str, required=True, help='Mount media iso name')
     argget.add_argument('--inserted', type=int, nargs='?', default=1, choices=[0, 1],
                         help='Indicates if virtual media is inserted in the virtual device. Support: [0:False, 1:True].')
@@ -151,17 +151,39 @@ def add_helpmessage(argget):
                         help='Indicates the media is write protected. Support: [0:False, 1:True].')
 
 
+import configparser
+import os
 def add_parameter():
     """Add mount media iso parameter"""
     argget = utils.create_common_parameter_list()
     add_helpmessage(argget)
     args = argget.parse_args()
     parameter_info = utils.parse_parameter(args)
-    parameter_info['fsip'] = args.fsip
+    config_file = args.config
+    config_ini_info = utils.read_config(config_file)
+
+    # Add FileServerCfg parameter to config_ini_info
+    cfg = configparser.ConfigParser()
+    if os.path.exists(config_file):
+        cfg.read(config_file)
+        config_ini_info["fsip"] = cfg.get('FileServerCfg', 'FSip')
+        config_ini_info["fsdir"] = cfg.get('FileServerCfg', 'FSdir')
+
+    # Gets the parameters specified on the command line
     parameter_info['image'] = args.image
-    parameter_info['fsdir'] = args.fsdir
     parameter_info['inserted'] = args.inserted
     parameter_info['writeprotocol'] = args.writeprotocol
+
+    # Parse the added parameters
+    parameter_info['fsip'] = args.fsip
+    parameter_info['fsdir'] = args.fsdir
+
+
+    # The parameters in the configuration file are used when the user does not specify parameters
+    for key in parameter_info:
+        if not parameter_info[key]:
+            if key in config_ini_info:
+                parameter_info[key] = config_ini_info[key]
     return parameter_info
 
 

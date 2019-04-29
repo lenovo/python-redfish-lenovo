@@ -28,7 +28,7 @@ import time
 import os
 
 
-def export_ffdc_data(ip, login_account, login_password, exporturi, sftpuser, sftppwd):
+def export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip, fsusername, fspassword, fsdir):
     """Export ffdc data    
     :params ip: BMC IP address
     :type ip: string
@@ -36,12 +36,14 @@ def export_ffdc_data(ip, login_account, login_password, exporturi, sftpuser, sft
     :type login_account: string
     :params login_password: BMC user password
     :type login_password: string
-    :params exporturi: The format of ExportURI must be "sftp://..." or "tftp://..."
-    :type exporturi: string
-    :params sftpuser: Specify sftp username if you specify sftp uri
-    :type sftpuser: string
-    :params sftppwd: Specify sftp password if you sprcify sftp uri
-    :type sftppwd: string
+    :params fsip: Specify the file server ip
+    :type fsip: string
+    :params fsusername: Specify the file server username
+    :type fsusername: string
+    :params fspassword: Specify the file server password
+    :type fspassword: string
+    :params fsdir: Specify the file server dir to the firmware upload
+    :type fsdir: string
     :returns: returns export ffdc data result when succeeded or error message when failed
     """
 
@@ -91,24 +93,25 @@ def export_ffdc_data(ip, login_account, login_password, exporturi, sftpuser, sft
                 body['InitializationNeeded'] = True
                 body['DataCollectionType'] = "ProcessorDump"
 
-                # Get the exporturi when the user specified exporturi
-                if exporturi:
-                    body['ExportURI'] = exporturi
-                    protocol = exporturi.split(':')[0]
+                # Check the transport protocol, only support sftp and tftp protocols
+                if fsprotocol:
+                    export_uri = fsprotocol.lower() + "://" + fsip + ":/" + fsdir + "/"
+                    body['ExportURI'] = export_uri
+                    if fsprotocol.lower() not in ["sftp", "tftp"]:
+                        error_message = "Please check the parameter ExportURI, the format of ExportURI must be 'sftp://...' or 'tftp://...'"
+                        result = {"ret": False, "msg":error_message}
+                        return result
 
-                    # Check the transport protocol, only support sftp and tftp protocols
-                    if protocol not in ["sftp", "tftp"]:
-                        sys.stderr.write("Please check the parameter ExportURI, the format of ExportURI must be 'sftp://...' or 'tftp://...'")
-                        sys.exit(1)
-                    
+
                     # Get the user specified sftp username and password when the protocol is sftp
-                    if protocol == "sftp":
-                        if not sftpuser or not sftppwd:
-                            sys.stderr.write("When the protocol is sftp, you must specify the sftp username and password")
-                            sys.exit(1)
+                    if fsprotocol.upper() == "SFTP":
+                        if not fsusername or not fspassword:
+                            error_message = "When the protocol is sftp, you must specify the sftp username and password"
+                            result = {"ret": False, "msg": error_message}
+                            return result
                         else:
-                            body['Username'] = sftpuser
-                            body['Password'] = sftppwd
+                            body['Username'] = fsusername
+                            body['Password'] = fspassword
                 time_start=time.time()
                 response_ffdc_data_uri = REDFISH_OBJ.post(ffdc_data_uri, body=body)
                 print("Start downloading ffdc files and may need to wait a few minutes...")
@@ -119,7 +122,8 @@ def export_ffdc_data(ip, login_account, login_password, exporturi, sftpuser, sft
                     while True:
                         response_task_uri = REDFISH_OBJ.get(task_uri, None)
                         if response_task_uri.status == 200:
-                            if response_task_uri.dict['TaskState'] == "Completed":
+                            task_state = response_task_uri.dict['TaskState']
+                            if task_state == "Completed":
                                 # If the user does not specify export uri, the ffdc data file will be downloaded to the local
                                 if 'Oem' in response_task_uri.dict:
                                     download_uri = response_task_uri.dict['Oem']['Lenovo']['FFDCForDownloading']['Path']
@@ -129,26 +133,26 @@ def export_ffdc_data(ip, login_account, login_password, exporturi, sftpuser, sft
                                         ffdc_file_name = os.getcwd() + os.sep + download_uri.split('/')[-1]
                                         time_end = time.time()    
                                         print('time cost: %.2f' %(time_end-time_start)+'s')
-                                        result = {'ret': True, 'msg':  "The FFDC data is saved as %s "  %(ffdc_file_name)}
+                                        result = {'ret': True, 'msg':  "The FFDC data is saved as %s " %(ffdc_file_name)}
                                     else:
                                         result = {'ret': False, 'msg':  "The FFDC data download failed"}
                                     break
                                 else:
                                     time_end = time.time()    
                                     print('time cost: %.2f' %(time_end-time_start)+'s')
-                                    result = {'ret': True, 'msg':  "The FFDC data is saved as %s "  %exporturi}
+                                    result = {'ret': True, 'msg':  "The FFDC data is saved as %s " %export_uri}
                                     break
+                            elif task_state in ["Exception", "Killed"]:
+                                result = {"ret": False, "msg": "Task state is %s, The FFDC data download failed" %task_state}
+                                break
                             else:
-                                list = ['|','\\','-','/']
-                                for i in list:
-                                    print('\r{0}'.format(i), end='',flush=True)
-                                    time.sleep(0.1)
+                                flush()
                         else:
                             error_message = utils.get_extended_error(response_task_uri)
                             result = {'ret': False, 'msg': "Url '%s' response task uri Error code %s \nerror_message: %s" % (task_uri, response_task_uri.status, error_message)}
                             break
 
-                    # Delete the task when the taskstate is completed
+                    # Delete the task when the task state is completed
                     REDFISH_OBJ.delete(task_uri, None)
                 else:
                     error_message = utils.get_extended_error(response_ffdc_data_uri)
@@ -163,6 +167,16 @@ def export_ffdc_data(ip, login_account, login_password, exporturi, sftpuser, sft
     finally:
         REDFISH_OBJ.logout() 
         return result
+
+
+def flush():
+    list = ['|', '\\', '-', '/']
+    for i in list:
+        sys.stdout.write(' ' * 100 + '\r')
+        sys.stdout.flush()
+        sys.stdout.write(i + '\r')
+        sys.stdout.flush()
+        time.sleep(0.1)
 
 
 # download FFDC file
@@ -221,22 +235,49 @@ def download_ffdc(ip, login_account, login_password, download_uri):
 
 import argparse
 def add_helpmessage(argget):
-    argget.add_argument('--exporturi', type=str,nargs='?', default='', help='The format of ExportURI must be "sftp://..." or "tftp://...".(If the user needs to download the FFDC data to the local, these parameters are not required.)')
-    argget.add_argument('--sftpuser', type=str, nargs='?', help='Specify sftp username if you specify sftp uri.')
-    argget.add_argument('--sftppwd', type=str, nargs='?', help='Specify sftp password if you sprcify sftp uri.')
+    argget.add_argument('--fsprotocol', type=str, help='Specify the file server protocol.Support:["SFTP"]')
+    argget.add_argument('--fsip', type=str, help='Specify the file server ip.')
+    argget.add_argument('--fsusername', type=str, help='Specify the file server username.')
+    argget.add_argument('--fspassword', type=str, help='Specify the file server password.')
+    argget.add_argument('--fsdir', type=str, help='Specify the file server dir to the firmware upload.')
 
 
+import configparser
 def add_parameter():
     """Add get servicedata parameter"""
     argget = utils.create_common_parameter_list()
     add_helpmessage(argget)
     args = argget.parse_args()
-    parameter_info = utils.parse_parameter(args)
 
-    # Parse the added parameters
-    parameter_info['exporturi'] = args.exporturi
-    parameter_info['sftpuser'] = args.sftpuser
-    parameter_info['sftppwd'] = args.sftppwd
+    # Get the configuration file name if the user specified
+    config_file = args.config
+
+    # Get the common parameter from the configuration files
+    config_ini_info = utils.read_config(config_file)
+
+    # Add FileServerCfg parameter to config_ini_info
+    cfg = configparser.ConfigParser()
+    if os.path.exists(config_file):
+        cfg.read(config_file)
+        config_ini_info["fsprotocol"] = cfg.get('FileServerCfg', 'FSprotocol')
+        config_ini_info["fsip"] = cfg.get('FileServerCfg', 'FSip')
+        config_ini_info["fsusername"] = cfg.get('FileServerCfg', 'FSusername')
+        config_ini_info["fspassword"] = cfg.get('FileServerCfg', 'FSpassword')
+        config_ini_info["fsdir"] = cfg.get('FileServerCfg', 'FSdir')
+
+    # Get the user specify parameter from the command line
+    parameter_info = utils.parse_parameter(args)
+    parameter_info['fsprotocol'] = args.fsprotocol
+    parameter_info['fsip'] = args.fsip
+    parameter_info['fsusername'] = args.fsusername
+    parameter_info['fspassword'] = args.fspassword
+    parameter_info['fsdir'] = args.fsdir
+
+    # The parameters in the configuration file are used when the user does not specify parameters
+    for key in parameter_info:
+        if not parameter_info[key]:
+            if key in config_ini_info:
+                parameter_info[key] = config_ini_info[key]
     return parameter_info
 
 
@@ -249,13 +290,15 @@ if __name__ == '__main__':
     login_account = parameter_info["user"]
     login_password = parameter_info["passwd"]
 
-    # Get service data info from the parameters user specified
-    exporturi = parameter_info['exporturi']
-    sftpuser = parameter_info['sftpuser']
-    sftppwd = parameter_info['sftppwd']
+    # Get file data info from the parameters user specified
+    fsprotocol = parameter_info['fsprotocol']
+    fsip = parameter_info['fsip']
+    fsusername = parameter_info['fsusername']
+    fspassword = parameter_info['fspassword']
+    fsdir = parameter_info['fsdir']
 
     # export ffdc result and check result
-    result = export_ffdc_data(ip, login_account, login_password, exporturi, sftpuser, sftppwd)
+    result = export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip, fsusername, fspassword, fsdir)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
