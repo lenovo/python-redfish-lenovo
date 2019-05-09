@@ -13,16 +13,12 @@ Installing
 ----------
 
 * To install the python-redfish-library, get the code from <https://github.com/DMTF/python-redfish-library> , then:
-
-.. code-block:: console
-
-    python setup.py install
+    
+    `python setup.py install`
 
 * To install configparser:
 
-.. code-block:: console
-
-    pip install configparser
+    `pip install configparser`
 
 Requirements
 ----------
@@ -33,29 +29,26 @@ Usage
 ----------
 A set of python examples is provided under the examples directory of this project.
 
-Common parameters cnfiguration
+####Common parameters configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-* You can use a configuration file to store common parameters for the Lenovo PowerShell Redfish Scripts, such as the BMC IP address, user name, and password. Default configuration file is config.ini. You can create your own configuration file and specify it using the "--config" option. The scripts will load config.ini automatically if no configuration file is specified in command line.
+* You can use a configuration file to store common parameters for the Lenovo PowerShell Redfish Scripts, such as the BMC IP address, user name, and password. Default configuration file is config.ini. 
+You can create your own configuration file and specify it using the "--config" option. 
+The scripts will load config.ini automatically if no configuration file is specified in command line.
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+####Using the python examples to get and set values
 
-Using the python examples to get and set values
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Simply run the python script to print out the values form the HTTP GET operation.
+Simply run the python script to print out the values from the HTTP GET operation.
 
 This example prints the current system power state (such as On or Off)
 
-.. code-block:: console
-
     cd examples
     python get_power_state.py
-
-
 This example prints the system reset types that are supported by this server, then passes one of the values (ForceOff) to force the server to shutdown:
 
-.. code-block:: console
     cd examples
     python lenovo_get_reset_types.py
     ['On', 'Nmi', 'GracefulShutdown', 'GracefulRestart', 'ForceOn', 'ForceOff', 'ForceRestart']
-
+    
     Python lenovo_set_reset_types.py ForceOff
 
 Contributing
