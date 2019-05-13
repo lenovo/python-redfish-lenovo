@@ -1,10 +1,10 @@
 ###
 #
-# Lenovo Redfish examples - Update FW
+# Lenovo Redfish examples - Update Firmware
 #
 # Copyright Notice:
 #
-# Copyright 2018 Lenovo Corporation
+# Copyright 2019 Lenovo Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
 # not use this file except in compliance with the License. You may obtain
@@ -35,13 +35,23 @@ def update_fw(ip, login_account, login_password, image, targets, fsprotocol, fsp
     :type login_account: string
     :params login_password: BMC user password
     :type login_password: string
-    :params image_url: User firmware driver url
-    :type image_url: string
+    :params image: Firmware image url
+    :type image: string
     :params targets: Targets list
     :type targets: list
-    :params protocol: User update transfer Protocol
-    :type protocol: string
-    :returns: returns update firmware result when succeeded or error message when failed
+    :params fsprotocol: User specified transfer protocol
+    :type fsprotocol: string
+    :params fsip: User specified file server ip
+    :type fsip: string
+    :params fsport: User specified file server port
+    :type fsport: string
+    :params fsusername: User specified file server username
+    :type fsusername: string
+    :params fspassword: User specified file server password
+    :type fspassword: string
+    :params fsdir: User specified the image path
+    :type fsdir: string
+    :returns: returns firmware updating result
     """
     # Connect using the address, account name, and password
     login_host = "https://" + ip 
@@ -68,15 +78,24 @@ def update_fw(ip, login_account, login_password, image, targets, fsprotocol, fsp
 
         response_update_service_url = REDFISH_OBJ.get(update_service_url, None)
         if response_update_service_url.status == 200:
-            firmware_inventory_url = response_update_service_url.dict['Actions']['#UpdateService.SimpleUpdate']['target']
+            firmware_update_url = response_update_service_url.dict['Actions']['#UpdateService.SimpleUpdate']['target']
             image_url = fsprotocol.lower() + "://" + fsusername + ":" + fspassword + "@" + fsip + "/" + fsdir + "/" + image
-            parameter = {"ImageURI": image_url, "Targets": targets, "TransferProtocol": fsprotocol.upper()}
-            response_firmware_inventory = REDFISH_OBJ.post(firmware_inventory_url, body=parameter)
-            if response_firmware_inventory.status in [200, 204]:
+
+            # Build an dictionary to store the request body
+            body = {"ImageURI": image_url}
+
+            # Get the user specified parameter
+            if targets:
+                body["Targets"] = targets
+            if fsprotocol:
+                body["TransferProtocol"] = fsprotocol.upper()
+
+            firmware_update_response = REDFISH_OBJ.post(firmware_update_url, body=body)
+            if firmware_update_response.status in [200, 204]:
                 result = {'ret': True, 'msg': "Update firmware successfully"}
                 return result
-            elif response_firmware_inventory.status == 202:
-                task_uri = response_firmware_inventory.dict['@odata.id']
+            elif firmware_update_response.status == 202:
+                task_uri = firmware_update_response.dict['@odata.id']
                 result = task_monitor(REDFISH_OBJ, task_uri)
                 # Delete task
                 REDFISH_OBJ.delete(task_uri, None)
@@ -89,9 +108,9 @@ def update_fw(ip, login_account, login_password, image, targets, fsprotocol, fsp
                 else:
                     return result
             else:
-                message = utils.get_extended_error(response_firmware_inventory)
+                message = utils.get_extended_error(firmware_update_response)
                 result = {'ret': False, 'msg': "Url '%s' response Error code %s, \nError message :%s" % (
-                firmware_inventory_url, response_firmware_inventory.status, message)}
+                firmware_update_url, firmware_update_response.status, message)}
                 return result
         else:
             message = utils.get_extended_error(response_update_service_url)
@@ -159,7 +178,7 @@ def task_monitor(REDFISH_OBJ, task_uri):
 import argparse
 def add_helpmessage(argget):
     argget.add_argument('--image', type=str, required=True, help='Specify the fixid of the firmware to be updated.')
-    argget.add_argument('--targets', nargs='*', required=True, help='Input the targets list')
+    argget.add_argument('--targets', nargs='*', help='Input the targets list')
     argget.add_argument('--fsprotocol', type=str, help='Specify the file server protocol.Support:["SFTP"]')
     argget.add_argument('--fsport', type=int, default='22', help='Specify the file server port')
     argget.add_argument('--fsip', type=str, help='Specify the file server ip.')
