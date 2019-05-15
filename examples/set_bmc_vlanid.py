@@ -94,8 +94,8 @@ def set_manager_vlanid(ip, login_account, login_password, vlanid, vlanEnable):
                                     etag = ""
                                 headers = {"If-Match": etag}
 
-                                vlanid = vlanid
-                                parameter = {"VLAN":{"VLANId":vlanid,"VLANEnable": bool(int(vlanEnable))}}
+                                ivlanid = int(vlanid)
+                                parameter = {"VLAN":{"VLANId":ivlanid,"VLANEnable": bool(int(vlanEnable))}}
                                 response_interface_url = REDFISH_OBJ.patch(interface_url, body=parameter, headers=headers)
                                 if response_interface_url.status in [200,204]:
                                     result = {'ret': True, 'msg': "set BMC vlanid successfully"}
