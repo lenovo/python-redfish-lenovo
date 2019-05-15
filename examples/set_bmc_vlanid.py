@@ -79,7 +79,7 @@ def set_manager_vlanid(ip, login_account, login_password, vlanid, vlanEnable):
                     if response_ethernet_interface.status == 200:
                         for i in range(response_ethernet_interface.dict['Members@odata.count']):
                             interface_url = response_ethernet_interface.dict['Members'][i]['@odata.id']
-                            if "NIC" in interface_url:
+                            if "NIC" in interface_url or "eth" in interface_url:
                                 vlanid = vlanid
                                 parameter = {"VLAN":{"VLANId":vlanid,"VLANEnable": bool(int(vlanEnable))}}
                                 response_interface_url = REDFISH_OBJ.patch(interface_url, body=parameter)
