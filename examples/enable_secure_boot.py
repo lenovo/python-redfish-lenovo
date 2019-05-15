@@ -67,7 +67,7 @@ def enable_secure_boot(ip, login_account, login_password, system_id):
             secure_boot_enable = True
             parameter = {"SecureBootEnable": secure_boot_enable}
             response_secureboot = REDFISH_OBJ.patch(secureboot_url, body=parameter)
-            if response_secureboot.status == 200:
+            if response_secureboot.status in [200,204]:
                 result = {'ret': True,
                           'msg': "PATCH command successfully completed \"%s\" request for enable secure boot" % secure_boot_enable}
             else:

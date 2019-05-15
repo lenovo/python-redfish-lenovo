@@ -101,7 +101,7 @@ def enable_user(ip, login_account, login_password, username):
                         parameter = {"Enabled": True, "UserName": username}
 
                         response_enable_user = REDFISH_OBJ.patch(account_x_url, body=parameter, headers=headers)
-                        if response_enable_user.status == 200:
+                        if response_enable_user.status in [200,204]:
                             result = {'ret': True, 'msg': "BMC User %s enable successfully" %username}
                             return result
                         else:

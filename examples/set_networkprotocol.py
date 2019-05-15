@@ -93,7 +93,7 @@ def set_service_port(ip, login_account, login_password, service, enabled, port):
 
                 # Send Patch Request to Modify Network Port
                 response_network_protocol_url = REDFISH_OBJ.patch(network_protocol_url, body=body)
-                if response_network_protocol_url.status == 200:
+                if response_network_protocol_url.status in [200,204]:
                     result = {'ret': True,
                               'msg': "Set BMC service %s successfully" %service}
                     return result

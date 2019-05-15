@@ -117,7 +117,7 @@ def insert_virtual_media(ip, login_account, login_password, fsip, image, fsdir, 
                             image_uri = fsip + ":/" + fsdir + "/" + image
                             body = {"Image": image_uri, "WriteProtected": bool(writeprotocol), "Inserted": bool(inserted)}
                             response = REDFISH_OBJ.patch(members_url, body=body)
-                            if response.status == 200:
+                            if response.status in [200,204]:
                                 result = {'ret': True, 'msg': "'%s' mount successfully" % image}
                                 return result
                             else:

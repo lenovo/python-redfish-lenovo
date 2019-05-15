@@ -136,7 +136,7 @@ def set_serial_interfaces(ip, login_account, login_password, interfaceid, bitrat
                 
                 # Request set serial interface
                 serial_interfaces_x_url_response = REDFISH_OBJ.patch(serial_interfaces_x_url, body=body)
-                if serial_interfaces_x_url_response.status == 200:
+                if serial_interfaces_x_url_response.status in [200,204]:
                     result = {'ret': True, 'msg': 'Set %s successfully'% [key+':'+str(value) for key, value in body.items()]}
                 else:
                     try:

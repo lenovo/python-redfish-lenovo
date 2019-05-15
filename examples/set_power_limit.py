@@ -91,7 +91,7 @@ def set_power_limit(ip, login_account, login_password,isenable,power_limit):
                         else:
                             parameter = {"PowerControl": [{"PowerLimit":{"LimitInWatts": None}}]}
                         response_limit_set_url = REDFISH_OBJ.patch(power_url, body=parameter)
-                        if response_limit_set_url.status == 200:
+                        if response_limit_set_url.status in [200,204]:
                             result = {"ret":True,"msg":"Set power limit successfully"}
                             return result
                         else:

@@ -94,7 +94,7 @@ def update_user_password(ip, login_account, login_password, username, new_passwo
                         headers = {"If-Match": etag}
                         parameter = {"Password": new_password}
                         response_modified_password = REDFISH_OBJ.patch(account_x_url, body=parameter, headers=headers)
-                        if response_modified_password.status == 200:
+                        if response_modified_password.status in [200,204]:
                             result = {'ret': True, 'msg': "The BMC user '%s' password is successfully updated." % username}
                             return result
                         else:

@@ -82,7 +82,7 @@ def set_manager_ntp(ip, login_account, login_password, ntp_server, ProtocolEnabl
                     Protocol = {"NTPServers":ntp_server,"ProtocolEnabled":  bool(int(ProtocolEnabled))}
                     parameter = {"NTP": Protocol}
                     response_network_url = REDFISH_OBJ.patch(network_url, body=parameter)
-                    if response_network_url.status == 200:
+                    if response_network_url.status in [200,204]:
                         result = {'ret': True, 'msg': "Set BMC ntp servers successfully"}
                     else:
                         error_message = utils.get_extended_error(response_network_url)
