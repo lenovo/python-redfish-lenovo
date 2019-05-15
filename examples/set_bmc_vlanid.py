@@ -80,9 +80,23 @@ def set_manager_vlanid(ip, login_account, login_password, vlanid, vlanEnable):
                         for i in range(response_ethernet_interface.dict['Members@odata.count']):
                             interface_url = response_ethernet_interface.dict['Members'][i]['@odata.id']
                             if "NIC" in interface_url or "eth" in interface_url:
+
+                                # get etag to set If-Match precondition
+                                response_interface_url = REDFISH_OBJ.get(interface_url, None)
+                                if response_interface_url.status != 200:
+                                    error_message = utils.get_extended_error(response_interface_url)
+                                    result = {'ret': False, 'msg': "Url '%s' get failed. response Error code %s \nerror_message: %s" % (
+                                        interface_url, response_interface_url.status, error_message)}
+                                    return result
+                                if "@odata.etag" in response_interface_url.dict:
+                                    etag = response_interface_url.dict['@odata.etag']
+                                else:
+                                    etag = ""
+                                headers = {"If-Match": etag}
+
                                 vlanid = vlanid
                                 parameter = {"VLAN":{"VLANId":vlanid,"VLANEnable": bool(int(vlanEnable))}}
-                                response_interface_url = REDFISH_OBJ.patch(interface_url, body=parameter)
+                                response_interface_url = REDFISH_OBJ.patch(interface_url, body=parameter, headers=headers)
                                 if response_interface_url.status in [200,204]:
                                     result = {'ret': True, 'msg': "set BMC vlanid successfully"}
                                 else:
