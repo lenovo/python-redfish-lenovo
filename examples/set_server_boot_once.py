@@ -61,6 +61,18 @@ def set_server_boot_once(ip, login_account, login_password, system_id, boot_sour
             return result
         for i in range(len(system)):
             system_url = system[i]
+            # get etag to set If-Match precondition
+            response_system_url = REDFISH_OBJ.get(system_url, None)
+            if response_system_url.status != 200:
+                error_message = utils.get_extended_error(response_system_url)
+                result = {'ret': False, 'msg': "Url '%s' get failed. response Error code %s \nerror_message: %s" % (
+                    system_url, response_system_url.status, error_message)}
+                return result
+            if "@odata.etag" in response_system_url.dict:
+                etag = response_system_url.dict['@odata.etag']
+            else:
+                etag = ""
+            headers = {"If-Match": etag}
 
             # Prepare PATCH Body to set Boot once to the user specified target
             patch_body = {"Boot": {"BootSourceOverrideEnabled": "", "BootSourceOverrideTarget": ""}}
@@ -68,7 +80,7 @@ def set_server_boot_once(ip, login_account, login_password, system_id, boot_sour
             patch_body["Boot"]["BootSourceOverrideTarget"] = boot_source
             if boot_source == "None":
                 patch_body["Boot"]["BootSourceOverrideEnabled"] = "Disabled"
-            patch_response = REDFISH_OBJ.patch(system_url, body=patch_body)
+            patch_response = REDFISH_OBJ.patch(system_url, body=patch_body, headers=headers)
 
             # If Response does not return 200/OK or 204, print the response Extended Error message
             if patch_response.status in [200, 204]:

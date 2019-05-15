@@ -115,14 +115,29 @@ def set_serial_interfaces(ip, login_account, login_password, interfaceid, bitrat
 
             # Get the serial interfaces url form serial interfaces url collection
             try:
+                # check interface id invalidity
                 index = int(interfaceid) - 1
                 if(index == -1):
                     result = {'ret': False, 'msg': "The specified Interface Id does not exist."}
                     return result
                 serial_interfaces_x_url = serial_interfaces_url_collection[index]['@odata.id']
-                body = {}
+
+                # get etag to set If-Match precondition
+                response_serial_interfaces_x_url = REDFISH_OBJ.get(serial_interfaces_x_url, None)
+                if response_serial_interfaces_x_url.status != 200:
+                    error_message = utils.get_extended_error(response_serial_interfaces_x_url)
+                    result = {'ret': False, 'msg': "Url '%s' get failed. response Error code %s \nerror_message: %s" % (
+                        serial_interfaces_x_url, response_serial_interfaces_x_url.status, error_message)}
+                    return result
+                if "@odata.etag" in response_serial_interfaces_x_url.dict:
+                    etag = response_serial_interfaces_x_url.dict['@odata.etag']
+                else:
+                    etag = ""
+                headers = {"If-Match": etag}
+
                 
                 # Build body for setting serial interface properties value
+                body = {}
                 if bitrate:
                     body['BitRate'] = bitrate
                 if parity:
@@ -135,7 +150,7 @@ def set_serial_interfaces(ip, login_account, login_password, interfaceid, bitrat
                     body['InterfaceEnabled'] = False
                 
                 # Request set serial interface
-                serial_interfaces_x_url_response = REDFISH_OBJ.patch(serial_interfaces_x_url, body=body)
+                serial_interfaces_x_url_response = REDFISH_OBJ.patch(serial_interfaces_x_url, body=body, headers=headers)
                 if serial_interfaces_x_url_response.status in [200,204]:
                     result = {'ret': True, 'msg': 'Set %s successfully'% [key+':'+str(value) for key, value in body.items()]}
                 else:

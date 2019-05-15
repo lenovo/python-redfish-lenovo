@@ -64,12 +64,27 @@ def enable_secure_boot(ip, login_account, login_password, system_id):
         if response_system_url.status == 200:
             # Get the Chassis resource
             secureboot_url = response_system_url.dict['SecureBoot']['@odata.id']
+
+            # get etag to set If-Match precondition
+            response_secureboot_url = REDFISH_OBJ.get(secureboot_url, None)
+            if response_secureboot_url.status != 200:
+                error_message = utils.get_extended_error(response_secureboot_url)
+                result = {'ret': False, 'msg': "Url '%s' get failed. response Error code %s \nerror_message: %s" % (
+                    secureboot_url, response_secureboot_url.status, error_message)}
+                return result
+            if "@odata.etag" in response_secureboot_url.dict:
+                etag = response_secureboot_url.dict['@odata.etag']
+            else:
+                etag = ""
+            headers = {"If-Match": etag}
+
+            # perform patch to enable secure boot
             secure_boot_enable = True
             parameter = {"SecureBootEnable": secure_boot_enable}
-            response_secureboot = REDFISH_OBJ.patch(secureboot_url, body=parameter)
+            response_secureboot = REDFISH_OBJ.patch(secureboot_url, body=parameter, headers=headers)
             if response_secureboot.status in [200,204]:
                 result = {'ret': True,
-                          'msg': "PATCH command successfully completed \"%s\" request for enable secure boot" % secure_boot_enable}
+                          'msg': "PATCH command successfully completed. SecureBootEnable has been set to True."}
             else:
                 result = {'ret': False, 'msg': "response secureboot Error code %s" % response_secureboot.status}
                 REDFISH_OBJ.logout()

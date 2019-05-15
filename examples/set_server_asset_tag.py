@@ -61,14 +61,28 @@ def set_server_asset_tag(ip, login_account, login_password, system_id, asset_tag
 
         for i in range(len(system)):
             system_url = system[i]
+            # get etag to set If-Match precondition
+            response_system_url = REDFISH_OBJ.get(system_url, None)
+            if response_system_url.status != 200:
+                error_message = utils.get_extended_error(response_system_url)
+                result = {'ret': False, 'msg': "Url '%s' get failed. response Error code %s \nerror_message: %s" % (
+                    system_url, response_system_url.status, error_message)}
+                return result
+            if "@odata.etag" in response_system_url.dict:
+                etag = response_system_url.dict['@odata.etag']
+            else:
+                etag = ""
+            headers = {"If-Match": etag}
+
+            # perform patch to set assettag
             parameter = {"AssetTag": asset_tag}
-            response_asset_tag = REDFISH_OBJ.patch(system_url, body=parameter)
+            response_asset_tag = REDFISH_OBJ.patch(system_url, body=parameter, headers=headers)
             if response_asset_tag.status in [200, 204]:
                 result = {'ret': True,
                           'msg': "PATCH command successfully completed for set server asset tag to %s" % asset_tag}
             else:
                 error_message = utils.get_extended_error(response_asset_tag)
-                result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                result = {'ret': False, 'msg': "Url '%s' patch failed. response Error code %s \nerror_message: %s" % (
                     system_url, response_asset_tag.status, error_message)}
     except Exception as e:
         result = {'ret': False, 'msg': "error_message: %s" % e}
