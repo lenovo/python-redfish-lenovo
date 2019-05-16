@@ -27,7 +27,7 @@ import time
 import lenovo_utils as utils
 
 
-def update_fw(ip, login_account, login_password, image, targets, fsprotocol, fsport, fsip, fsusername, fspassword, fsdir):
+def update_fw(ip, login_account, login_password, image, targets, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir):
     """Update firmware
     :params ip: BMC IP address
     :type ip: string
@@ -79,7 +79,18 @@ def update_fw(ip, login_account, login_password, image, targets, fsprotocol, fsp
         response_update_service_url = REDFISH_OBJ.get(update_service_url, None)
         if response_update_service_url.status == 200:
             firmware_update_url = response_update_service_url.dict['Actions']['#UpdateService.SimpleUpdate']['target']
-            image_url = fsprotocol.lower() + "://" + fsusername + ":" + fspassword + "@" + fsip + "/" + fsdir + "/" + image
+
+            # Define an anonymous function formatting parameter
+            port = (lambda fsport: ":" + fsport if fsport else fsport)
+            dir = (lambda fsdir: "/" + fsdir.strip("/") if fsdir else fsdir)
+            fsport = port(fsport)
+            fsdir = dir(fsdir)
+
+            # Construct image URI by splicing parameters
+            if fsprotocol.lower() == "sftp":
+                image_url = fsprotocol.lower() + "://" + fsusername + ":" + fspassword + "@" + fsip + fsport + fsdir + "/" + image
+            else:
+                image_url = fsprotocol.lower() + "://" + fsip + fsport + fsdir + "/" + image
 
             # Build an dictionary to store the request body
             body = {"ImageURI": image_url}
@@ -137,12 +148,14 @@ def flush():
 def task_monitor(REDFISH_OBJ, task_uri):
     """Monitor task status"""
     RUNNING_TASK_STATE = ["New", "Pending", "Service", "Starting", "Stopping", "Running", "Cancelling", "Verifying"]
-    END_TASK_STATE = ["Cancelled", "Completed", "Exception", "Interrupted", "Suspended"]
+    END_TASK_STATE = ["Cancelled", "Completed", "Exception", "Killed", "Interrupted", "Suspended"]
     current_state = ""
+
     while True:
         response_task_uri = REDFISH_OBJ.get(task_uri, None)
         if response_task_uri.status == 200:
             task_state = response_task_uri.dict["TaskState"]
+
             if task_state in RUNNING_TASK_STATE:
                 if task_state != current_state:
                     current_state = task_state
@@ -179,9 +192,9 @@ import argparse
 def add_helpmessage(argget):
     argget.add_argument('--image', type=str, required=True, help='Specify the fixid of the firmware to be updated.')
     argget.add_argument('--targets', nargs='*', help='Input the targets list')
-    argget.add_argument('--fsprotocol', type=str, help='Specify the file server protocol.Support:["SFTP"]')
-    argget.add_argument('--fsport', type=int, default='22', help='Specify the file server port')
+    argget.add_argument('--fsprotocol', type=str, choices=["SFTP", "TFTP"], help='Specify the file server protocol.Support:["SFTP", "TFTP"]')
     argget.add_argument('--fsip', type=str, help='Specify the file server ip.')
+    argget.add_argument('--fsport', type=str, default='', help='Specify the file server port')
     argget.add_argument('--fsusername', type=str, help='Specify the file server username.')
     argget.add_argument('--fspassword', type=str, help='Specify the file server password.')
     argget.add_argument('--fsdir', type=str, help='Specify the file server dir to the firmware upload.')
@@ -205,8 +218,8 @@ def add_parameter():
     if os.path.exists(config_file):
         cfg.read(config_file)
         config_ini_info["fsprotocol"] = cfg.get('FileServerCfg', 'FSprotocol')
-        config_ini_info["fsport"] = cfg.get('FileServerCfg', 'FSport')
         config_ini_info["fsip"] = cfg.get('FileServerCfg', 'FSip')
+        config_ini_info["fsport"] = cfg.get('FileServerCfg', 'FSport')
         config_ini_info["fsusername"] = cfg.get('FileServerCfg', 'FSusername')
         config_ini_info["fspassword"] = cfg.get('FileServerCfg', 'FSpassword')
         config_ini_info["fsdir"] = cfg.get('FileServerCfg', 'FSdir')
@@ -216,8 +229,8 @@ def add_parameter():
     parameter_info["image"] = args.image
     parameter_info["targets"] = args.targets
     parameter_info['fsprotocol'] = args.fsprotocol
-    parameter_info['fsport'] = args.fsport
     parameter_info['fsip'] = args.fsip
+    parameter_info['fsport'] = args.fsport
     parameter_info['fsusername'] = args.fsusername
     parameter_info['fspassword'] = args.fspassword
     parameter_info['fsdir'] = args.fsdir
@@ -243,8 +256,8 @@ if __name__ == '__main__':
         image = parameter_info['image']
         targets = parameter_info['targets']
         fsprotocol = parameter_info['fsprotocol']
-        fsport = parameter_info['fsport']
         fsip = parameter_info['fsip']
+        fsport = parameter_info['fsport']
         fsusername = parameter_info['fsusername']
         fspassword = parameter_info['fspassword']
         fsdir = parameter_info['fsdir']
@@ -253,7 +266,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     # Update firmware result and check result
-    result = update_fw(ip, login_account, login_password, image, targets, fsprotocol, fsport, fsip, fsusername, fspassword, fsdir)
+    result = update_fw(ip, login_account, login_password, image, targets, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
