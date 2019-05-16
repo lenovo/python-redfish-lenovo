@@ -80,10 +80,17 @@ def update_fw(ip, login_account, login_password, image, targets, fsprotocol, fsi
         if response_update_service_url.status == 200:
             firmware_update_url = response_update_service_url.dict['Actions']['#UpdateService.SimpleUpdate']['target']
 
+            # Define an anonymous function formatting parameter
+            port = (lambda fsport: ":" + fsport if fsport else fsport)
+            dir = (lambda fsdir: "/" + fsdir.strip("/") if fsdir else fsdir)
+            fsport = port(fsport)
+            fsdir = dir(fsdir)
+
+            # Construct image URI by splicing parameters
             if fsprotocol.lower() == "sftp":
-                image_url = fsprotocol.lower() + "://" + fsusername + ":" + fspassword + "@" + fsip + ":" + fsport + "/" + fsdir.strip("/") + "/" + image
+                image_url = fsprotocol.lower() + "://" + fsusername + ":" + fspassword + "@" + fsip + fsport + fsdir + "/" + image
             else:
-                image_url = fsprotocol.lower() + "://" + fsip + ":" + fsport + "/" + fsdir.strip("/") + "/" + image
+                image_url = fsprotocol.lower() + "://" + fsip + fsport + fsdir + "/" + image
 
             # Build an dictionary to store the request body
             body = {"ImageURI": image_url}
@@ -187,7 +194,7 @@ def add_helpmessage(argget):
     argget.add_argument('--targets', nargs='*', help='Input the targets list')
     argget.add_argument('--fsprotocol', type=str, choices=["SFTP", "TFTP"], help='Specify the file server protocol.Support:["SFTP", "TFTP"]')
     argget.add_argument('--fsip', type=str, help='Specify the file server ip.')
-    argget.add_argument('--fsport', type=str, default='22', help='Specify the file server port')
+    argget.add_argument('--fsport', type=str, default='', help='Specify the file server port')
     argget.add_argument('--fsusername', type=str, help='Specify the file server username.')
     argget.add_argument('--fspassword', type=str, help='Specify the file server password.')
     argget.add_argument('--fsdir', type=str, help='Specify the file server dir to the firmware upload.')
