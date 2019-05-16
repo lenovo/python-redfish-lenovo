@@ -61,11 +61,36 @@ def get_reset_types(ip, login_account, login_password, system_id):
         system_url = system[i]
         response_system_url = REDFISH_OBJ.get(system_url, None)
         if response_system_url.status == 200:
-            # Get the response
+            # check whether Reset is supported
+            if ("Actions" not in response_system_url.dict) or ("#ComputerSystem.Reset" not in response_system_url.dict["Actions"]):
+                result = {'ret': False, 'msg': "Reset action is not supported."}
+                REDFISH_OBJ.logout()
+                return result
+
+            # get AllowableValues for Reset action
             reset_types = {}
-            Computer_reset = response_system_url.dict["Actions"]["#ComputerSystem.Reset"]["ResetType@Redfish.AllowableValues"]
-            reset_types["ResetType@Redfish.AllowableValues"] = Computer_reset
-            reset_details.append(reset_types)
+            if "ResetType@Redfish.AllowableValues" in response_system_url.dict["Actions"]["#ComputerSystem.Reset"]:
+                Computer_reset = response_system_url.dict["Actions"]["#ComputerSystem.Reset"]["ResetType@Redfish.AllowableValues"]
+                reset_types["ResetType@Redfish.AllowableValues"] = Computer_reset
+                reset_details.append(reset_types)
+            elif "@Redfish.ActionInfo" in response_system_url.dict["Actions"]["#ComputerSystem.Reset"]:
+                actioninfo_url = response_system_url.dict["Actions"]["#ComputerSystem.Reset"]["@Redfish.ActionInfo"]
+                response_actioninfo_url = REDFISH_OBJ.get(actioninfo_url, None)
+                if response_actioninfo_url.status == 200:
+                    if "Parameters" in response_actioninfo_url.dict:
+                        for parameter in response_actioninfo_url.dict["Parameters"]:
+                            if ("Name" in parameter) and (parameter["Name"] == "ResetType"):
+                                if "AllowableValues" in parameter:
+                                    reset_types["ResetType@Redfish.AllowableValues"] = parameter["AllowableValues"]
+                                    reset_details.append(reset_types)
+                else:
+                    result = {'ret': False, 'msg': "Get url %s failed. Error code %s" % (actioninfo_url, response_actioninfo_url.status)}
+                    REDFISH_OBJ.logout()
+                    return result
+            if "ResetType@Redfish.AllowableValues" not in reset_types:
+                result = {'ret': False, 'msg': "No AllowableValues information found for Reset action."}
+                REDFISH_OBJ.logout()
+                return result
         else:
             result = {'ret': False, 'msg': "response_system_url Error code %s" % response_system_url.status}
             REDFISH_OBJ.logout()
