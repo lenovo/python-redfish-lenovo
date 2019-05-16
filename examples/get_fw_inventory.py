@@ -70,17 +70,9 @@ def get_fw_inventory(ip, login_account, login_password):
                 response_firmware_version = REDFISH_OBJ.get(firmware_version_url, None)
                 if response_firmware_version.status == 200:
                     fw = {}
-                    Version = response_firmware_version.dict['Version']
-                    if "SoftwareId" in response_firmware_version.dict:
-                        SoftwareId = response_firmware_version.dict['SoftwareId']
-                    else:
-                        SoftwareId = ""
-                    Description = response_firmware_version.dict['Description']
-                    State = response_firmware_version.dict['Status']['State']
-                    fw['Version'] = Version
-                    fw['SoftwareId'] = SoftwareId
-                    fw['Description'] = Description
-                    fw['State'] = State
+                    for property in ['Version', 'SoftwareId', 'Description', 'Status']:
+                        if property in response_firmware_version.dict:
+                            fw[property] = response_firmware_version.dict[property]
                     fw = {firmware_list[-1]: fw}
                     fw_version.append(fw)
                 else:

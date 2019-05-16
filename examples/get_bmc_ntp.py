@@ -62,22 +62,24 @@ def get_bmc_ntp(ip, login_account, login_password):
             return result
         response_managers_url = REDFISH_OBJ.get(managers_url, None)
         if response_managers_url.status == 200:
-            #Get power limit
+            #Get NTP info
             list_rt_ntp = []
             for request in response_managers_url.dict['Members']:
                 request_url = request['@odata.id']
                 response_url = REDFISH_OBJ.get(request_url, None)
                 if response_url.status == 200:
-                    network_url = response_url.dict["NetworkProtocol"]['@odata.id']
-                    response_network_url = REDFISH_OBJ.get(network_url, None)
-                    if response_network_url.status == 200:
-                        list_ntp_server = response_network_url.dict["NTP"]["NTPServers"]
-                        list_rt_ntp.append(list_ntp_server)
-                    else:
-                        error_message = utils.get_extended_error(response_network_url)
-                        result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                            network_url, response_network_url.status, error_message)}
-                        return result
+                    if "NetworkProtocol" in response_url.dict:
+                        network_url = response_url.dict["NetworkProtocol"]['@odata.id']
+                        response_network_url = REDFISH_OBJ.get(network_url, None)
+                        if response_network_url.status == 200:
+                            if "NTP" in response_network_url.dict and "NTPServers" in response_network_url.dict["NTP"]:
+                                list_ntp_server = response_network_url.dict["NTP"]["NTPServers"]
+                                list_rt_ntp.append(list_ntp_server)
+                        else:
+                            error_message = utils.get_extended_error(response_network_url)
+                            result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                                network_url, response_network_url.status, error_message)}
+                            return result
                 else:
                     error_message = utils.get_extended_error(response_url)
                     result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (

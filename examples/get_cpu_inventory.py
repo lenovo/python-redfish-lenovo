@@ -59,18 +59,20 @@ def get_cpu_info(ip, login_account, login_password, system_id):
         result = {'ret': False, 'msg': "This system id is not exist or system member is None"}
         REDFISH_OBJ.logout()
         return result
+
     for i in range(len(system)):
+        # Get Processors url
         system_url = system[i]
         response_system_url = REDFISH_OBJ.get(system_url, None)
         if response_system_url.status == 200:
-            # Get the ComputerProcessors resource
             processors_url = response_system_url.dict['Processors']['@odata.id']
         else:
             result = {'ret': False, 'msg': "response_system_url Error code %s" % response_system_url.status}
             REDFISH_OBJ.logout()
             return result
-        response_processors_url = REDFISH_OBJ.get(processors_url, None)
 
+        # Get the Processors collection
+        response_processors_url = REDFISH_OBJ.get(processors_url, None)
         if response_processors_url.status == 200:
             # Get Members url
             members_count = response_processors_url.dict['Members@odata.count']
@@ -79,43 +81,17 @@ def get_cpu_info(ip, login_account, login_password, system_id):
             REDFISH_OBJ.logout()
             return result
 
+        # Get each processor info
         for i in range(members_count):
             cpu = {}
             # Get members url resource
             members_url = response_processors_url.dict['Members'][i]['@odata.id']
             response_members_url = REDFISH_OBJ.get(members_url, None)
             if response_members_url.status == 200:
-                name = response_members_url.dict['Name']
-                total_threads = response_members_url.dict["TotalThreads"]
-                instructionsset = response_members_url.dict['InstructionSet']
-                if "Status" in response_members_url.dict and "State" in response_members_url.dict["Status"]:
-                    status_state = response_members_url.dict['Status']['State']
-                else:
-                    status_state = ""
-                if "Status" in response_members_url.dict and "Health" in response_members_url.dict["Status"]:
-                    status_Health = response_members_url.dict['Status']['Health']
-                else:
-                    status_Health = ""
-                processor_type = response_members_url.dict['ProcessorType']
-                total_cores = response_members_url.dict['TotalCores']
-                id = response_members_url.dict['Id']
-                manufacturer = response_members_url.dict['Manufacturer']
-                max_speedMHz = response_members_url.dict['MaxSpeedMHz']
-                model = response_members_url.dict['Model']
-                socket = response_members_url.dict['Socket']
-
-                cpu['Name'] = name
-                cpu['id'] = id
-                cpu['ProcessorType'] = processor_type
-                cpu['InstructionSet'] = instructionsset
-                cpu['Manufacturer'] = manufacturer
-                cpu['Model'] = model
-                cpu['MaxSpeedMHz'] = max_speedMHz
-                cpu['Socket'] = socket
-                cpu['TotalCores'] = total_cores
-                cpu['TotalThreads'] = total_threads
-                cpu['State'] = status_state
-                cpu['Health'] = status_Health
+                for property in ['Id', 'Name', 'TotalThreads', 'InstructionSet', 'Status', 'ProcessorType', 
+                    'TotalCores', 'Manufacturer', 'MaxSpeedMHz', 'Model', 'Socket']:
+                    if property in response_members_url.dict:
+                        cpu[property] = response_members_url.dict[property]
                 cpu_details.append(cpu)
             else:
                 result = {'ret': False, 'msg': "response_members_url Error code %s" % response_members_url.status}

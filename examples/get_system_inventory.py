@@ -51,6 +51,9 @@ def get_system_info(ip, login_account, login_password, system_id):
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
         return result
 
+    system_properties = ['Status', 'HostName', 'PowerState', 'Model', 'Manufacturer', 'SystemType',
+                      'PartNumber', 'SerialNumber', 'AssetTag', 'ServiceTag', 'UUID', 'SKU',
+                      'BiosVersion', 'ProcessorSummary', 'MemorySummary', 'TrustedModules']
     system_details = []
     # GET the ComputerSystem resource
     system = utils.get_system_url("/redfish/v1",system_id, REDFISH_OBJ)
@@ -64,25 +67,10 @@ def get_system_info(ip, login_account, login_password, system_id):
         if response_system_url.status == 200:
             system = {}
             # Get the system information
-            Host_Name = response_system_url.dict["HostName"]
-            Model = response_system_url.dict["Model"]
-            SerialNumber = response_system_url.dict["SerialNumber"]
-            AssetTag = response_system_url.dict["AssetTag"]
-            UUID = response_system_url.dict["UUID"]
-            Procesors_Model = response_system_url.dict["ProcessorSummary"]["Model"]
-            ProcesorsCount = response_system_url.dict["ProcessorSummary"]["Count"]
-            Total_Memory = response_system_url.dict["MemorySummary"]["TotalSystemMemoryGiB"]
-            BIOS_Version = response_system_url.dict["BiosVersion"]
-            system['HostName'] = Host_Name
-            system['Model'] = Model
-            system['SerialNumber'] = SerialNumber
-            system['AssetTag'] = AssetTag
-            system['UUID'] = UUID
-            system['Procesors_Model'] = Procesors_Model
-            system['ProcesorsCount'] = ProcesorsCount
-            system['TotalSystemMemoryGiB'] = Total_Memory
-            system['BiosVersion'] = BIOS_Version
-            system_details.append(system)
+            for system_property in system_properties:
+                if system_property in response_system_url.dict:
+                    system[system_property] = response_system_url.dict[system_property]
+
             # GET System EtherNetInterfaces resources
             nics_url = response_system_url.dict["EthernetInterfaces"]["@odata.id"]
             response_nics_url = REDFISH_OBJ.get(nics_url, None)
@@ -93,21 +81,23 @@ def get_system_info(ip, login_account, login_password, system_id):
                 REDFISH_OBJ.logout()
                 return result
             x = 0
+            ethernetinterface = []
             for x in range(0, nic_count):
-                ethernetinterface = []
                 EtherNetInterfaces = {}
                 nic_x_url = response_nics_url.dict["Members"][x]["@odata.id"]
                 response_nic_x_url = REDFISH_OBJ.get(nic_x_url, None)
                 if response_nic_x_url.status == 200:
-                    PermanentMACAddress = response_nic_x_url.dict["PermanentMACAddress"]
-                    EtherNetInterfaces['PermanentMACAddress'] = PermanentMACAddress
-                    ethernetinterface.append(EtherNetInterfaces)
-                    system['EtherNetInterfaces'] = ethernetinterface
+                    if "PermanentMACAddress" in response_nic_x_url.dict:
+                        PermanentMACAddress = response_nic_x_url.dict["PermanentMACAddress"]
+                        EtherNetInterfaces['PermanentMACAddress'] = PermanentMACAddress
+                        ethernetinterface.append(EtherNetInterfaces)
                 else:
                     result = {'ret': False, 'msg': "response nic_x_url Error code %s" % response_nic_x_url.status}
                     REDFISH_OBJ.logout()
                     return result
 
+            system['EtherNetInterfaces'] = ethernetinterface
+            system_details.append(system)
         else:
             result = {'ret': False, 'msg': "response_system_url Error code %s" % response_system_url.status}
             REDFISH_OBJ.logout()

@@ -90,23 +90,9 @@ def get_virtual_media(ip, login_account, login_password):
                         virtual_media_x_url = response_virtual_media.dict["Members"][i]["@odata.id"]
                         response_virtual_media_x_url = REDFISH_OBJ.get(virtual_media_x_url, None)
                         if response_virtual_media_x_url.status == 200:
-                            connected_via = response_virtual_media_x_url.dict["ConnectedVia"]
-                            Id = response_virtual_media_x_url.dict["Id"]
-                            MediaTypes = response_virtual_media_x_url.dict["MediaTypes"]
-                            Image = response_virtual_media_x_url.dict["Image"]
-                            if "ImageName" in response_virtual_media_x_url.dict:
-                                ImageName = response_virtual_media_x_url.dict["ImageName"]
-                            else:
-                                ImageName = ""
-                            WriteProtected = response_virtual_media_x_url.dict["WriteProtected"]
-                            Name = response_virtual_media_x_url.dict["Name"]
-                            virtual_media_info["connected_via"] = connected_via
-                            virtual_media_info["MediaTypes"] = MediaTypes
-                            virtual_media_info["Id"] = Id
-                            virtual_media_info["Image"] = Image
-                            virtual_media_info["ImageName"] = ImageName
-                            virtual_media_info["WriteProtected"] = WriteProtected
-                            virtual_media_info["Name"] = Name
+                            for property in ['Id', 'Name', 'ConnectedVia', 'MediaTypes', 'Image', 'ImageName', 'WriteProtected']:
+                                if property in response_virtual_media_x_url.dict:
+                                    virtual_media_info[property] = response_virtual_media_x_url.dict[property]
                             virtual_media_info_list.append(virtual_media_info)
                         else:
                             error_message = utils.get_extended_error(response_virtual_media_x_url)
