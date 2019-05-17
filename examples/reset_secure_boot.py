@@ -77,7 +77,7 @@ def reset_secure_boot(ip, login_account, login_password, system_id, reset_keys_t
                 reset_action_url = response_secure_boot_url.dict["Actions"]["#SecureBoot.ResetKeys"]["target"]
                 body = {"ResetKeysType": reset_keys_type}
                 response_reset_url = REDFISH_OBJ.post(reset_action_url, body=body)
-                if response_reset_url.status == 200:
+                if response_reset_url.status in [200,204]:
                     result = {'ret': True, 'msg': "reset keys successfully"}
                 else:
                     error_message = utils.get_extended_error(response_reset_url)

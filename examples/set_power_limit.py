@@ -78,6 +78,13 @@ def set_power_limit(ip, login_account, login_password,isenable,power_limit):
                     power_url = response_url.dict["Power"]['@odata.id']
                     response_power_url = REDFISH_OBJ.get(power_url, None)
                     if response_power_url.status == 200:
+                        # get etag to set If-Match precondition
+                        if "@odata.etag" in response_power_url.dict:
+                            etag = response_power_url.dict['@odata.etag']
+                        else:
+                            etag = ""
+                        headers = {"If-Match": etag}
+
                         rt_list_limit = []
                         list_power_control = response_power_url.dict["PowerControl"]
                         # check powerlimit existed or not
@@ -90,8 +97,8 @@ def set_power_limit(ip, login_account, login_password,isenable,power_limit):
                             parameter = {"PowerControl": [{"PowerLimit":{"LimitInWatts": power_limit}}]}
                         else:
                             parameter = {"PowerControl": [{"PowerLimit":{"LimitInWatts": None}}]}
-                        response_limit_set_url = REDFISH_OBJ.patch(power_url, body=parameter)
-                        if response_limit_set_url.status == 200:
+                        response_limit_set_url = REDFISH_OBJ.patch(power_url, body=parameter, headers=headers)
+                        if response_limit_set_url.status in [200,204]:
                             result = {"ret":True,"msg":"Set power limit successfully"}
                             return result
                         else:

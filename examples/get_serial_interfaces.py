@@ -105,15 +105,10 @@ def get_serial_interfaces(ip, login_account, login_password, interfaceid):
                 response_serial_interfaces_x_url = REDFISH_OBJ.get(serial_interfaces_x_url, None)
                 if response_serial_interfaces_x_url.status == 200:
                     serial_interfaces_dict = {}
-                    serial_interfaces_dict['Id'] = response_serial_interfaces_x_url.dict['Id']
-                    serial_interfaces_dict['InterfaceEnabled'] = response_serial_interfaces_x_url.dict['InterfaceEnabled']
-                    serial_interfaces_dict['Name'] = response_serial_interfaces_x_url.dict['Name']
-                    serial_interfaces_dict['SignalType'] = response_serial_interfaces_x_url.dict['SignalType']
-                    serial_interfaces_dict['DataBits'] = response_serial_interfaces_x_url.dict['DataBits']
-                    serial_interfaces_dict['StopBits'] = response_serial_interfaces_x_url.dict['StopBits']
-                    serial_interfaces_dict['Parity'] = response_serial_interfaces_x_url.dict['Parity']
-                    serial_interfaces_dict['BitRate'] = response_serial_interfaces_x_url.dict['BitRate']
-                    serial_interfaces_dict['FlowControl'] = response_serial_interfaces_x_url.dict['FlowControl']
+                    for serial_property in ['Id', 'InterfaceEnabled', 'Name', 'SignalType', 'DataBits', 'StopBits', 
+                        'Parity', 'BitRate', 'FlowControl']:
+                        if serial_property in response_serial_interfaces_x_url.dict:
+                            serial_interfaces_dict[serial_property] = response_serial_interfaces_x_url.dict[serial_property]
                     serial_details.append(serial_interfaces_dict)
                 else:
                     error_message = utils.get_extended_error(response_serial_interfaces_x_ur)

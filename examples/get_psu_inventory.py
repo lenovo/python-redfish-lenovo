@@ -82,31 +82,18 @@ def get_psu_info(ip, login_account, login_password, system_id):
             return result
         response_power_url = REDFISH_OBJ.get(power_url, None)
         if response_power_url.status == 200:
+            if 'PowerSupplies' not in response_power_url.dict:
+                result = {'ret': False, 'msg': "There is no PowerSupplies data in %s" % power_url}
+                REDFISH_OBJ.logout()
+                return result
+
             power_supply_list = response_power_url.dict['PowerSupplies']
             for PowerSupplies in power_supply_list:
                 entry = {}
-                name = PowerSupplies['Name']
-                Serial_Number = PowerSupplies['SerialNumber']
-                Part_Number = PowerSupplies['PartNumber']
-                Firmware_Version = PowerSupplies['FirmwareVersion']
-                Power_Capacity_Watts = PowerSupplies['PowerCapacityWatts']
-                Power_Supply_Type = PowerSupplies['PowerSupplyType']
-                Status = PowerSupplies['Status']['State']
-                Health = PowerSupplies['Status']['Health']
-                if 'Manufacturer' in PowerSupplies:
-                    Manufacturer = PowerSupplies['Manufacturer']
-                else:
-                    Manufacturer = "None"
-                
-                entry['Name'] = name
-                entry['SerialNumber'] = Serial_Number
-                entry['PartNumber'] = Part_Number
-                entry['FirmwareVersion'] = Firmware_Version
-                entry['PowerCapacityWatts'] = Power_Capacity_Watts
-                entry['PowerSupplyType'] = Power_Supply_Type
-                entry['State'] = Status
-                entry['Health'] = Health
-                entry['Manufacturer'] = Manufacturer
+                for property in ['Name', 'SerialNumber', 'PartNumber', 'FirmwareVersion', 'PowerCapacityWatts', 
+                    'PowerSupplyType', 'Status', 'Manufacturer']:
+                    if property in PowerSupplies:
+                        entry[property] = PowerSupplies[property]
                 psu_details.append(entry)
         else:
             result = {'ret': False, 'msg': "response power url Error code %s" % response_power_url.status}

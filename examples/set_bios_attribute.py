@@ -88,7 +88,7 @@ def set_bios_attribute(ip, login_account, login_password, system_id, attribute_n
             parameter = {attribute_name: attribute_value}
             attribute = {"Attributes": parameter}
             response_pending_url = REDFISH_OBJ.patch(pending_url, body=attribute)
-            if response_pending_url.status == 200:
+            if response_pending_url.status in [200,204]:
                 result = {'ret': True, 'msg': '%s set Successful'% attribute_name }
             elif response_pending_url.status == 400:
                 result = {'ret': False, 'msg': 'Not supported on this platform'}

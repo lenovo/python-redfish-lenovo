@@ -22,6 +22,15 @@ import argparse
 import configparser
 import redfish
 
+# set _MAXHEADERS to avoid header over 100 error
+if sys.version_info.major == 2:
+    import httplib
+    httplib._MAXHEADERS = 1000
+else:
+    import http.client
+    http.client._MAXHEADERS = 1000
+
+
 def get_system_url(base_url, system_id, redfish_obj):
     """Get ComputerSystem instance URL    
     :params base_url: URL of the Redfish Service Root

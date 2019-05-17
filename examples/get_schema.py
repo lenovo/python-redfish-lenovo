@@ -103,7 +103,7 @@ def get_schema(ip, login_account, login_password, schema_prefix):
                     Json_Schemas, response_json_schemas.status, error_message)}
                 return result
         else:
-            message = utils.get_extended_error(patch_response)
+            message = utils.get_extended_error(response_base_url)
             result = {'ret': False, 'msg': "Url '%s' response Error code %s \n, Error message :%s" % (
             "/redfish/v1", response_base_url.status, message)}
 

@@ -55,16 +55,16 @@ def eject_virtual_media(ip, login_account, login_password, image):
         # Get ServiceRoot resource
         response_base_url = REDFISH_OBJ.get('/redfish/v1', None)
 
-        # Get response_account_service_url
+        # Get Managers resource
         if response_base_url.status == 200:
-            account_managers_url = response_base_url.dict['Managers']['@odata.id']
+            managers_url = response_base_url.dict['Managers']['@odata.id']
         else:
             error_message = utils.get_extended_error(response_base_url)
             result = {'ret': False, 'msg': " Url '/redfish/v1' response Error code %s \nerror_message: %s" % (
             response_base_url.status, error_message)}
             return result
 
-        response_managers_url = REDFISH_OBJ.get(account_managers_url, None)
+        response_managers_url = REDFISH_OBJ.get(managers_url, None)
         if response_managers_url.status == 200:
             # Get manager url form manager resource instance
             count = response_managers_url.dict['Members@odata.count']
@@ -105,7 +105,7 @@ def eject_virtual_media(ip, login_account, login_password, image):
                         if image_name == image:
                             body = {"Image": None}
                             response = REDFISH_OBJ.patch(members_url, body=body)
-                            if response.status == 200:
+                            if response.status in [200,204]:
                                 result = {'ret': True, 'msg': "'%s' Umount successfully" % image}
                                 return result
                             else:
@@ -120,7 +120,7 @@ def eject_virtual_media(ip, login_account, login_password, image):
         else:
             error_message = utils.get_extended_error(response_managers_url)
             result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
-            account_managers_url, response_managers_url.status, error_message)}
+            managers_url, response_managers_url.status, error_message)}
     except Exception as e:
         result = {'ret': False, 'msg': "error_message: %s" % (e)}
     finally:

@@ -60,6 +60,8 @@ def get_bmc_info(ip, login_account, login_password, system_id):
         return result
     for i in range(len(system)):
         bmc_info = {}
+
+        # Get the manager url
         system_url = system[i]
         response_system_url = REDFISH_OBJ.get(system_url, None)
         if response_system_url.status == 200:
@@ -69,113 +71,60 @@ def get_bmc_info(ip, login_account, login_password, system_id):
             result = {'ret': False, 'msg': "response system url Error code %s" % response_system_url.status}
             REDFISH_OBJ.logout()
             return result
+
+        # Get the BMC information
         response_manager_url = REDFISH_OBJ.get(manager_url, None)
         if response_manager_url.status == 200:
-            # Get Manager NetworkProtocol resource
-            network_protocol_url = response_manager_url.dict["NetworkProtocol"]["@odata.id"]
-            # GET Mangaer EtherNetInterfaces resources
-            nics_url = response_manager_url.dict["EthernetInterfaces"]["@odata.id"]
-
-            FirmwareVersion = response_manager_url.dict["FirmwareVersion"]
-            if 'Model' in response_manager_url.dict:
-                Model = response_manager_url.dict["Model"]
-            else:
-                Model = ""
-            if 'DateTime' in response_manager_url.dict:
-                DateTime = response_manager_url.dict["DateTime"]
-            else:
-                DateTime = ""
-            bmc_info['FirmwareVersion'] = FirmwareVersion
-            bmc_info['Model'] = Model
-            bmc_info['DateTime'] = DateTime
+            for bmc_property in ['FirmwareVersion', 'Model', 'DateTime']:
+                if bmc_property in response_manager_url.dict:
+                    bmc_info[bmc_property] = response_manager_url.dict[bmc_property]
         else:
             result = {'ret': False, 'msg': "response manager url Error code %s" % response_manager_url.status}
             REDFISH_OBJ.logout()
             return result
-        response_network_protocol_url = REDFISH_OBJ.get(network_protocol_url, None)
-        if response_network_protocol_url.status == 200:
-            # Get the BMC information
-            FQDN = response_network_protocol_url.dict["FQDN"]
-            HostName = response_network_protocol_url.dict["HostName"]
-            HTTP = response_network_protocol_url.dict["HTTP"]["Port"]
-            HTTPs = response_network_protocol_url.dict["HTTPS"]["Port"]
-            SSH = response_network_protocol_url.dict["SSH"]["Port"]
-            SNMP = response_network_protocol_url.dict["SNMP"]["Port"]
-            if "KVMIP" in response_network_protocol_url.dict :
-                KVMIP = response_network_protocol_url.dict["KVMIP"]["Port"]
+
+        # Get Manager NetworkProtocol resource
+        if "NetworkProtocol" in response_manager_url.dict:
+            network_protocol_url = response_manager_url.dict["NetworkProtocol"]["@odata.id"]
+            response_network_protocol_url = REDFISH_OBJ.get(network_protocol_url, None)
+            if response_network_protocol_url.status == 200:
+                for netprotocol_property in ['FQDN', 'HostName', 'HTTP', 'HTTPS', 'SSH', 'SNMP', 'KVMIP',
+                    'IPMI', 'SSDP', 'VirtualMedia']:
+                    if netprotocol_property in response_network_protocol_url.dict:
+                        bmc_info[netprotocol_property] = response_network_protocol_url.dict[netprotocol_property]
             else:
-                KVMIP = ""
-            if "Port" in response_network_protocol_url.dict :
-                IPMI = response_network_protocol_url.dict["IPMI"]["Port"]
-            else:
-                IPMI = ""
-            if "SSDP" in response_network_protocol_url.dict :
-                SSDP = response_network_protocol_url.dict["SSDP"]["Port"]
-            else:
-                SSDP = ""
-            if "VirtualMedia" in response_network_protocol_url.dict :
-                Virtual_Media = response_network_protocol_url.dict["VirtualMedia"]
-            else:
-                Virtual_Media = ""
-            bmc_info['FQDN'] = FQDN
-            bmc_info['HostName'] = HostName
-            bmc_info['HTTP'] = HTTP
-            bmc_info['HTTPs'] = HTTPs
-            bmc_info['KVMIP'] = KVMIP
-            bmc_info['IPMI'] = IPMI
-            bmc_info['SSDP'] = SSDP
-            bmc_info['SSH'] = SSH
-            bmc_info['SNMP'] = SNMP
-            bmc_info['VirtualMedia'] = Virtual_Media
-        else:
-            result = {'ret': False, 'msg': "response network protocol url Error code %s" % response_network_protocol_url.status}
-            REDFISH_OBJ.logout()
-            return result
-        response_nics_url = REDFISH_OBJ.get(nics_url, None)
-        if response_nics_url.status == 200:
-            nic_count = response_nics_url.dict["Members@odata.count"]
-            x = 0
-            for x in range (0, 1):  
-                nic_x_url = response_nics_url.dict["Members"][x]["@odata.id"]
-                response_nic_x_url = REDFISH_OBJ.get(nic_x_url, None)
-        else:
-            result = {'ret': False, 'msg': "response nics url Error code %s" % response_nics_url.status}
-            REDFISH_OBJ.logout()
-            return result
+                result = {'ret': False, 'msg': "response network protocol url Error code %s" % response_network_protocol_url.status}
+                REDFISH_OBJ.logout()
+                return result
+
         # GET Manager SerialInterfaces resources
-        serial_url = response_manager_url.dict["SerialInterfaces"]["@odata.id"]
-        response_serial_url = REDFISH_OBJ.get(serial_url, None)
-        if response_serial_url.status == 200:
-            serial_count = response_serial_url.dict["Members@odata.count"]
-            x = 0
+        if "SerialInterfaces" in response_manager_url.dict:
+            serial_url = response_manager_url.dict["SerialInterfaces"]["@odata.id"]
+            response_serial_url = REDFISH_OBJ.get(serial_url, None)
+            serial_count = 0
+            if response_serial_url.status == 200:
+                serial_count = response_serial_url.dict["Members@odata.count"]
+            else:
+                result = {'ret': False, 'msg': "response serial url Error code %s" % response_serial_url.status}
+                REDFISH_OBJ.logout()
+                return result
             serial_info_list = []
             for x in range (0, serial_count):
                 serial_info = {}
                 serial_x_url = response_serial_url.dict["Members"][x]["@odata.id"]
                 response_serial_x_url = REDFISH_OBJ.get(serial_x_url, None)
                 if response_serial_x_url.status == 200:
-                    Id = response_serial_x_url.dict["Id"]
-                    BitRate = response_serial_x_url.dict["BitRate"]
-                    Parity = response_serial_x_url.dict["Parity"]
-                    StopBits = response_serial_x_url.dict["StopBits"]
-                    FlowControl = response_serial_x_url.dict["FlowControl"]
-                    serial_info['Id'] = Id
-                    serial_info['BitRate'] = BitRate
-                    serial_info['Parity'] = Parity
-                    serial_info['StopBits'] = StopBits
-                    serial_info['FlowControl'] = FlowControl
+                    for serial_property in ['Id', 'BitRate', 'Parity', 'StopBits', 'FlowControl']:
+                        if serial_property in response_serial_x_url.dict:
+                            serial_info[serial_property] = response_serial_x_url.dict[serial_property]
                     serial_info_list.append(serial_info)
                 else:
                     result = {'ret': False, 'msg': "response serial_x_url Error code %s" % response_serial_x_url.status}
                     REDFISH_OBJ.logout()
                     return result
             bmc_info['serial_info'] = serial_info_list
-            bmc_details.append(bmc_info)
-        else:
-            result = {'ret': False, 'msg': "response serial url Error code %s" % response_serial_url.status}
-            REDFISH_OBJ.logout()
-            return result
 
+    bmc_details.append(bmc_info)
     result['ret'] = True
     result['entries'] = bmc_details
     # Logout of the current session

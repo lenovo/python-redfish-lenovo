@@ -98,18 +98,10 @@ def get_system_log(ip, login_account, login_password, system_id):
                     # description = response_entries_url.dict['Description']
                     for logEntry in response_entries_url.dict['Members']:
                         entry = {}
-                        name = logEntry['Name']
-                        if 'Created' in logEntry:
-                            created = logEntry['Created']
-                        else:
-                            created = ""
-                        message = logEntry['Message']
-                        severity = logEntry['Severity']
+                        for log_property in ['Name', 'Created', 'Message', 'Severity']:
+                            if log_property in logEntry:
+                                entry[log_property] = logEntry[log_property]
 
-                        entry['Name'] = name
-                        entry['Message'] = message
-                        entry['Created'] = created
-                        entry['Severity'] = severity
                         if entry not in log_details:
                             log_details.append(entry)
                 else:

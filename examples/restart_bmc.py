@@ -69,18 +69,31 @@ def restart_manager(ip, login_account, login_password):
                 response_manager_url = REDFISH_OBJ.get(manager_url, None)
                 if response_manager_url.status == 200:
                     restart_manager_url = response_manager_url.dict['Actions']['#Manager.Reset']['target']
-                    # Get resettype if the response manager resource instance contains Redfish.AllowableValues
-                    try:
-                        ResetType = response_manager_url.dict['Actions']['#Manager.Reset']['ResetType@Redfish.AllowableValues']
-                    except:
-                        ResetType = ''
                     # Build request body and send requests to restart manager
-                    if 'GracefulRestart' in ResetType:
-                        body = {'ResetType': 'GracefulRestart'}
-                    elif 'ForceRestart' in ResetType:
-                        body = {'ResetType': 'ForceRestart'}
+                    body = {}
+                    # get parameter requirement if ActionInfo is provided
+                    if "@Redfish.ActionInfo" in response_manager_url.dict["Actions"]["#Manager.Reset"]:
+                        actioninfo_url = response_manager_url.dict["Actions"]["#Manager.Reset"]["@Redfish.ActionInfo"]
+                        response_actioninfo_url = REDFISH_OBJ.get(actioninfo_url, None)
+                        if (response_actioninfo_url.status == 200) and ("Parameters" in response_actioninfo_url.dict):
+                            for parameter in response_actioninfo_url.dict["Parameters"]:
+                                if ("Name" in parameter) and ("AllowableValues" in parameter):
+                                    body[parameter["Name"]] = parameter["AllowableValues"][0]
+
+                    # Get resettype if the response manager resource instance contains Redfish.AllowableValues
+                    if "ResetType@Redfish.AllowableValues" in response_manager_url.dict['Actions']['#Manager.Reset']:
+                        ResetType = response_manager_url.dict['Actions']['#Manager.Reset']['ResetType@Redfish.AllowableValues']
                     else:
-                        body = {"Action": "Manager.Reset"}
+                        ResetType = ''
+                    if not body: #default body
+                        if 'GracefulRestart' in ResetType:
+                            body = {'ResetType': 'GracefulRestart'}
+                        elif 'ForceRestart' in ResetType:
+                            body = {'ResetType': 'ForceRestart'}
+                        else:
+                            body = {"Action": "Manager.Reset"}
+
+                    # perform post to restart bmc
                     headers = {"Content-Type":"application/json"}
                     response_restart = REDFISH_OBJ.post(restart_manager_url, headers=headers, body=body)
                     if response_restart.status in [200, 204]:  

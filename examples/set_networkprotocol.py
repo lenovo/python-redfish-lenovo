@@ -82,6 +82,20 @@ def set_service_port(ip, login_account, login_password, service, enabled, port):
                         request_url, response_url.status, error_message)}
                     return result
 
+                # get etag to set If-Match precondition
+                response_network_protocol_url = REDFISH_OBJ.get(network_protocol_url, None)
+                if response_network_protocol_url.status != 200:
+                    error_message = utils.get_extended_error(response_network_protocol_url)
+                    result = {'ret': False, 'msg': "Url '%s' get failed. response Error code %s \nerror_message: %s" % (
+                        network_protocol_url, response_network_protocol_url.status, error_message)}
+                    return result
+                if "@odata.etag" in response_network_protocol_url.dict:
+                    etag = response_network_protocol_url.dict['@odata.etag']
+                else:
+                    etag = ""
+                headers = {"If-Match": etag}
+
+
                 # Build request body for modify network protocol
                 if service in ["IPMI", "SSDP"]:
                     body = {service:{"ProtocolEnabled":bool(int(enabled))}}
@@ -92,8 +106,8 @@ def set_service_port(ip, login_account, login_password, service, enabled, port):
                     return result
 
                 # Send Patch Request to Modify Network Port
-                response_network_protocol_url = REDFISH_OBJ.patch(network_protocol_url, body=body)
-                if response_network_protocol_url.status == 200:
+                response_network_protocol_url = REDFISH_OBJ.patch(network_protocol_url, body=body, headers=headers)
+                if response_network_protocol_url.status in [200,204]:
                     result = {'ret': True,
                               'msg': "Set BMC service %s successfully" %service}
                     return result

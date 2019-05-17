@@ -97,7 +97,17 @@ def clear_system_log(ip, login_account, login_password, system_id):
                         headers = {"Content-Type":"application/json"}
 
                         # Build request body and send requests to clear the system log
-                        body = {"Action": "LogService.ClearLog"}
+                        body = {}
+                        # get parameter requirement if ActionInfo is provided
+                        if "@Redfish.ActionInfo" in response_log_url.dict["Actions"]["#LogService.ClearLog"]:
+                            actioninfo_url = response_log_url.dict["Actions"]["#LogService.ClearLog"]["@Redfish.ActionInfo"]
+                            response_actioninfo_url = REDFISH_OBJ.get(actioninfo_url, None)
+                            if (response_actioninfo_url.status == 200) and ("Parameters" in response_actioninfo_url.dict):
+                                for parameter in response_actioninfo_url.dict["Parameters"]:
+                                    if ("Name" in parameter) and ("AllowableValues" in parameter):
+                                       body[parameter["Name"]] = parameter["AllowableValues"][0]
+                        if not body:
+                            body = {"Action": "LogService.ClearLog"}  #default body
                         response_clear_log = REDFISH_OBJ.post(clear_log_url, headers=headers, body=body)
                         if response_clear_log.status in [200, 204]:
                             result = {'ret': True, 'msg': "Clear log successfully"}

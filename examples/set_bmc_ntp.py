@@ -78,11 +78,24 @@ def set_manager_ntp(ip, login_account, login_password, ntp_server, ProtocolEnabl
                         result = {'ret': False, 'msg': "User can specify the name of up to 4 NTP servers."}
                         return result
 
+                    # get etag to set If-Match precondition
+                    response_network_url = REDFISH_OBJ.get(network_url, None)
+                    if response_network_url.status != 200:
+                        error_message = utils.get_extended_error(response_network_url)
+                        result = {'ret': False, 'msg': "Url '%s' get failed. response Error code %s \nerror_message: %s" % (
+                            network_url, response_network_url.status, error_message)}
+                        return result
+                    if "@odata.etag" in response_network_url.dict:
+                        etag = response_network_url.dict['@odata.etag']
+                    else:
+                        etag = ""
+                    headers = {"If-Match": etag}
+
                     # Build patch body for request set ntp servers
                     Protocol = {"NTPServers":ntp_server,"ProtocolEnabled":  bool(int(ProtocolEnabled))}
                     parameter = {"NTP": Protocol}
-                    response_network_url = REDFISH_OBJ.patch(network_url, body=parameter)
-                    if response_network_url.status == 200:
+                    response_network_url = REDFISH_OBJ.patch(network_url, body=parameter, headers=headers)
+                    if response_network_url.status in [200,204]:
                         result = {'ret': True, 'msg': "Set BMC ntp servers successfully"}
                     else:
                         error_message = utils.get_extended_error(response_network_url)
