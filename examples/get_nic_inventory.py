@@ -55,7 +55,7 @@ def get_network_info(ip, login_account, login_password, system_id):
     if response_base_url.status == 200:
         chassis_url_list = response_base_url.dict['Chassis']['@odata.id']
     else:
-        result = {'ret': False, 'msg': "response base url Error code %s" % response_base_url.status}
+        result = {'ret': False, 'msg': "get url %s failed. Error code %s" % ("/redfish/v1", response_base_url.status)}
         REDFISH_OBJ.logout()
         return result
 
@@ -64,7 +64,7 @@ def get_network_info(ip, login_account, login_password, system_id):
     if response_chassis_url_list.status == 200:
         chassis_count = response_chassis_url_list.dict['Members@odata.count']
     else:
-        result = {'ret': False, 'msg': "response chassis url Error code %s" % response_chassis_url_list.status}
+        result = {'ret': False, 'msg': "get url %s failed. Error code %s" % (chassis_url_list, response_chassis_url_list.status)}
         REDFISH_OBJ.logout()
         return result
 
@@ -74,85 +74,60 @@ def get_network_info(ip, login_account, login_password, system_id):
         chassis_url = response_chassis_url_list.dict['Members'][count]['@odata.id']
         response_chassis_url = REDFISH_OBJ.get(chassis_url, None)
         if response_chassis_url.status != 200:
-            result = {'ret': False, 'msg': "response chassis url Error code %s" % response_chassis_url.status}
+            result = {'ret': False, 'msg': "get url %s failed. Error code %s" % (chassis_url, response_chassis_url.status)}
             REDFISH_OBJ.logout()
             return result
-        else:
-            # GET the NetworkAdapters resource from the Chassis resource
-            if "NetworkAdapters" in response_chassis_url.dict:
-                nic_adapter_url = response_chassis_url.dict["NetworkAdapters"]["@odata.id"]
-            else:
-                # GET the ComputerSystem resource
-                system = utils.get_system_url("/redfish/v1", system_id, REDFISH_OBJ)
-                if not system:
-                    result = {'ret': False, 'msg': "This system id is not exist or system member is None"}
-                    REDFISH_OBJ.logout()
-                    return result
-                for i in range(len(system)):
-                    system_url = system[i]
-                    response_system_url = REDFISH_OBJ.get(system_url, None)
-                    if response_system_url.status == 200:
-                        # Get the EthernetInterfaces url
-                         nic_adapter_url = response_system_url.dict['EthernetInterfaces']['@odata.id']
-                    else:
-                        result = {'ret': False, 'msg': "response_system_url Error code %s" % response_system_url.status}
-                        REDFISH_OBJ.logout()
-                        return result
 
-            response_nic_adapter_url = REDFISH_OBJ.get(nic_adapter_url, None)
-            if response_nic_adapter_url.status == 200:
-                nic_adapter_count = response_nic_adapter_url.dict["Members@odata.count"]
-            else:
+        # Skip this chassis if no NetworkAdapters found in it
+        if "NetworkAdapters" not in response_chassis_url.dict:
+            continue
+
+        # GET the NetworkAdapters resource from the Chassis resource
+        nic_adapter_url = response_chassis_url.dict["NetworkAdapters"]["@odata.id"]
+        response_nic_adapter_url = REDFISH_OBJ.get(nic_adapter_url, None)
+        if response_nic_adapter_url.status == 200:
+            nic_adapter_count = response_nic_adapter_url.dict["Members@odata.count"]
+        else:
+            result = {'ret': False,
+                      'msg': "get url %s failed. Error code %s" % (nic_adapter_url, response_nic_adapter_url.status)}
+            REDFISH_OBJ.logout()
+            return result
+
+        for nic in range(0, nic_adapter_count):
+            network = {}
+            nic_adapter_x_url = response_nic_adapter_url.dict["Members"][nic]["@odata.id"]
+            response_nic_adapter_x_url = REDFISH_OBJ.get(nic_adapter_x_url, None)
+            if response_nic_adapter_x_url.status != 200:
                 result = {'ret': False,
-                          'msg': "response nic adapter url Error code %s" % response_nic_adapter_url.status}
+                          'msg': "get url %s failed. Error code %s" % (nic_adapter_x_url, response_nic_adapter_x_url.status)}
                 REDFISH_OBJ.logout()
                 return result
 
-            nic = 0
-            for nic in range(0, nic_adapter_count):
-                network = {}
+            for property in ['Id', 'Name', 'Status', 'Manufacturer', 'Model', 'PartNumber', 'SKU', 'SerialNumber']:
+                if property in response_nic_adapter_x_url.dict:
+                    network[property] = response_nic_adapter_x_url.dict[property]
+            if "Controllers" not in response_nic_adapter_x_url.dict:
+                continue
+
+            # get Controller info including NetworkDeviceFunctions and assigned port in Controller
+            controller_list = []
+            for controller in response_nic_adapter_x_url.dict["Controllers"]:
                 nic_devices = []
-                nic_adapter_x_url = response_nic_adapter_url.dict["Members"][nic]["@odata.id"]
-                response_nic_adapter_x_url = REDFISH_OBJ.get(nic_adapter_x_url, None)
-                if response_nic_adapter_x_url.status == 200:
-                    # Get data from EthernetInterfaces case
-                    if "Controllers" not in response_nic_adapter_x_url.dict:
-                        # Get the nic info
-                        for property in ['Id', 'Name', 'MACAddress', 'MTUSize', 'FQDN', 'AutoNeg', 'Status']:
-                            if property in response_nic_adapter_x_url.dict:
-                                network[property] = response_nic_adapter_x_url.dict[property]
-                        nic_details.append(network)
-                        continue
-                else:
-                    result = {'ret': False,
-                              'msg': "response nic_adapter_x_url Error code %s" % response_nic_adapter_x_url.status}
-                    REDFISH_OBJ.logout()
-                    return result
+                controller_data = {}
+                for property in ['FirmwarePackageVersion', 'ControllerCapabilities']:
+                    if property in controller:
+                        controller_data[property] = controller[property]
 
-                # Get data from NetworkAdapters case
-                if "Controllers" in response_nic_adapter_x_url.dict:
-                    for property in ['Id', 'Name', 'Status']:
-                        if property in response_nic_adapter_x_url.dict:
-                            network[property] = response_nic_adapter_x_url.dict[property]
-                    Firmware_Version = response_nic_adapter_x_url.dict["Controllers"][0]["FirmwarePackageVersion"]
-                    network['FirmwarePackageVersion'] = Firmware_Version
-
-                # When data source is NetworkAdapters case, get the NetworkDeviceFunction resources from each of the NetworkAdapter resources
-                nic_dev_url = response_nic_adapter_x_url.dict["NetworkDeviceFunctions"]["@odata.id"]
-                response_nic_dev_url = REDFISH_OBJ.get(nic_dev_url, None)
-                if response_nic_dev_url.status == 200:
-                    nic_dev_count = response_nic_dev_url.dict["Members@odata.count"]
-                else:
-                    result = {'ret': False, 'msg': "response nic dev url Error code %s" % response_nic_dev_url.status}
-                    REDFISH_OBJ.logout()
-                    return result
-                for dev in range(0, nic_dev_count):
+                # get the NetworkDeviceFunction resources
+                if ("Links" not in controller) or ("NetworkDeviceFunctions" not in controller["Links"]):
+                    continue
+                for devfun in controller["Links"]["NetworkDeviceFunctions"]:
                     NIC_Devices = {}
-                    nic_dev_x_url = response_nic_dev_url.dict["Members"][dev]["@odata.id"]
+                    nic_dev_x_url = devfun["@odata.id"]
                     response_nic_dev_x_url = REDFISH_OBJ.get(nic_dev_x_url, None)
                     if response_nic_dev_x_url.status != 200:
                         result = {'ret': False,
-                                  'msg': "response nic_dev_x_url Error code %s" % response_nic_dev_url.status}
+                                  'msg': "get url %s failed. Error code %s" % (nic_dev_x_url, response_nic_dev_url.status)}
                         REDFISH_OBJ.logout()
                         return result
 
@@ -169,16 +144,66 @@ def get_network_info(ip, login_account, login_password, system_id):
                             for property in ['PhysicalPortNumber', 'Name', 'ActiveLinkTechnology', 'PortMaximumMTU', 'Status', 'LinkStatus']:
                                 if property in response_nic_port_x_url.dict:
                                     Physical_Ports[property] = response_nic_port_x_url.dict[property]
-                            NIC_Devices['physical_ports'] = Physical_Ports
+                            NIC_Devices['physical_port'] = Physical_Ports
                         else:
                             result = {'ret': False,
-                                      'msg': "response nic_port_x_url Error code %s" % response_nic_port_x_url.status}
+                                      'msg': "get url %s failed. Error code %s" % (nic_port_x_url, response_nic_port_x_url.status)}
                             REDFISH_OBJ.logout()
                             return result
                     nic_devices.append(NIC_Devices)
 
-                network['nic_devices'] = nic_devices
+                controller_data['NetworkDeviceFunctions'] = nic_devices
+                controller_list.append(controller_data)
+            network['Controllers'] = controller_list
+            nic_details.append(network)
+
+    # if no info got from chassis, get info from /redfish/v1/Systems/{ComputerSystemId}/EthernetInterfaces/{EthernetInterfaceId}
+    if len(nic_details) == 0:
+        # GET the ComputerSystem resource
+        system = utils.get_system_url("/redfish/v1", system_id, REDFISH_OBJ)
+        if not system:
+            result = {'ret': False, 'msg': "This system id is not exist or system member is None"}
+            REDFISH_OBJ.logout()
+            return result
+        for i in range(len(system)):
+            system_url = system[i]
+            response_system_url = REDFISH_OBJ.get(system_url, None)
+            if response_system_url.status == 200:
+                # Get the EthernetInterfaces url
+                if 'EthernetInterfaces' not in response_system_url.dict:
+                    continue
+                else:
+                    nic_adapter_url = response_system_url.dict['EthernetInterfaces']['@odata.id']
+            else:
+                result = {'ret': False, 'msg': "get url %s failed. Error code %s" % (system_url, response_system_url.status)}
+                REDFISH_OBJ.logout()
+                return result
+
+            response_nic_adapter_url = REDFISH_OBJ.get(nic_adapter_url, None)
+            if response_nic_adapter_url.status == 200:
+                nic_adapter_count = response_nic_adapter_url.dict["Members@odata.count"]
+            else:
+                result = {'ret': False,
+                          'msg': "get url %s failed. Error code %s" % (nic_adapter_url, response_nic_adapter_url.status)}
+                REDFISH_OBJ.logout()
+                return result
+
+            for nic in range(0, nic_adapter_count):
+                network = {}
+                nic_adapter_x_url = response_nic_adapter_url.dict["Members"][nic]["@odata.id"]
+                response_nic_adapter_x_url = REDFISH_OBJ.get(nic_adapter_x_url, None)
+                if response_nic_adapter_x_url.status != 200:
+                    result = {'ret': False,
+                              'msg': "get url %s failed. Error code %s" % (nic_adapter_x_url, response_nic_adapter_x_url.status)}
+                    REDFISH_OBJ.logout()
+                    return result
+
+                # Get the nic info
+                for property in ['Id', 'Name', 'MACAddress', 'MTUSize', 'FQDN', 'AutoNeg', 'Status']:
+                    if property in response_nic_adapter_x_url.dict:
+                        network[property] = response_nic_adapter_x_url.dict[property]
                 nic_details.append(network)
+                continue
 
     result['ret'] = True
     result['entries'] = nic_details
