@@ -124,6 +124,35 @@ def get_bmc_info(ip, login_account, login_password, system_id):
                     return result
             bmc_info['serial_info'] = serial_info_list
 
+        # GET Manager EthernetInterfaces resources
+        if "EthernetInterfaces" in response_manager_url.dict:
+            ethernet_url = response_manager_url.dict["EthernetInterfaces"]["@odata.id"]
+            response_ethernet_url = REDFISH_OBJ.get(ethernet_url, None)
+            ethernet_count = 0
+            if response_ethernet_url.status == 200:
+                ethernet_count = response_ethernet_url.dict["Members@odata.count"]
+            else:
+                result = {'ret': False, 'msg': "response ethernet url Error code %s" % response_ethernet_url.status}
+                REDFISH_OBJ.logout()
+                return result
+            ethernet_info_list = []
+            for x in range (0, ethernet_count):
+                ethernet_info = {}
+                ethernet_x_url = response_ethernet_url.dict["Members"][x]["@odata.id"]
+                response_ethernet_x_url = REDFISH_OBJ.get(ethernet_x_url, None)
+                if response_ethernet_x_url.status == 200:
+                    for property in ['Id', 'Name', 'MACAddress', 'PermanentMACAddress', 'MTUSize', 'FQDN', 
+                        'AutoNeg', 'Status', 'InterfaceEnabled', 'SpeedMbps', 'NameServers', 'StaticNameServers',
+                        'DHCPv4', 'DHCPv6', 'IPv4Addresses', 'IPv4StaticAddresses', 'IPv6Addresses', 'IPv6StaticAddresses']:
+                        if property in response_ethernet_x_url.dict:
+                            ethernet_info[property] = response_ethernet_x_url.dict[property]
+                    ethernet_info_list.append(ethernet_info)
+                else:
+                    result = {'ret': False, 'msg': "response ethernet_x_url Error code %s" % response_ethernet_x_url.status}
+                    REDFISH_OBJ.logout()
+                    return result
+            bmc_info['ethernet_info'] = ethernet_info_list
+
     bmc_details.append(bmc_info)
     result['ret'] = True
     result['entries'] = bmc_details
