@@ -27,7 +27,10 @@ import lenovo_utils as utils
 
 
 def lenovo_mount_virtual_media(ip, login_account, login_password, image, mounttype, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir, readonly, domain, options, inserted, writeprotocol):
-    """Mount an ISO or IMG image file from a file server to the host as a DVD or USB drive.
+    """By calling the following three functions Mount virtual media.
+    mount_virtual_media(), Call this function for Mount when license is 'Lenovo XClarity Controller Enterprise' and the version of the BMC is greater than or equal to 19A.
+    mount_virtual_media_from_rdoc(), Call this function for Mount when license is 'Lenovo XClarity Controller Advanced' and the version of the BMC is less than 19A.
+    mount_virtual_media_from_network(), Call this function for Mount when license is 'Lenovo XClarity Controller Enterprise' and the version of the BMC is less than 19A.
     :params ip: BMC IP address
     :type ip: string
     :params login_account: BMC user name
@@ -153,7 +156,13 @@ def lenovo_mount_virtual_media(ip, login_account, login_password, image, mountty
         REDFISH_OBJ.logout()
         return result
 
+
 def mount_virtual_media(REDFISH_OBJ, members_list, fsip, fsport, fsdir, image, writeprotocol, inserted):
+    """
+     This function uses the patch method to mount VM, Base on current XCC capability and the standard schema definition, not supported mount web applet (Remote1/2/3/4) and RDOC(RDOC1/2),
+for remote mounts (EXT1/2/3/4), only HTTPFS and NFS(no credential required) protocols are supported.
+     When the BMC version is greater than or equal to 19A and the BMC user's license is Lenovo XClarity Controller Enterprise, it is supported to use this function to mount virtual media.
+    """
     # Get the members url from the members list
     for members in members_list:
         members_url = members["@odata.id"]
@@ -189,9 +198,11 @@ def mount_virtual_media(REDFISH_OBJ, members_list, fsip, fsport, fsdir, image, w
 
 
 def mount_virtual_media_from_rdoc(REDFISH_OBJ, remotecontrol_url, remotemap_url,  source_url, fsusername, fspassword, fsprotocol, readonly, domain, options):
-    """Mount virtual media from RDOC"""
+    """
+    This function use the Lenovo OEM extensions for VM mount, Current support at most mount 2 RDOC images and total amount sizes of RDOC images are 50MB.
+    When the BMC version is less than 19A and the BMC user's license is Lenovo XClarity Controller Advanced, it is supported to use this function to mount virtual media.
+    """
     # Upload the mount image via file server
-
     response_remotecontrol_url = REDFISH_OBJ.get(remotecontrol_url, None)
     if response_remotecontrol_url.status == 200:
         # Get upload media iso url from remoto control resource instance
@@ -233,7 +244,12 @@ def mount_virtual_media_from_rdoc(REDFISH_OBJ, remotecontrol_url, remotemap_url,
         remotemap_url, response_remotemap_url.status, error_message)}
         return result
 
+
 def mount_virtual_media_from_network(REDFISH_OBJ, remotemap_url, image, fsip, fsport, fsdir, fsprotocol, fsusername, fspassword, readonly, domain, options):
+    """
+    This function use the Lenovo OEM extensions for VM mount, Current support Up to 4 files can be concurrently mounted to the server by the BMC.
+    When the BMC version is less than 19A and the BMC user's license is Lenovo XClarity Controller Enterprise, it is supported to use this function to mount virtual media.
+    """
     response_remotemap_url = REDFISH_OBJ.get(remotemap_url, None)
     if response_remotemap_url.status == 200:
         # Get MountImages url from remote map resource instance

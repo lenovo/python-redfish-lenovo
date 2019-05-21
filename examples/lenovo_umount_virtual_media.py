@@ -26,8 +26,11 @@ import json
 import lenovo_utils as utils
 
 
-def eject_virtual_media(ip, login_account, login_password, image, mounttype):
-    """Mount an ISO or IMG image file from a file server to the host as a DVD or USB drive.
+def lenovo_umount_virtual_media(ip, login_account, login_password, image, mounttype):
+    """By calling the following three functions UMount virtual media.
+    umount_virtual_media(), Call this function for UMount virtual media when the version of the BMC is greater or equal to 19A.
+    umount_virtual_media_from_rdoc(), Call this function for UMount virtual media from RDOC when the version of the BMC is less than 19A.
+    umount_all_virtual_from_network(), Call this function for UMount virtual media from network when the version of the BMC is less than 19A.
     :params ip: BMC IP address
     :type ip: string
     :params login_account: BMC user name
@@ -115,6 +118,9 @@ def eject_virtual_media(ip, login_account, login_password, image, mounttype):
 
 
 def umount_virtual_media(REDFISH_OBJ, members_list, image):
+    """
+    This function uses the patch method to umount virtual media.
+    """
     # Get the mount virtual media list
     for members in members_list:
         members_url = members["@odata.id"]
@@ -145,6 +151,9 @@ def umount_virtual_media(REDFISH_OBJ, members_list, image):
 
 
 def umount_virtual_media_from_rdoc(REDFISH_OBJ, remotecontrol_url, image):
+    """
+    This function use the Lenovo OEM extensions to umount virtual media from RDOC.
+    """
     response_remotecontrol_url = REDFISH_OBJ.get(remotecontrol_url, None)
     if response_remotecontrol_url.status == 200:
         mount_image_url = response_remotecontrol_url.dict["MountImages"]["@odata.id"]
@@ -212,6 +221,9 @@ def umount_virtual_media_from_rdoc(REDFISH_OBJ, remotecontrol_url, image):
 
 
 def umount_all_virtual_from_network(REDFISH_OBJ, remotemap_url):
+    """
+    This function use the Lenovo OEM extensions to umount virtual media from Network.
+    """
     response_remotemap_url = REDFISH_OBJ.get(remotemap_url, None)
     if response_remotemap_url.status == 200:
         # Get umount image url form remote map resource instance
@@ -268,7 +280,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     # Get mount media iso result and check result
-    result = eject_virtual_media(ip, login_account, login_password, image, mount_type)
+    result = lenovo_umount_virtual_media(ip, login_account, login_password, image, mount_type)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
