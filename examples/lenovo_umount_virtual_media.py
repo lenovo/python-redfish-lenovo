@@ -27,10 +27,7 @@ import lenovo_utils as utils
 
 
 def lenovo_umount_virtual_media(ip, login_account, login_password, image, mounttype):
-    """By calling the following three functions UMount virtual media.
-    umount_virtual_media(), Call this function for UMount virtual media when the version of the BMC is greater or equal to 19A.
-    umount_virtual_media_from_rdoc(), Call this function for UMount virtual media from RDOC when the version of the BMC is less than 19A.
-    umount_all_virtual_from_network(), Call this function for UMount virtual media from network when the version of the BMC is less than 19A.
+    """Unmount virtual media, supporting both 18D and 19A version of Lenovo XCC.
     :params ip: BMC IP address
     :type ip: string
     :params login_account: BMC user name
@@ -97,7 +94,8 @@ def lenovo_umount_virtual_media(ip, login_account, login_password, image, mountt
                     result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
                         virtual_media_url, response_virtual_media.status, error_message)}
                     return result
-
+                
+                # for 19A, XCC predefined 10 members, so call umount function for 19A. otherwise, call function for 18D.
                 if len(members_list) == 10:
                     result = umount_virtual_media(REDFISH_OBJ, members_list, image)
                 else:
@@ -119,7 +117,7 @@ def lenovo_umount_virtual_media(ip, login_account, login_password, image, mountt
 
 def umount_virtual_media(REDFISH_OBJ, members_list, image):
     """
-    This function uses the patch method to umount virtual media.
+    This function uses the patch method to umount virtual media, support 19A version of XCC.
     """
     # Get the mount virtual media list
     for members in members_list:
@@ -152,7 +150,7 @@ def umount_virtual_media(REDFISH_OBJ, members_list, image):
 
 def umount_virtual_media_from_rdoc(REDFISH_OBJ, remotecontrol_url, image):
     """
-    This function use the Lenovo OEM extensions to umount virtual media from RDOC.
+    This function use the Lenovo OEM extensions to umount virtual media from RDOC, support 18D version of XCC.
     """
     response_remotecontrol_url = REDFISH_OBJ.get(remotecontrol_url, None)
     if response_remotecontrol_url.status == 200:
@@ -222,7 +220,7 @@ def umount_virtual_media_from_rdoc(REDFISH_OBJ, remotecontrol_url, image):
 
 def umount_all_virtual_from_network(REDFISH_OBJ, remotemap_url):
     """
-    This function use the Lenovo OEM extensions to umount virtual media from Network.
+    This function use the Lenovo OEM extensions to umount virtual media from Network, support 18D version of XCC.
     """
     response_remotemap_url = REDFISH_OBJ.get(remotemap_url, None)
     if response_remotemap_url.status == 200:

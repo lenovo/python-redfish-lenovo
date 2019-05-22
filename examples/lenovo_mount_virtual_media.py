@@ -27,10 +27,7 @@ import lenovo_utils as utils
 
 
 def lenovo_mount_virtual_media(ip, login_account, login_password, image, mounttype, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir, readonly, domain, options, inserted, writeprotocol):
-    """By calling the following three functions Mount virtual media.
-    mount_virtual_media(), Call this function for Mount when license is 'Lenovo XClarity Controller Enterprise' and the version of the BMC is greater than or equal to 19A.
-    mount_virtual_media_from_rdoc(), Call this function for Mount when license is 'Lenovo XClarity Controller Advanced' and the version of the BMC is less than 19A.
-    mount_virtual_media_from_network(), Call this function for Mount when license is 'Lenovo XClarity Controller Enterprise' and the version of the BMC is less than 19A.
+    """Mount virtual media, supporting both 18D and 19A version of Lenovo XCC.
     :params ip: BMC IP address
     :type ip: string
     :params login_account: BMC user name
@@ -45,9 +42,9 @@ def lenovo_mount_virtual_media(ip, login_account, login_password, image, mountty
     :type fsprotocol: string
     :params fsip:Specify the file server ip
     :type fsip: string
-    :params fsusername:Username to access the file path, available for Samba, NFS, HTTP/HTTPS, SFTP/FTP
+    :params fsusername:Username to access the file path, available for Samba, NFS, HTTP, SFTP/FTP
     :type fsusername: string
-    :params fspassword:Password to access the file path, password should be encrypted after object creation, available for Samba, NFS, HTTP/HTTPS, SFTP/FTP
+    :params fspassword:Password to access the file path, password should be encrypted after object creation, available for Samba, NFS, HTTP, SFTP/FTP
     :type fspassword: string
     :params fsdir:File path of the map image
     :type fsdir: string
@@ -130,12 +127,13 @@ def lenovo_mount_virtual_media(ip, login_account, login_password, image, mountty
                     source_url = protocol + "://" + fsip + fsport + fsdir + "/" + image
                 # Build file server image url
                 if mounttype == "Network":
+                    # for 19A, XCC predefined 10 members, so call mount function for 19A. otherwise, call function for 18D.
                     if len(members_list) == 10:
-                        if fsprotocol in ["NFS", "HTTPFS"]:
-                            result = mount_virtual_media(REDFISH_OBJ, members_list, fsip, fsport, fsdir, image,writeprotocol, inserted)
+                        if fsprotocol in ["NFS", "HTTP"]:
+                            result = mount_virtual_media(REDFISH_OBJ, members_list, protocol, fsip, fsport, fsdir, image,writeprotocol, inserted)
                             return result
                         else:
-                            result = {"ret":False, "msg": "For remote mounts, only HTTPFS and NFS(no credential required) protocols are supported."}
+                            result = {"ret":False, "msg": "For remote mounts, only HTTP and NFS(no credential required) protocols are supported."}
                             return result
                     else:
                         result = mount_virtual_media_from_network(REDFISH_OBJ, remotemap_url, image, fsip, fsport, fsdir,
@@ -157,11 +155,10 @@ def lenovo_mount_virtual_media(ip, login_account, login_password, image, mountty
         return result
 
 
-def mount_virtual_media(REDFISH_OBJ, members_list, fsip, fsport, fsdir, image, writeprotocol, inserted):
+def mount_virtual_media(REDFISH_OBJ, members_list, protocol, fsip, fsport, fsdir, image, writeprotocol, inserted):
     """
-     This function uses the patch method to mount VM, Base on current XCC capability and the standard schema definition, not supported mount web applet (Remote1/2/3/4) and RDOC(RDOC1/2),
-for remote mounts (EXT1/2/3/4), only HTTPFS and NFS(no credential required) protocols are supported.
-     When the BMC version is greater than or equal to 19A and the BMC user's license is Lenovo XClarity Controller Enterprise, it is supported to use this function to mount virtual media.
+     This function uses the patch method to mount VM, only HTTP and NFS(no credential required) protocols are supported.
+     This function can work on 19A version of XCC and license is "Lenovo XClarity Controller Enterprise".
     """
     # Get the members url from the members list
     for members in members_list:
@@ -180,7 +177,10 @@ for remote mounts (EXT1/2/3/4), only HTTPFS and NFS(no credential required) prot
 
             # Via patch request mount virtual media
             if image_name is None:
-                image_uri = fsip + fsport + ":" + fsdir + "/" + image
+                if protocol == "nfs":
+                    image_uri = fsip + fsport + ":" + fsdir + "/" + image
+                else:
+                    image_uri = protocol + "://" + fsip + fsport + fsdir + "/" + image
                 body = {"Image": image_uri, "WriteProtected": bool(writeprotocol), "Inserted": bool(inserted)}
                 response = REDFISH_OBJ.patch(members_url, body=body)
                 if response.status in [200, 204]:
@@ -199,8 +199,8 @@ for remote mounts (EXT1/2/3/4), only HTTPFS and NFS(no credential required) prot
 
 def mount_virtual_media_from_rdoc(REDFISH_OBJ, remotecontrol_url, remotemap_url,  source_url, fsusername, fspassword, fsprotocol, readonly, domain, options):
     """
-    This function use the Lenovo OEM extensions for VM mount, Current support at most mount 2 RDOC images and total amount sizes of RDOC images are 50MB.
-    When the BMC version is less than 19A and the BMC user's license is Lenovo XClarity Controller Advanced, it is supported to use this function to mount virtual media.
+    This function use the Lenovo OEM extensions for VM mount, support mounting 2 RDOC images and maximum amount sizes of RDOC images are 50MB.
+    This function can work on 18D version of XCC and license is "Lenovo XClarity Controller Advanced".
     """
     # Upload the mount image via file server
     response_remotecontrol_url = REDFISH_OBJ.get(remotecontrol_url, None)
@@ -247,8 +247,8 @@ def mount_virtual_media_from_rdoc(REDFISH_OBJ, remotecontrol_url, remotemap_url,
 
 def mount_virtual_media_from_network(REDFISH_OBJ, remotemap_url, image, fsip, fsport, fsdir, fsprotocol, fsusername, fspassword, readonly, domain, options):
     """
-    This function use the Lenovo OEM extensions for VM mount, Current support Up to 4 files can be concurrently mounted to the server by the BMC.
-    When the BMC version is less than 19A and the BMC user's license is Lenovo XClarity Controller Enterprise, it is supported to use this function to mount virtual media.
+    This function use the Lenovo OEM extensions for virtual media mount, support mounting up to 4 images concurrently to the server.
+    This function can work on 18D version of XCC and license is "Lenovo XClarity Controller Enterprise".
     """
     response_remotemap_url = REDFISH_OBJ.get(remotemap_url, None)
     if response_remotemap_url.status == 200:
@@ -264,11 +264,11 @@ def mount_virtual_media_from_network(REDFISH_OBJ, remotemap_url, image, fsip, fs
             body["FilePath"] = fsip + fsport + ":" + fsdir + "/" + image
         elif protocol == "samba":
             body["FilePath"] = "//" + fsip + fsport + fsdir + "/" + image
-        elif protocol in ['sftp', 'ftp', 'http', 'https']:
+        elif protocol in ['sftp', 'ftp', 'http']:
             body["FilePath"] = protocol + "://" + fsip + fsport + fsdir + "/" + image
         else:
             result = {'ret': False,
-                      'msg': 'Mount media iso network only support protocol Samba, NFS, HTTP/HTTPS, SFTP/FTP'}
+                      'msg': 'Mount media iso network only support protocol Samba, NFS, HTTP, SFTP/FTP'}
             return result
         body["Type"] = fsprotocol
         body["Username"] = fsusername
