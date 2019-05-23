@@ -19,6 +19,17 @@
 # under the License.
 ###
 
+###
+#
+# This script only works on the latest XCC Firmware of lenovo (2.50 and above). 
+# You can check "version" property of the URI below:
+#     https://ip/redfish/v1/UpdateService/FirmwareInventory/BMC-Primary
+# 
+# If your version is lower than it, you can use the script below, which works on old XCC Firmware.
+#     https://github.com/lenovo/python-redfish-lenovo/blob/master/examples/lenovo_mount_virtual_media.py
+#
+###
+
 
 import sys
 import redfish
@@ -88,6 +99,7 @@ def insert_virtual_media(ip, login_account, login_password, fsip, image, fsdir, 
                     return result
 
                 # Get the mount virtual media list
+                # For the latest XCC Firmware(version is 2.5 and above), there are 10 predefined members
                 response_virtual_media = REDFISH_OBJ.get(virtual_media_url, None)
                 if response_virtual_media.status == 200:
                     members_list = response_virtual_media.dict["Members"]
