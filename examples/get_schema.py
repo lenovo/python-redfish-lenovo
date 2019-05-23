@@ -20,7 +20,7 @@
 ###
 
 
-import sys
+import sys, os
 import redfish
 import json
 import lenovo_utils as utils
@@ -71,10 +71,14 @@ def get_schema(ip, login_account, login_password, schema_prefix):
                             uri = location["Uri"]
                             response_uri = REDFISH_OBJ.get(uri, None)
                             if response_uri.status == 200:
+                                filename = os.getcwd() + os.sep + uri.split("/")[-1]
                                 schema = {}
-                                msg = "Found " + schema_prefix + " at " + uri
+                                msg = "Download schema file " + uri.split("/")[-1]
                                 schema[schema_prefix] = msg
                                 schema_uri_info.append(schema)
+                                # save schema file
+                                with open(filename, 'w') as f:
+                                    json.dump(response_uri.dict, f, indent=2)
                             else:
                                 schema = {}
                                 msg = schema_prefix + " not found at " + uri
@@ -89,8 +93,12 @@ def get_schema(ip, login_account, login_password, schema_prefix):
                                 uri = location["Uri"]
                                 response_uri = REDFISH_OBJ.get(uri, None)
                                 if response_uri.status == 200:
-                                    msg = "Found " + schema_prefix + " at " + uri
+                                    filename = os.getcwd() + os.sep + uri.split("/")[-1]
+                                    msg = "Download schema file " + uri.split("/")[-1]
                                     schema_uri_info.append(msg)
+                                    # save schema file
+                                    with open(filename, 'w') as f:
+                                        json.dump(response_uri.dict, f, indent=2)
                                 else:
                                     error_message = utils.get_extended_error(response_uri)
                                     result = {'ret': False,
