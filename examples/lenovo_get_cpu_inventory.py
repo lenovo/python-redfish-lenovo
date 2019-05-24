@@ -84,15 +84,15 @@ def get_cpu_info(ip, login_account, login_password, system_id, member_id):
             return result
 
         # check member_id validity
-        if member_id:
-            if member_id < 0 or member_id >= members_count:
-                result = {'ret': False, 'msg': "Specified member id is not valid. The id should be within 0~%s" % (members_count-1)}
+        if member_id != None:
+            if member_id <= 0 or member_id > members_count:
+                result = {'ret': False, 'msg': "Specified member id is not valid. The id should be within 1~%s" % (members_count)}
                 REDFISH_OBJ.logout()
                 return result
 
         # Get each processor info
         for i in range(members_count):
-            if member_id != None  and i != member_id:
+            if member_id != None  and i != (member_id-1):
                 continue
             cpu = {}
             # Get members url resource
@@ -120,7 +120,7 @@ import argparse
 def add_parameter():
     """Add member parameter"""
     argget = utils.create_common_parameter_list()
-    argget.add_argument('--member', type=int,  help="Specify the member id to get only one member from list. 0 for first member, 1 for second, etc")
+    argget.add_argument('--member', type=int,  help="Specify the member id to get only one member from list. 1 for first member, 2 for second, etc")
     args = argget.parse_args()
     parameter_info = utils.parse_parameter(args)
     parameter_info['member'] = args.member
