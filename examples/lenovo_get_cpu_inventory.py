@@ -92,7 +92,7 @@ def get_cpu_info(ip, login_account, login_password, system_id, member_id):
 
         # Get each processor info
         for i in range(members_count):
-            if not member_id  and i != member_id:
+            if member_id != None  and i != member_id:
                 continue
             cpu = {}
             # Get members url resource
