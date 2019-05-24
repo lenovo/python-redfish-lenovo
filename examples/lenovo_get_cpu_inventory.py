@@ -118,7 +118,7 @@ def get_cpu_info(ip, login_account, login_password, system_id, member_id):
 
 import argparse
 def add_parameter():
-    """Add get schema parameter"""
+    """Add member parameter"""
     argget = utils.create_common_parameter_list()
     argget.add_argument('--member', type=int,  help="Specify the member id to get only one member from list. 0 for first member, 1 for second, etc")
     args = argget.parse_args()
