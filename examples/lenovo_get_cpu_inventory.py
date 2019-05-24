@@ -86,7 +86,7 @@ def get_cpu_info(ip, login_account, login_password, system_id, member_id):
         # check member_id validity
         if member_id:
             if member_id < 0 or member_id >= members_count:
-                result = {'ret': False, 'msg': "Specified member id is not valid. The id should within 0~%s" % (members_count-1)}
+                result = {'ret': False, 'msg': "Specified member id is not valid. The id should be within 0~%s" % (members_count-1)}
                 REDFISH_OBJ.logout()
                 return result
 
