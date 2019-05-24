@@ -103,9 +103,12 @@ def get_cpu_info(ip, login_account, login_password, system_id, member_id):
                     'TotalCores', 'Manufacturer', 'MaxSpeedMHz', 'Model', 'Socket']:
                     if property in response_members_url.dict:
                         cpu[property] = response_members_url.dict[property]
-                # add Lenovo CacheInfo
-                if ('Oem' in response_members_url.dict) and ('Lenovo' in response_members_url.dict['Oem'])  and ('CacheInfo' in response_members_url.dict['Oem']['Lenovo']):
-                    cpu['CacheInfo'] = response_members_url.dict['Oem']['Lenovo']['CacheInfo']
+                # add Lenovo CacheInfo and CurrentClockSpeedMHz
+                if ('Oem' in response_members_url.dict) and ('Lenovo' in response_members_url.dict['Oem']):
+                    if ('CacheInfo' in response_members_url.dict['Oem']['Lenovo']):
+                        cpu['CacheInfo'] = response_members_url.dict['Oem']['Lenovo']['CacheInfo']
+                    if ('CurrentClockSpeedMHz' in response_members_url.dict['Oem']['Lenovo']):
+                        cpu['CurrentClockSpeedMHz'] = response_members_url.dict['Oem']['Lenovo']['CurrentClockSpeedMHz']
                 cpu_details.append(cpu)
             else:
                 result = {'ret': False, 'msg': "response_members_url Error code %s" % response_members_url.status}
