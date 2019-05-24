@@ -27,7 +27,7 @@ import redfish
 import lenovo_utils as utils
 
 
-def get_cpu_info(ip, login_account, login_password, system_id):
+def get_cpu_info(ip, login_account, login_password, system_id, member_id):
     """Get cpu inventory    
     :params ip: BMC IP address
     :type ip: string
@@ -37,6 +37,8 @@ def get_cpu_info(ip, login_account, login_password, system_id):
     :type login_password: string
     :params system_id: ComputerSystem instance id(None: first instance, All: all instances)
     :type system_id: None or string
+    :params member_id: Cpu member id
+    :type member_id: None or int
     :returns: returns cpu inventory when succeeded or error message when failed
     """
     result = {}
@@ -81,8 +83,17 @@ def get_cpu_info(ip, login_account, login_password, system_id):
             REDFISH_OBJ.logout()
             return result
 
+        # check member_id validity
+        if member_id:
+            if member_id < 0 or member_id >= members_count:
+                result = {'ret': False, 'msg': "Specified member id is not valid. The id should within 0~%s" % (members_count-1)}
+                REDFISH_OBJ.logout()
+                return result
+
         # Get each processor info
         for i in range(members_count):
+            if member_id and i != member_id:
+                continue
             cpu = {}
             # Get members url resource
             members_url = response_processors_url.dict['Members'][i]['@odata.id']
@@ -105,21 +116,30 @@ def get_cpu_info(ip, login_account, login_password, system_id):
     REDFISH_OBJ.logout()
     return result
 
+import argparse
+def add_parameter():
+    """Add get schema parameter"""
+    argget = utils.create_common_parameter_list()
+    argget.add_argument('--member', type=int,  help="Specify the member id to get only one member from list. 0 for first member, 1 for second, etc")
+    args = argget.parse_args()
+    parameter_info = utils.parse_parameter(args)
+    parameter_info['member'] = args.member
+    return parameter_info
+
 
 if __name__ == '__main__':
     # Get parameters from config.ini and/or command line
-    argget = utils.create_common_parameter_list()
-    args = argget.parse_args()
-    parameter_info = utils.parse_parameter(args)
+    parameter_info = add_parameter()
     
     # Get connection info from the parameters user specified
     ip = parameter_info['ip']
     login_account = parameter_info["user"]
     login_password = parameter_info["passwd"]
     system_id = parameter_info['sysid']
+    member_id = parameter_info['member']
     
     # Get cpu inventory and check result
-    result = get_cpu_info(ip, login_account, login_password, system_id)
+    result = get_cpu_info(ip, login_account, login_password, system_id, member_id)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['entries'], sort_keys=True, indent=2))
