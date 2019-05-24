@@ -26,7 +26,7 @@ import redfish
 import lenovo_utils as utils
 
 
-def get_memory_inventory(ip, login_account, login_password, system_id):
+def get_memory_inventory(ip, login_account, login_password, system_id, member_id):
     """Get memory inventory
     :params ip: BMC IP address
     :type ip: string
@@ -36,6 +36,8 @@ def get_memory_inventory(ip, login_account, login_password, system_id):
     :type login_password: string
     :params system_id: ComputerSystem instance id(None: first instance, All: all instances)
     :type system_id: None or string
+    :params member_id: Memory member id
+    :type member_id: None or int
     :returns: returns memory inventory when succeeded or error message when failed
     """
     result = {}
@@ -67,7 +69,20 @@ def get_memory_inventory(ip, login_account, login_password, system_id):
                 response_memory_url = REDFISH_OBJ.get(memroys_url,None)
                 if response_memory_url.status == 200:
                     list_memory_url = response_memory_url.dict["Members"]
+                    # check member_id validity
+                    if member_id != None:
+                        if member_id <= 0 or member_id > len(list_memory_url):
+                            result = {'ret': False, 'msg': "Specified member id is not valid. The id should be within 1~%s" % (len(list_memory_url))}
+                            REDFISH_OBJ.logout()
+                            return result
+
+                    # get each memory info
+                    index = 1
                     for memory_dict in list_memory_url:
+                        if member_id != None and index != member_id:
+                            index = index + 1
+                            continue
+                        index = index + 1
                         sub_memory_url = memory_dict["@odata.id"]
                         response_sub_memory_url = REDFISH_OBJ.get(sub_memory_url,None)
                         if response_sub_memory_url.status == 200:
@@ -109,21 +124,30 @@ def get_memory_inventory(ip, login_account, login_password, system_id):
     finally:
         REDFISH_OBJ.logout()
 
+import argparse
+def add_parameter():
+    """Add member parameter"""
+    argget = utils.create_common_parameter_list()
+    argget.add_argument('--member', type=int,  help="Specify the member id to get only one member from list. 1 for first member, 2 for second, etc")
+    args = argget.parse_args()
+    parameter_info = utils.parse_parameter(args)
+    parameter_info['member'] = args.member
+    return parameter_info
+
 
 if __name__ == '__main__':
     # Get parameters from config.ini and/or command line
-    argget = utils.create_common_parameter_list()
-    args = argget.parse_args()
-    parameter_info = utils.parse_parameter(args)
+    parameter_info = add_parameter()
 
     # Get connection info from the parameters user specified
     ip = parameter_info['ip']
     login_account = parameter_info["user"]
     login_password = parameter_info["passwd"]
     system_id = parameter_info['sysid']
+    member_id = parameter_info['member']
 
     # Get memory inventory and check result
-    result = get_memory_inventory(ip, login_account, login_password, system_id)
+    result = get_memory_inventory(ip, login_account, login_password, system_id, member_id)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['entries'], sort_keys=True, indent=2))
