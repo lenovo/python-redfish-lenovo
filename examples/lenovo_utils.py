@@ -158,13 +158,15 @@ def parse_parameter(args):
     if args.passwd is not None:
         parameter_info["passwd"] = args.passwd
     if args.sysid is not None:
-        parameter_info['sysid'] = args.sysid
+        parameter_info["sysid"] = args.sysid
 
     # Use parameters from command line to overrided Configuration file
     for key in parameter_info:
         if parameter_info[key]:
             config_ini_info[key] = parameter_info[key]
-    
+    if "sysid" not in config_ini_info:
+        config_ini_info["sysid"] = "None"
+
     # Check connect information
     if not config_ini_info['ip'] or not config_ini_info['user'] or not config_ini_info['passwd']:
         sys.stderr.write("BMC connect information (ip/username/password) is needed. Please provide them by command line -i,-u,-p or configuration file (default config.ini).")
