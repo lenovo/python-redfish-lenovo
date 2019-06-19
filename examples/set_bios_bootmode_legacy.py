@@ -49,6 +49,7 @@ def set_bios_bootmode_legacy(ip, login_account, login_password, system_id):
     except:
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
         return result
+
     # GET the ComputerSystem resource
     system = utils.get_system_url("/redfish/v1", system_id, REDFISH_OBJ)
     if not system:
@@ -57,25 +58,87 @@ def set_bios_bootmode_legacy(ip, login_account, login_password, system_id):
         return result
     for i in range(len(system)):
         system_url = system[i]
-        attributes = {}
-        attributes['bios_attr_name'] = "BootSourceOverrideMode"
-        attributes['bios_attr_value'] = "Legacy"
-        bios_attributes = "{\"" + attributes['bios_attr_name'] + "\":\"" + attributes['bios_attr_value'] + "\"}"
-
-        parameter = {"Boot": json.loads(bios_attributes)}
-        response_system_url = REDFISH_OBJ.patch(system_url, body=parameter)
-
-        if response_system_url.status in [200, 204]:
-            result = {'ret': True, 'msg': 'set bios bootmode legacy successful'}
-        elif response_system_url.status == 400:
-            result = {'ret': False, 'msg': 'Not supported on this platform'}
-        elif response_system_url.status == 405:
-            result = {'ret': False, 'msg': "Resource not supported"}
+        response_system_url = REDFISH_OBJ.get(system_url, None)
+        if response_system_url.status != 200:
+            error_message = utils.get_extended_error(response_system_url)
+            result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (system_url, response_system_url.status, error_message)}
+            REDFISH_OBJ.logout()
+            return result
         else:
-            result = {'ret': False, 'msg': "set bios bootmode legacy failed"}
-    # Logout of the current session
-    REDFISH_OBJ.logout()
-    return result
+            # Get the bios resource
+            bios_url = response_system_url.dict['Bios']['@odata.id']
+            response_bios_url = REDFISH_OBJ.get(bios_url, None)
+            if response_bios_url.status != 200:
+                error_message = utils.get_extended_error(response_bios_url)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (bios_url, response_bios_url.status, error_message)}
+                REDFISH_OBJ.logout()
+                return result
+            else: # Get bios success
+                # Seek boot mode from bios attributes
+                attribute_bootmode = None
+                attributes = response_bios_url.dict['Attributes']
+                for attribute in attributes:
+                    if attribute == "BootMode" or attribute == "SystemBootMode":
+                        attribute_bootmode = attribute
+                if attribute_bootmode == None:
+                    for attribute in attributes:
+                        if "SystemBootMode" in attribute:
+                            attribute_bootmode = attribute
+                if attribute_bootmode == None:
+                    result = {'ret': False, 'msg': "Can not found BootMode attribute in response of url %s" %(bios_url)}
+                    REDFISH_OBJ.logout()
+                    return result
+
+                # Get boot mode setting guide from bios registry
+                WarningText = None
+                ValueName = None
+                bios_registry_url = "/redfish/v1/Registries/" + response_bios_url.dict['AttributeRegistry']
+                response_bios_registry_url = REDFISH_OBJ.get(bios_registry_url, None)
+                if response_bios_registry_url.status == 200:
+                    locations = response_bios_registry_url.dict['Location']
+                    bios_regjson_url = None
+                    for location in locations:
+                        if location['Language'] == 'en':
+                            bios_regjson_url = location['Uri']
+                            break
+                    if bios_regjson_url:
+                        response_bios_regjson_url = REDFISH_OBJ.get(bios_regjson_url, None)
+                        if response_bios_regjson_url.status == 200:
+                            regattributes = response_bios_regjson_url.dict['RegistryEntries']['Attributes']
+                            for regattribute in regattributes:
+                                if regattribute['AttributeName'] == attribute_bootmode:
+                                    if 'WarningText' in regattribute:
+                                        WarningText = regattribute['WarningText']
+                                    for value in regattribute['Value']:
+                                        if 'legacy' in value['ValueName'].lower():
+                                            ValueName = value['ValueName']
+                                            break
+                                    break
+        
+                # Perform patch to set
+                if ValueName == None:
+                    ValueName = "LegacyMode"
+                pending_url = response_bios_url.dict['@Redfish.Settings']['SettingsObject']['@odata.id']
+                parameter = {attribute_bootmode: ValueName}
+                attribute = {"Attributes": parameter}
+                response_pending_url = REDFISH_OBJ.patch(pending_url, body=attribute)
+                if response_pending_url.status in [200,204]:
+                    if WarningText:
+                        result = {'ret': True, 'msg': 'set bios bootmode legacy successful. WarningText: %s'% (WarningText) }
+                    else:
+                        result = {'ret': True, 'msg': 'set bios bootmode legacy successful'}
+                elif response_pending_url.status == 400:
+                    result = {'ret': False, 'msg': 'Not supported on this platform'}
+                elif response_pending_url.status == 405:
+                    result = {'ret': False, 'msg': "Resource not supported"}
+                else:
+                    error_message = utils.get_extended_error(response_pending_url)
+                    result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                        pending_url, response_pending_url.status, error_message)}
+
+                # Logout of the current session
+                REDFISH_OBJ.logout()
+                return result
 
 
 if __name__ == '__main__':

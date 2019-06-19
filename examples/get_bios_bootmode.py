@@ -61,12 +61,33 @@ def get_boot_mode(ip, login_account, login_password, system_id):
             system_url = system[i]
             response_system_url = REDFISH_OBJ.get(system_url, None)
             if response_system_url.status == 200:
-                # Get the boot mode
-                boot_mode_dict = {}
-                boot_mode = response_system_url.dict['Boot']['BootSourceOverrideMode']
-                boot_mode_dict["BootSourceOverrideMode"] = boot_mode
-                result = {"ret": True, "msg":boot_mode_dict}
-                return result
+                # Get the bios resource
+                bios_url = response_system_url.dict['Bios']['@odata.id']
+                response_bios_url = REDFISH_OBJ.get(bios_url, None)
+                if response_bios_url.status != 200:
+                    error_message = utils.get_extended_error(response_bios_url)
+                    result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (bios_url, response_bios_url.status, error_message)}
+                    return result
+                else: # Get bios success
+                    # Seek boot mode from bios attributes
+                    attribute_bootmode = None
+                    attributes = response_bios_url.dict['Attributes']
+                    for attribute in attributes:
+                        if attribute == "BootMode" or attribute == "SystemBootMode":
+                            attribute_bootmode = attribute
+                    if attribute_bootmode == None:
+                        for attribute in attributes:
+                            if "SystemBootMode" in attribute:
+                                attribute_bootmode = attribute
+                    if attribute_bootmode == None:
+                        result = {'ret': False, 'msg': "Can not found BootMode attribute in response of url %s" %(bios_url)}
+                        return result
+                    # Set output
+                    boot_mode_dict = {}
+                    boot_mode = response_bios_url.dict['Attributes'][attribute_bootmode]
+                    boot_mode_dict["BootMode"] = boot_mode
+                    result = {"ret": True, "msg":boot_mode_dict}
+                    return result
             else:
                 error_message = utils.get_extended_error(response_system_url)
                 result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (system_url, response_system_url.status, error_message)}
