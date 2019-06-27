@@ -26,6 +26,8 @@ import redfish
 if sys.version_info.major == 2:
     import httplib
     httplib._MAXHEADERS = 1000
+    import ssl
+    ssl._create_default_https_context = ssl._create_unverified_context
 else:
     import http.client
     http.client._MAXHEADERS = 1000
