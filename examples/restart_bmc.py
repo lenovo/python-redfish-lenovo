@@ -33,8 +33,6 @@ def restart_manager(ip, login_account, login_password):
     :type login_account: string
     :params login_password: BMC user password
     :type login_password: string
-    :params system_id: ComputerSystem instance id(None: first instance, All: all instances)
-    :type system_id: None or string
     :returns: returns restart manager result when succeeded or error message when failed
     """
     result = {}
@@ -128,7 +126,6 @@ if __name__ == '__main__':
     ip = parameter_info['ip']
     login_account = parameter_info["user"]
     login_password = parameter_info["passwd"]
-    system_id = parameter_info['sysid']
     
     # Get restart manager result and check result
     result = restart_manager(ip, login_account, login_password)

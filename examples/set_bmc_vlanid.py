@@ -34,8 +34,6 @@ def set_manager_vlanid(ip, login_account, login_password, vlanid, vlanEnable):
     :type login_account: string
     :params login_password: BMC user password
     :type login_password: string
-    :params system_id: ComputerSystem instance id(None: first instance, All: all instances)
-    :type system_id: None or string
     :params vlanid: vlan id by user specified
     :type vlanid: string
     :params vlanEnable: vlanenable type by user specified
@@ -154,7 +152,6 @@ if __name__ == '__main__':
     ip = parameter_info['ip']
     login_account = parameter_info["user"]
     login_password = parameter_info["passwd"]
-    system_id = parameter_info['sysid']
 
     # Get set info from the parameters user specified
     try:
