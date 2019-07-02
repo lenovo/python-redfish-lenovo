@@ -221,7 +221,10 @@ def add_helpmessage(argget):
 def add_parameter():
     """Add create bmc user parameter"""
     parameter_info = {}
-    argget = utils.create_common_parameter_list()
+    argget = utils.create_common_parameter_list(example_string='''
+Example:
+  "python lenovo_create_bmc_user.py -i 10.10.10.10 -u USERID -p PASSW0RD --newusername testuser --newuserpasswd Test123_pass --authority Supervisor"
+''')
     add_helpmessage(argget)
     args = argget.parse_args()
     parameter_info = utils.parse_parameter(args)

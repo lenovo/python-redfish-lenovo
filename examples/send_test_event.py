@@ -117,7 +117,10 @@ def add_helpmessage(argget):
 def add_parameter():
     """Send test event parameter"""
     parameter_info = {}
-    argget = utils.create_common_parameter_list()
+    argget = utils.create_common_parameter_list(example_string='''
+Example:
+  "python send_test_event.py -i 10.10.10.10 -u USERID -p PASSW0RD --eventid 40000001 --message "This is a test report" --severity OK"
+''')
     add_helpmessage(argget)
     args = argget.parse_args()
     parameter_info = utils.parse_parameter(args)

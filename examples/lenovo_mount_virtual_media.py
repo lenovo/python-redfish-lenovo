@@ -335,7 +335,12 @@ import configparser
 import os
 def add_parameter():
     """Add mount media iso parameter"""
-    argget = utils.create_common_parameter_list()
+    argget = utils.create_common_parameter_list(example_string='''
+Example of HTTP/NFS:
+  "python lenovo_mount_virtual_media.py -i 10.10.10.10 -u USERID -p PASSW0RD --fsprotocol HTTP --fsip 10.10.10.11 --fsdir /fspath/ --image isoname.img"
+Example of SFTP/FTP/Samba:
+  "python lenovo_mount_virtual_media.py -i 10.10.10.10 -u USERID -p PASSW0RD --fsprotocol SFTP --fsip 10.10.10.11 --fsusername mysftp --fspassword mypass --fsdir /fspath/ --image isoname.img"
+''')
     add_helpmessage(argget)
     args = argget.parse_args()
 

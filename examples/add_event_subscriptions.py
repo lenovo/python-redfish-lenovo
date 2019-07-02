@@ -124,7 +124,10 @@ def add_helpmessage(argget):
 def add_parameter():
     """Add event subscriptions parameter"""
     parameter_info = {}
-    argget = utils.create_common_parameter_list()
+    argget = utils.create_common_parameter_list(example_string='''
+Example:
+  "python add_event_subscriptions.py -i 10.10.10.10 -u USERID -p PASSW0RD --destination https://10.10.10.11 --eventtypes Alert --context test"
+''')
     add_helpmessage(argget)
     args = argget.parse_args()
     parameter_info = utils.parse_parameter(args)
