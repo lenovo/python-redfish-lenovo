@@ -65,9 +65,22 @@ def set_chassis_indicator_led(ip, login_account, login_password, led_status):
         if response_chassis_url.status == 200:
             for i in range(response_chassis_url.dict['Members@odata.count']):
                 led_url = response_chassis_url.dict['Members'][i]['@odata.id']
+
+                # get etag to set If-Match precondition
+                response_led_url = REDFISH_OBJ.get(led_url, None)
+                if response_led_url.status != 200:
+                    error_message = utils.get_extended_error(response_led_url)
+                    result = {'ret': False, 'msg': "Url '%s' get failed. response Error code %s \nerror_message: %s" % (
+                        led_url, response_led_url.status, error_message)}
+                    return result
+                if "@odata.etag" in response_led_url.dict:
+                    etag = response_led_url.dict['@odata.etag']
+                else:
+                    etag = ""
+                headers = {"If-Match": etag, "Content-Type": "application/json"}
+
                 led_status = led_status
                 parameter = {"IndicatorLED": led_status}
-                headers = {"Content-Type": "application/json"}
                 response_url = REDFISH_OBJ.patch(led_url, body=parameter, headers=headers)
                 if response_url.status in [200, 204]:
                     result = {'ret': True, 'msg': "PATCH command successfully completed '%s' request for chassis indicator LED" % led_status}
