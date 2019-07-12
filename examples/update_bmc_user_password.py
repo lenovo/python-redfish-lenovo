@@ -33,8 +33,6 @@ def update_user_password(ip, login_account, login_password, username, new_passwo
     :type login_account: string
     :params login_password: BMC user password
     :type login_password: string
-    :params system_id: ComputerSystem instance id(None: first instance, All: all instances)
-    :type system_id: None or string
     :params username: Username to be modified by the user
     :type username: string
     :params new_password: New password to be modified by the user

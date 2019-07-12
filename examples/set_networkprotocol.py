@@ -160,7 +160,6 @@ if __name__ == '__main__':
     ip = parameter_info["ip"]
     login_account = parameter_info["user"]
     login_password = parameter_info["passwd"]
-    system_id = parameter_info["sysid"]
 
     # Get set info from the parameters user specified
     try:

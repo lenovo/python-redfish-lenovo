@@ -118,14 +118,18 @@ def read_config(config_file):
     return config_ini_info
 
 
-def create_common_parameter_list(description_string="This tool can be used to perform system management via Redfish.", prog_string=None):
+def create_common_parameter_list(description_string="This tool can be used to perform system management via Redfish.", prog_string=None, example_string=None):
     """Add common parameter"""
     # Set prog and description
     if not description_string.endswith('.'):
         description_string = description_string + '.'
     description_fullstring = description_string + " BMC connect information (ip/username/password) is needed. Set them by command line -i,-u,-p or using configuration file (default config.ini)."
-    if prog_string:
+    if prog_string and example_string:
+        argget = argparse.ArgumentParser(prog=prog_string, epilog=example_string, description=description_fullstring)
+    elif prog_string:
         argget = argparse.ArgumentParser(prog=prog_string, description=description_fullstring)
+    elif example_string:
+        argget = argparse.ArgumentParser(epilog=example_string, description=description_fullstring)
     else:
         argget = argparse.ArgumentParser(description=description_fullstring)
     
