@@ -184,8 +184,20 @@ def set_serial_interfaces(ip, login_account, login_password, interfaceid, bitrat
                 except:
                     pass
 
+                # check whether the specified interface is valid
+                if "BitRate" not in response_serial_interfaces_x_url.dict:
+                    result = {'ret': False, 'msg': "The specified Interface Id %s has no BitRate property, not valid." %(interfaceid)}
+                    return result
+
+                if "@odata.etag" in response_serial_interfaces_x_url.dict:
+                    etag = response_serial_interfaces_x_url.dict['@odata.etag']
+                else:
+                    etag = ""
+                headers = {"If-Match": etag}
+
+
                 # Request set serial interface
-                serial_interfaces_x_url_response = REDFISH_OBJ.patch(serial_interfaces_x_url, body=body)
+                serial_interfaces_x_url_response = REDFISH_OBJ.patch(serial_interfaces_x_url, body=body, headers=headers)
                 if serial_interfaces_x_url_response.status == 200:
                     result = {'ret': True, 'msg': '%s set Successful'% [key+':'+str(value) for key, value in body.items()]}
                 else:
