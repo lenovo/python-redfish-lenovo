@@ -71,9 +71,21 @@ def reset_bios_default(ip, login_account, login_password, system_id):
             if response_bios_url.status == 200:
                 # Get the Bios reset url
                 reset_bios_url = response_bios_url.dict['Actions']['#Bios.ResetBios']['target']
+                body = {}
+                # get parameter requirement if ActionInfo is provided
+                if "@Redfish.ActionInfo" in response_bios_url.dict["Actions"]["#Bios.ResetBios"]:
+                    actioninfo_url = response_bios_url.dict["Actions"]["#Bios.ResetBios"]["@Redfish.ActionInfo"]
+                    response_actioninfo_url = REDFISH_OBJ.get(actioninfo_url, None)
+                    if (response_actioninfo_url.status == 200) and ("Parameters" in response_actioninfo_url.dict):
+                        for parameter in response_actioninfo_url.dict["Parameters"]:
+                            if ("Name" in parameter) and ("AllowableValues" in parameter):
+                               body[parameter["Name"]] = parameter["AllowableValues"][0]
+
                 # Reset bios default
                 headers = {"Content-Type":"application/json"}
-                if "settings" in reset_bios_url:
+                if body:
+                    response_reset_bios = REDFISH_OBJ.post(reset_bios_url, body=body, headers=headers)
+                elif "settings" in reset_bios_url:
                     body = {"ResetType": "default"}
                     response_reset_bios = REDFISH_OBJ.post(reset_bios_url, body=body, headers=headers)
                 else:

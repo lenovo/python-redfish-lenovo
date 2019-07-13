@@ -135,6 +135,10 @@ def set_serial_interfaces(ip, login_account, login_password, interfaceid, bitrat
                     etag = ""
                 headers = {"If-Match": etag}
 
+                # check whether the specified interface is valid
+                if "BitRate" not in response_serial_interfaces_x_url.dict:
+                    result = {'ret': False, 'msg': "The specified Interface Id %s has no BitRate property, not valid." %(interfaceid)}
+                    return result
                 
                 # Build body for setting serial interface properties value
                 body = {}

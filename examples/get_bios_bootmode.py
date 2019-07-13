@@ -80,6 +80,10 @@ def get_boot_mode(ip, login_account, login_password, system_id):
                             if "SystemBootMode" in attribute:
                                 attribute_bootmode = attribute
                     if attribute_bootmode == None:
+                        for attribute in attributes:
+                            if "Boot Mode" in attribute:
+                                attribute_bootmode = attribute
+                    if attribute_bootmode == None:
                         result = {'ret': False, 'msg': "Can not found BootMode attribute in response of url %s" %(bios_url)}
                         return result
                     # Set output
