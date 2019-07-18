@@ -91,7 +91,6 @@ def get_bmc_user_accounts(ip, login_account, login_password):
             if response_account_x_url.status == 200:
                 # Print out account information if account is valid (UserName not blank)
                 if response_account_x_url.dict["UserName"]:
-                    Name = response_account_x_url.dict["Name"]
                     UserName = response_account_x_url.dict["UserName"]
                     if 'Enabled' in response_account_x_url.dict:
                         Enabled = response_account_x_url.dict["Enabled"]
@@ -102,7 +101,6 @@ def get_bmc_user_accounts(ip, login_account, login_password):
                     else:
                         Locked = ''
                     bmc_user['Id'] = response_account_x_url.dict['Id']
-                    bmc_user['Name'] = Name
                     bmc_user['UserName'] = UserName
                     bmc_user['Enabled'] = Enabled
                     bmc_user['Locked'] = Locked

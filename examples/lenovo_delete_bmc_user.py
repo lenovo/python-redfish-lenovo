@@ -101,11 +101,12 @@ def delete_bmc_user(ip, login_account, login_password, username):
                 headers = {"If-Match": etag}
                 # Set the body info
                 parameter = {
+                    "Enabled": False,
                     "UserName": ""
                 }
                 #delete bmc user
                 response_delete_account_url = REDFISH_OBJ.patch(dest_account_url, body=parameter, headers=headers)
-                if response_delete_account_url.status == 200:
+                if response_delete_account_url.status in [200, 204]:
                     result = {'ret': True, 'msg': "Account %s deleted successfully" % username}
                     return result
                 else:
