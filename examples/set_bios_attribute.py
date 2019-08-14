@@ -78,16 +78,80 @@ def set_bios_attribute(ip, login_account, login_password, system_id, attribute_n
             # Get bios url resource
             response_bios_url = REDFISH_OBJ.get(bios_url, None)
             if response_bios_url.status == 200:
-                pending_url = response_bios_url.dict['@Redfish.Settings']['SettingsObject']['@odata.id']
+                if "SettingsObject" in response_bios_url.dict['@Redfish.Settings'].keys():
+                    pending_url = response_bios_url.dict['@Redfish.Settings']['SettingsObject']['@odata.id']
+                else:
+                    pending_url = bios_url + "/SD"
+                attribute_registry = response_bios_url.dict['AttributeRegistry']
             else:
                 error_message = utils.get_extended_error(response_bios_url)
                 result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
                     bios_url, response_bios_url.status, error_message)}
                 return result
 
-            parameter = {attribute_name: attribute_value}
-            attribute = {"Attributes": parameter}
-            response_pending_url = REDFISH_OBJ.patch(pending_url, body=attribute)
+            registry_url = "/redfish/v1/Registries"
+            registry_response = REDFISH_OBJ.get(registry_url, None)
+            if registry_response.status == 200:
+                members_list = registry_response.dict["Members"]
+                for registry in members_list:
+                    if attribute_registry in registry["@odata.id"]:
+                        bios_registry_url = registry["@odata.id"]
+            else:
+                error_message = utils.get_extended_error(registry_response)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                    registry_url, registry_response.status, error_message)}
+                return result
+
+            bios_registry_response = REDFISH_OBJ.get(bios_registry_url, None)
+            if bios_registry_response.status == 200:
+                bios_registry_json_url = bios_registry_response.dict["Location"][0]["Uri"]
+            else:
+                error_message = utils.get_extended_error(bios_registry_response)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                    bios_registry_url, bios_registry_response.status, error_message)}
+                return result
+
+            bios_registry_json_response = REDFISH_OBJ.get(bios_registry_json_url, None)
+            if bios_registry_json_response.status == 200:
+                bios_attribute_list = bios_registry_json_response.dict["RegistryEntries"]["Attributes"]
+            else:
+                error_message = utils.get_extended_error(bios_registry_json_response)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                    bios_registry_json_url, bios_registry_json_response.status, error_message)}
+                return result
+
+            parameter = {}
+            for bios_attribute in bios_attribute_list:
+                AttributeName = bios_attribute["AttributeName"]
+                AttributeType = bios_attribute["Type"]
+                if attribute_name == AttributeName:
+                    if AttributeType == "Integer":
+                        try:
+                            attribute_value = int(attribute_value)
+                            parameter = {attribute_name: attribute_value}
+                        except:
+                            result = {'ret': False, 'msg': "Please check the attribute value, this should be a number."}
+                            return result
+                    elif AttributeType == "Boolean":
+                        if attribute_value.upper() == "TRUE":
+                            parameter = {attribute_name: True}
+                        elif attribute_value.upper() == "FALSE":
+                            parameter = {attribute_name: False}
+                        else:
+                            result = {'ret': False, 'msg': "Please check the attribute value, this value is 'true' or 'false'."}
+                            return result
+                    else:
+                        parameter = {attribute_name: attribute_value}
+                    break
+                else:
+                    continue
+            if parameter:
+                attribute = {"Attributes": parameter}
+            else:
+                result = {"ret": False, "msg": "This bios attribute '%s' not supported on this platform" % attribute_name}
+                return result
+            headers = {"If-Match": "*", "Content-Type": "application/json"}
+            response_pending_url = REDFISH_OBJ.patch(pending_url, headers = headers, body=attribute)
             if response_pending_url.status in [200,204]:
                 result = {'ret': True, 'msg': '%s set Successful'% attribute_name }
             elif response_pending_url.status == 400:
