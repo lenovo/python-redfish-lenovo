@@ -80,10 +80,17 @@ def set_bios_bootmode_legacy(ip, login_account, login_password, system_id):
                 for attribute in attributes:
                     if attribute == "BootMode" or attribute == "SystemBootMode":
                         attribute_bootmode = attribute
+                        break
                 if attribute_bootmode == None:
                     for attribute in attributes:
                         if "SystemBootMode" in attribute:
                             attribute_bootmode = attribute
+                            break
+                if attribute_bootmode == None:
+                    for attribute in attributes:
+                        if "Boot" in attribute and "Mode" in attribute:
+                            attribute_bootmode = attribute
+                            break
                 if attribute_bootmode == None:
                     result = {'ret': False, 'msg': "Can not found BootMode attribute in response of url %s" %(bios_url)}
                     REDFISH_OBJ.logout()
@@ -121,7 +128,8 @@ def set_bios_bootmode_legacy(ip, login_account, login_password, system_id):
                 pending_url = response_bios_url.dict['@Redfish.Settings']['SettingsObject']['@odata.id']
                 parameter = {attribute_bootmode: ValueName}
                 attribute = {"Attributes": parameter}
-                response_pending_url = REDFISH_OBJ.patch(pending_url, body=attribute)
+                headers = {"If-Match": '*'}
+                response_pending_url = REDFISH_OBJ.patch(pending_url, body=attribute, headers=headers)
                 if response_pending_url.status in [200,204]:
                     if WarningText:
                         result = {'ret': True, 'msg': 'set bios bootmode legacy successful. WarningText: %s'% (WarningText) }

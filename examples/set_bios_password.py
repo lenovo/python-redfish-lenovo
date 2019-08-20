@@ -27,7 +27,7 @@ import redfish
 import lenovo_utils as utils
 
 
-def set_bios_password(ip, login_account, login_password, system_id, bios_password_name, bios_password):
+def set_bios_password(ip, login_account, login_password, system_id, bios_password_name, bios_password, oldbiospass):
     """Set Bios password
     :params ip: BMC IP address
     :type ip: string
@@ -41,6 +41,8 @@ def set_bios_password(ip, login_account, login_password, system_id, bios_passwor
     :type bios_password_name: string
     :params bios_password: Bios password by user specified
     :type bios_password: string
+    :params oldbiospass: Old Bios password
+    :type oldbiospass: None or string
     :returns: returns set bios password result when succeeded or error message when failed
     """
     result = {}
@@ -68,6 +70,8 @@ def set_bios_password(ip, login_account, login_password, system_id, bios_passwor
             response_system_url = REDFISH_OBJ.get(system_url, None)
             if response_system_url.status == 200:
                 # Get the ComputerBios resource
+                if len(system) > 1 and 'Bios' not in response_system_url.dict:
+                    continue
                 bios_url = response_system_url.dict['Bios']['@odata.id']
             else:
                 error_message = utils.get_extended_error(response_system_url)
@@ -77,16 +81,68 @@ def set_bios_password(ip, login_account, login_password, system_id, bios_passwor
 
             response_bios_url = REDFISH_OBJ.get(bios_url, None)
             if response_bios_url.status == 200:
+                # Get password name allowable value list
+                attribute_registry = response_bios_url.dict['AttributeRegistry']
+                registry_url = "/redfish/v1/Registries"
+                bios_registry_url = ""
+                registry_response = REDFISH_OBJ.get(registry_url, None)
+                if registry_response.status == 200:
+                    members_list = registry_response.dict["Members"]
+                    for registry in members_list:
+                        if attribute_registry in registry["@odata.id"]:
+                            bios_registry_url = registry["@odata.id"]
+                bios_registry_json_url = ""
+                if bios_registry_url != "":
+                    bios_registry_response = REDFISH_OBJ.get(bios_registry_url, None)
+                    if bios_registry_response.status == 200:
+                        bios_registry_json_url = bios_registry_response.dict["Location"][0]["Uri"]
+                bios_attribute_list = None
+                if bios_registry_json_url != "":
+                    bios_registry_json_response = REDFISH_OBJ.get(bios_registry_json_url, None)
+                    if bios_registry_json_response.status == 200:
+                        bios_attribute_list = bios_registry_json_response.dict["RegistryEntries"]["Attributes"]
+
+                password_allowed_values = []
+                for bios_attribute in bios_attribute_list:
+                    AttributeName = bios_attribute["AttributeName"]
+                    AttributeType = bios_attribute["Type"]
+                    if AttributeType == "Password":
+                        password_allowed_values.append(AttributeName)
+
+                if len(password_allowed_values) == 0:
+                    if "PasswordName@Redfish.AllowableValues" in response_bios_url.dict["Actions"]["#Bios.ChangePassword"]:
+                        password_allowed_values = response_bios_url.dict["Actions"]["#Bios.ChangePassword"]["PasswordName@Redfish.AllowableValues"]
+
+                # Check whether password name is in allowable value list  
+                if len(password_allowed_values) != 0 and bios_password_name not in password_allowed_values:
+                    result = {'ret': False, 'msg': "Specified password name is not included in allowable value list. Please select password name from list: %s" % (''.join(password_allowed_values))}
+                    return result
+
+                # get parameter requirement if ActionInfo is provided
+                if "@Redfish.ActionInfo" in response_bios_url.dict["Actions"]["#Bios.ChangePassword"]:
+                    actioninfo_url = response_bios_url.dict["Actions"]["#Bios.ChangePassword"]["@Redfish.ActionInfo"]
+                    response_actioninfo_url = REDFISH_OBJ.get(actioninfo_url, None)
+                    if (response_actioninfo_url.status == 200) and ("Parameters" in response_actioninfo_url.dict):
+                        for parameter in response_actioninfo_url.dict["Parameters"]:
+                            if ("OldPassword" == parameter["Name"]) and (True == parameter["Required"]):
+                                if oldbiospass == None:
+                                    result = {'ret': False, 'msg': "Required parameter oldbiospasswd need to be specified."}
+                                    return result
+
                 # Get the change password url
                 change_password_url = response_bios_url.dict['Actions']['#Bios.ChangePassword']['target']
 
                 # Set Password info
+                requestbody = {}
                 PasswordName = bios_password_name
                 new_password = bios_password
-                parameter = {"PasswordName":PasswordName, "NewPassword":new_password}
+                if oldbiospass == None:
+                    requestbody = {"PasswordName":PasswordName, "NewPassword":new_password}
+                else:
+                    requestbody = {"PasswordName":PasswordName, "NewPassword":new_password, "OldPassword":oldbiospass}
 
                 # Change password
-                response_change_password = REDFISH_OBJ.post(change_password_url, body=parameter)
+                response_change_password = REDFISH_OBJ.post(change_password_url, body=requestbody)
                 if response_change_password.status in [200, 204]:
                     result = {'ret': True, 'msg': 'Setting BIOS password successfully'}
                 else:
@@ -110,8 +166,9 @@ def set_bios_password(ip, login_account, login_password, system_id, bios_passwor
 
 import argparse
 def add_helpmessage(parser):
-    parser.add_argument('--name', type=str, required=True, help='Input the bios password name ("UefiAdminPassword" or "UefiPowerOnPassword")')
+    parser.add_argument('--name', type=str, required=True, help='Input the bios password name (Such as "UefiAdminPassword", "UefiPowerOnPassword")')
     parser.add_argument('--biospasswd', type=str, required=True, help='Input the new bios password')
+    parser.add_argument('--oldbiospasswd', type=str, default=None, help='Input the old bios password')
 
 
 def add_parameter():
@@ -122,6 +179,7 @@ def add_parameter():
     parameter_info = utils.parse_parameter(args)
     parameter_info['bios_password_name'] = args.name
     parameter_info['bios_password'] = args.biospasswd
+    parameter_info['bios_oldpassword'] = args.oldbiospasswd
     return parameter_info
 
 
@@ -139,12 +197,13 @@ if __name__ == '__main__':
     try:
         bios_password_name = parameter_info['bios_password_name']
         bios_password = parameter_info['bios_password']
+        bios_oldpassword = parameter_info['bios_oldpassword']
     except:
         sys.stderr.write("Please run the command 'python %s -h' to view the help info" % sys.argv[0])
         sys.exit(1)
 
     # Set bios password result and check result
-    result = set_bios_password(ip, login_account, login_password, system_id, bios_password_name, bios_password)
+    result = set_bios_password(ip, login_account, login_password, system_id, bios_password_name, bios_password, bios_oldpassword)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
