@@ -76,6 +76,8 @@ def get_power_metrics(ip, login_account, login_password):
                         rt_list_power = []
                         list_power = response_power_url.dict["PowerControl"]
                         for power_item in list_power:
+                            if "PowerMetrics" not in power_item:
+                                continue
                             tmp_power_item = {}
                             for key in power_item:
                                 if key != "Name" and key != "MemberId" and key != "PowerMetrics":
