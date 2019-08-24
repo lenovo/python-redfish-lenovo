@@ -76,6 +76,8 @@ def get_power_limit(ip, login_account, login_password):
                         rt_list_limit = []
                         list_power_control = response_power_url.dict["PowerControl"]
                         for control_item in list_power_control:
+                            if "PowerLimit" not in control_item:
+                                continue
                             limit_item = {}
                             limit_item = control_item["PowerLimit"]
                             rt_list_limit.append(limit_item)
