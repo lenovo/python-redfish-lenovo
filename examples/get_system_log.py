@@ -98,7 +98,9 @@ def get_system_log(ip, login_account, login_password, system_id):
                     # description = response_entries_url.dict['Description']
                     for logEntry in response_entries_url.dict['Members']:
                         entry = {}
-                        for log_property in ['Name', 'Created', 'Message', 'Severity']:
+                        for log_property in ['Id', 'Name', 'Created', 'Message', 'MessageId', 'Severity',
+                                                       'EntryCode', 'EntryType', 'EventId', 'EventTimestamp', 
+                                                       'SensorNumber', 'SensorType', 'OemRecordFormat']:
                             if log_property in logEntry:
                                 entry[log_property] = logEntry[log_property]
 
