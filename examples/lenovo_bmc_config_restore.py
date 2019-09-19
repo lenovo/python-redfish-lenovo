@@ -33,6 +33,44 @@ def getDocSize(path):
     except Exception as err:
         sys.stderr.write(err)
 
+def check_whether_new_schema(odatatype, REDFISH_OBJ):
+    boolret = False
+    found = False
+
+    #get schema prefix from @odata.type
+    schema_prefix = ""
+    temp = odatatype.split('#')[-1]
+    if len(temp.split('.')) >2:
+        schema_prefix = temp.split('.')[0] + '.' + temp.split('.')[1]
+    else:
+        schema_prefix = temp.split('.')[0]
+
+    #search schema prefix in JsonSchemas collection, check whether keyword ConfigContent in found schema json file
+    response_base_url = REDFISH_OBJ.get("/redfish/v1", None)
+    if response_base_url.status == 200:
+        Json_Schemas = response_base_url.dict['JsonSchemas']['@odata.id']
+        response_json_schemas = REDFISH_OBJ.get(Json_Schemas, None)
+        if response_json_schemas.status == 200:
+            schema_list = response_json_schemas.dict['Members']
+            for schema in schema_list:
+                if found:
+                    break
+                if schema_prefix not in schema["@odata.id"]:
+                    continue
+                found = True
+                schema_url = schema["@odata.id"]
+                response = REDFISH_OBJ.get(schema_url, None)
+                for location in response.dict["Location"]:
+                    if "en" not in location["Language"]:
+                        continue
+                    uri = location["Uri"]
+                    response_uri = REDFISH_OBJ.get(uri, None)
+                    if response_uri.status == 200 and 'ConfigContent' in str(response_uri.dict):
+                        boolret = True
+                        return boolret
+
+    return boolret
+
 def lenovo_config_restore(ip, login_account, login_password,backup_password,backup_file):
     """BMC configuration restore
         :params ip: BMC IP address
@@ -101,7 +139,7 @@ def lenovo_config_restore(ip, login_account, login_password,backup_password,back
                 config_url = oem_resource['Configuration']['@odata.id']
                 response_config_url = REDFISH_OBJ.get(config_url, None)
                 if response_config_url.status == 200:
-                    #restore configuratino
+                    #restore configuration
                     restore_target_url = response_config_url.dict['Actions']['#LenovoConfigurationService.RestoreConfiguration']['target']
                     try:
                         list_data = json.load(back_file)
@@ -117,10 +155,20 @@ def lenovo_config_restore(ip, login_account, login_password,backup_password,back
                         REDFISH_OBJ.logout()
                         back_file.close()
                         return result
-                    restore_body = {
-                    "bytes":list_data,
-                    "Passphrase":backup_password
-                    }
+
+                    #check schema to specify proper body
+                    restore_body = {}
+                    if check_whether_new_schema(response_config_url.dict['@odata.type'], REDFISH_OBJ) == True:
+                        restore_body = {
+                        "ConfigContent":list_data,
+                        "Passphrase":backup_password
+                        }
+                    else:
+                        restore_body = {
+                        "bytes":list_data,
+                        "Passphrase":backup_password
+                        }
+
                     response_restore_url = REDFISH_OBJ.post(restore_target_url, body=restore_body)
                     if response_restore_url.status == 200:
                         result = {'ret': True,
