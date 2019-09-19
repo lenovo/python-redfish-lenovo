@@ -88,7 +88,7 @@ def lenovo_get_bmc_user_global(ip, login_account, login_password):
 
 def add_parameter():
     """Add update user password parameter"""
-    argget = utils.create_common_parameter_list()
+    argget = utils.create_common_parameter_list(description_string="This tool can be used to get BMC user global setting include password policy and web inactivity session timeout.")
     args = argget.parse_args()
     parameter_info = utils.parse_parameter(args)
     return parameter_info
