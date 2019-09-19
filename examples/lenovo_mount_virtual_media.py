@@ -62,13 +62,13 @@ def lenovo_mount_virtual_media(ip, login_account, login_password, image, mountty
     """
     result = {}
     login_host = "https://" + ip
-    # Login into the server and create a session
+    # Login into the server
     try:
         # Connect using the address, account name, and password
         # Create a REDFISH object
         REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
                                              password=login_password, default_prefix='/redfish/v1')
-        REDFISH_OBJ.login(auth="session")
+        REDFISH_OBJ.login(auth="basic")
     except:
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result
@@ -150,7 +150,7 @@ def lenovo_mount_virtual_media(ip, login_account, login_password, image, mountty
     except Exception as e:
         result = {'ret': False, 'msg': "error_message: %s" % (e)}
     finally:
-        # Logout of the current session
+        # Logout
         REDFISH_OBJ.logout()
         return result
 
