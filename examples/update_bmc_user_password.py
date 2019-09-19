@@ -46,11 +46,26 @@ def update_user_password(ip, login_account, login_password, username, new_passwo
         login_host = "https://" + ip
         REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
                                              password=login_password, default_prefix='/redfish/v1')
-        # Login into the server and create a session
-        REDFISH_OBJ.login(auth="session")
+        # Login into the server
+        REDFISH_OBJ.login(auth="basic")
     except:
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result
+
+    # change default BMC account's password (treat userid 1 as default account)
+    if username == None:
+        headers = {"If-Match": "*"}
+        parameter = {"Password": new_password}
+        response_modified_password = REDFISH_OBJ.patch('/redfish/v1/AccountService/Accounts/1', body=parameter, headers=headers)
+        if response_modified_password.status in [200,204]:
+            result = {'ret': True, 'msg': "The password of default BMC account is successfully updated."}
+            return result
+        else:
+            error_message = utils.get_extended_error(response_modified_password)
+            result = {'ret': False, 'msg': "Update default BMC account password failed, response error code %s \nerror_message: %s\nAdvice: Please make sure the password match required password policy.\n" % (response_modified_password.status, error_message)}
+            return result
+
+    # change specified username account's password
     try:
         # Get response_base_url resource
         response_base_url = REDFISH_OBJ.get('/redfish/v1', None)
@@ -97,7 +112,7 @@ def update_user_password(ip, login_account, login_password, username, new_passwo
                             return result
                         else:
                             error_message = utils.get_extended_error(response_modified_password)
-                            result = {'ret': False, 'msg': "Update BMC user password failed, url '%s' response error code %s \nerror_message: %s" % (account_x_url, response_modified_password.status, error_message)}
+                            result = {'ret': False, 'msg': "Update BMC user password failed, url '%s' response error code %s \nerror_message: %s\nAdvice: Please make sure the password match required password policy.\n" % (account_x_url, response_modified_password.status, error_message)}
                             return result
 
                 # account_x_url response failed
@@ -117,14 +132,14 @@ def update_user_password(ip, login_account, login_password, username, new_passwo
     except Exception as e:
         result = {'ret':False, 'msg':"Error message %s" %e}
     finally:
-        # Logout of the current session
+        # Logout
         REDFISH_OBJ.logout()
         return result
 
 
 import argparse
 def add_helpmessage(argget):
-    argget.add_argument('--username', type=str, required=True, help='Input the name of BMC user to be updated')
+    argget.add_argument('--username', type=str, help='Input the name of BMC user to be updated. If not specified, the password of default BMC account will be updated')
     argget.add_argument('--newpasswd', type=str, required=True, help='Input new password of BMC user')
 
 
@@ -134,9 +149,8 @@ def add_parameter():
     add_helpmessage(argget)
     args = argget.parse_args()
     parameter_info = utils.parse_parameter(args)
-    if args.username is not None and args.newpasswd is not None:
-        parameter_info["username"] = args.username
-        parameter_info["new_passwd"] = args.newpasswd
+    parameter_info["username"] = args.username
+    parameter_info["new_passwd"] = args.newpasswd
     return parameter_info
 
 
@@ -150,12 +164,8 @@ if __name__ == '__main__':
     login_password = parameter_info["passwd"]
 
     # Get set info from the parameters user specified
-    try:
-        username = parameter_info['username']
-        new_password = parameter_info['new_passwd']
-    except:
-        sys.stderr.write("Please run the command 'python %s -h' to view the help info" % sys.argv[0])
-        sys.exit(1)
+    username = parameter_info['username']
+    new_password = parameter_info['new_passwd']
 
     # Update user password result and check result   
     result = update_user_password(ip, login_account, login_password, username, new_password)

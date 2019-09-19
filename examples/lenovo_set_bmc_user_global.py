@@ -130,7 +130,7 @@ def add_helpmessage(argget):
 
 def add_parameter():
     """Add update user password parameter"""
-    argget = utils.create_common_parameter_list()
+    argget = utils.create_common_parameter_list(description_string="This tool can be used to set BMC user global setting include password policy and web inactivity session timeout.")
     add_helpmessage(argget)
     args = argget.parse_args()
     parameter_info = utils.parse_parameter(args)
