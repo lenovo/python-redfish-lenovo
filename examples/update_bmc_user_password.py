@@ -62,7 +62,7 @@ def update_user_password(ip, login_account, login_password, username, new_passwo
             return result
         else:
             error_message = utils.get_extended_error(response_modified_password)
-            result = {'ret': False, 'msg': "Update default BMC account password failed, response error code %s \nerror_message: %s\nAdvice: Please make sure the password match required password policy. Use lenovo_set_bmc_user_global.py script to change password policy if needed\n" % (response_modified_password.status, error_message)}
+            result = {'ret': False, 'msg': "Update default BMC account password failed, response error code %s \nerror_message: %s\nAdvice: Please make sure the password match required password policy.\n" % (response_modified_password.status, error_message)}
             return result
 
     # change specified username account's password
@@ -112,7 +112,7 @@ def update_user_password(ip, login_account, login_password, username, new_passwo
                             return result
                         else:
                             error_message = utils.get_extended_error(response_modified_password)
-                            result = {'ret': False, 'msg': "Update BMC user password failed, url '%s' response error code %s \nerror_message: %s\nAdvice: Please make sure the password match required password policy. Use lenovo_set_bmc_user_global.py script to change password policy if needed\n" % (account_x_url, response_modified_password.status, error_message)}
+                            result = {'ret': False, 'msg': "Update BMC user password failed, url '%s' response error code %s \nerror_message: %s\nAdvice: Please make sure the password match required password policy.\n" % (account_x_url, response_modified_password.status, error_message)}
                             return result
 
                 # account_x_url response failed
