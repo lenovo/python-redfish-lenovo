@@ -117,9 +117,12 @@ def set_bios_bootmode_legacy(ip, login_account, login_password, system_id):
                                     if 'WarningText' in regattribute:
                                         WarningText = regattribute['WarningText']
                                     for value in regattribute['Value']:
+                                        if 'uefi' in value['ValueName'].lower():
+                                            continue
                                         if 'legacy' in value['ValueName'].lower():
                                             ValueName = value['ValueName']
                                             break
+                                        ValueName = value['ValueName']
                                     break
         
                 # Perform patch to set
@@ -135,8 +138,6 @@ def set_bios_bootmode_legacy(ip, login_account, login_password, system_id):
                         result = {'ret': True, 'msg': 'set bios bootmode legacy successful. WarningText: %s'% (WarningText) }
                     else:
                         result = {'ret': True, 'msg': 'set bios bootmode legacy successful'}
-                elif response_pending_url.status == 400:
-                    result = {'ret': False, 'msg': 'Not supported on this platform'}
                 elif response_pending_url.status == 405:
                     result = {'ret': False, 'msg': "Resource not supported"}
                 else:
