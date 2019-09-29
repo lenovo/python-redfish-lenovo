@@ -21,6 +21,9 @@
 
 
 import sys
+import requests
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+from requests.auth import HTTPBasicAuth
 import redfish
 import json
 import time
@@ -78,35 +81,58 @@ def update_fw(ip, login_account, login_password, image, targets, fsprotocol, fsi
 
         response_update_service_url = REDFISH_OBJ.get(update_service_url, None)
         if response_update_service_url.status == 200:
-            firmware_update_url = response_update_service_url.dict['Actions']['#UpdateService.SimpleUpdate']['target']
+            # Update firmware via local payload
+            if fsprotocol.lower() == "httppush":
+                # Ignore SSL Certificates
+                requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
-            # Define an anonymous function formatting parameter
-            port = (lambda fsport: ":" + fsport if fsport else fsport)
-            dir = (lambda fsdir: "/" + fsdir.strip("/") if fsdir else fsdir)
-            fsport = port(fsport)
-            fsdir = dir(fsdir)
+                headers = {"Content-Type":"application/octet-stream"}
+                firmware_update_url =  login_host + response_update_service_url.dict["HttpPushUri"]
+                if os.path.isdir(fsdir):
+                    file_path = fsdir + os.sep + image
+                else:
+                    result = {'ret': False, 'msg': "The path %s doesn't exist, please check the 'fsdir' is correct." %fsdir}
+                    return result
 
-            # Construct image URI by splicing parameters
-            if fsprotocol.lower() == "sftp":
-                image_url = fsprotocol.lower() + "://" + fsusername + ":" + fspassword + "@" + fsip + fsport + fsdir + "/" + image
+                files = {'data-binary':open(file_path,'rb')}
+                # Set BMC access credential
+                auth = HTTPBasicAuth(login_account, login_password)
+                # Get the sessions uri from the session server response
+                firmware_update_response = requests.post(firmware_update_url, headers=headers, auth=auth, files=files, verify=False)
+                response_code = firmware_update_response.status_code
             else:
-                image_url = fsprotocol.lower() + "://" + fsip + fsport + fsdir + "/" + image
+                firmware_update_url = response_update_service_url.dict['Actions']['#UpdateService.SimpleUpdate']['target']
+                # Update firmware via file server
+                # Define an anonymous function formatting parameter
+                port = (lambda fsport: ":" + fsport if fsport else fsport)
+                dir = (lambda fsdir: "/" + fsdir.strip("/") if fsdir else fsdir)
+                fsport = port(fsport)
+                fsdir = dir(fsdir)
 
-            # Build an dictionary to store the request body
-            body = {"ImageURI": image_url}
+                # Construct image URI by splicing parameters
+                if fsprotocol.lower() == "sftp":
+                    image_url = fsprotocol.lower() + "://" + fsusername + ":" + fspassword + "@" + fsip + fsport + fsdir + "/" + image
+                else:
+                    image_url = fsprotocol.lower() + "://" + fsip + fsport + fsdir + "/" + image
 
-            # Get the user specified parameter
-            if targets:
-                body["Targets"] = targets
-            if fsprotocol:
-                body["TransferProtocol"] = fsprotocol.upper()
+                # Build an dictionary to store the request body
+                body = {"ImageURI": image_url}
 
-            firmware_update_response = REDFISH_OBJ.post(firmware_update_url, body=body)
-            if firmware_update_response.status in [200, 204]:
+                # Get the user specified parameter
+                if targets:
+                    body["Targets"] = targets
+                if fsprotocol:
+                    body["TransferProtocol"] = fsprotocol.upper()
+                firmware_update_response = REDFISH_OBJ.post(firmware_update_url, body=body)
+                response_code = firmware_update_response.status
+            if response_code in [200, 204]:
                 result = {'ret': True, 'msg': "Update firmware successfully"}
                 return result
-            elif firmware_update_response.status == 202:
-                task_uri = firmware_update_response.dict['@odata.id']
+            elif response_code == 202:
+                if fsprotocol.lower() == "httppush":
+                    task_uri = firmware_update_response.json()['@odata.id']
+                else:
+                    task_uri = firmware_update_response.dict['@odata.id']
                 result = task_monitor(REDFISH_OBJ, task_uri)
                 # Delete task
                 REDFISH_OBJ.delete(task_uri, None)
@@ -121,7 +147,7 @@ def update_fw(ip, login_account, login_password, image, targets, fsprotocol, fsi
             else:
                 message = utils.get_extended_error(firmware_update_response)
                 result = {'ret': False, 'msg': "Url '%s' response Error code %s, \nError message :%s" % (
-                firmware_update_url, firmware_update_response.status, message)}
+                firmware_update_url, response_code, message)}
                 return result
         else:
             message = utils.get_extended_error(response_update_service_url)
@@ -159,7 +185,7 @@ def task_monitor(REDFISH_OBJ, task_uri):
             if task_state in RUNNING_TASK_STATE:
                 if task_state != current_state:
                     current_state = task_state
-                    print('Task state is %s, waite a minute' % current_state)
+                    print('Task state is %s, wait a minute' % current_state)
                     continue
                 else:
                     flush()
@@ -192,7 +218,7 @@ import argparse
 def add_helpmessage(argget):
     argget.add_argument('--image', type=str, required=True, help='Specify the fixid of the firmware to be updated.')
     argget.add_argument('--targets', nargs='*', help='Input the targets list')
-    argget.add_argument('--fsprotocol', type=str, choices=["SFTP", "TFTP"], help='Specify the file server protocol.Support:["SFTP", "TFTP"]')
+    argget.add_argument('--fsprotocol', type=str, choices=["SFTP", "TFTP", "HTTPPUSH"], help='Specify the file server protocol.Support:["SFTP", "TFTP", "HTTPPUSH"]')
     argget.add_argument('--fsip', type=str, help='Specify the file server ip.')
     argget.add_argument('--fsport', type=str, default='', help='Specify the file server port')
     argget.add_argument('--fsusername', type=str, help='Specify the file server username.')
@@ -204,11 +230,13 @@ import configparser
 def add_parameter():
     """Add update firmware parameter"""
     argget = utils.create_common_parameter_list(example_string='''
-Example of SFTP:
-  "python update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --targets https://10.10.10.10/redfish/v1/UpdateService/FirmwareInventory/Slot_7.Bundle --fsprotocol SFTP --fsip 10.10.10.11 --fsusername mysftp --fspassword mypass --fsdir /fspath/ --image lnvgy_fw_sraidmr35_530-50.7.0-2054_linux_x86-64.bin"
-Example of TFTP:
-  "python update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --targets https://10.10.10.10/redfish/v1/UpdateService/FirmwareInventory/Slot_7.Bundle --fsprotocol TFTP --fsip 10.10.10.11 --fsdir /fspath/ --image lnvgy_fw_sraidmr35_530-50.7.0-2054_linux_x86-64.bin"
-''')
+    Example of SFTP:
+      "python update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --targets https://10.10.10.10/redfish/v1/UpdateService/FirmwareInventory/Slot_7.Bundle --fsprotocol SFTP --fsip 10.10.10.11 --fsusername mysftp --fspassword mypass --fsdir /fspath/ --image lnvgy_fw_sraidmr35_530-50.7.0-2054_linux_x86-64.bin"
+    Example of TFTP:
+      "python update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --targets https://10.10.10.10/redfish/v1/UpdateService/FirmwareInventory/Slot_7.Bundle --fsprotocol TFTP --fsip 10.10.10.11 --fsdir /fspath/ --image lnvgy_fw_sraidmr35_530-50.7.0-2054_linux_x86-64.bin"
+    Example of HTTPPUSH:
+      "python update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --fsprotocol HTTPPUSH --fsdir /fspath/ --image lnvgy_fw_sraidmr35_530-50.7.0-2054_linux_x86-64.bin"
+    ''')
     add_helpmessage(argget)
     args = argget.parse_args()
 
