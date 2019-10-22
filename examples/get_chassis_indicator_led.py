@@ -69,10 +69,11 @@ def get_chassis_indicator_led(ip, login_account, login_password):
                 led_url = response_chassis_url.dict['Members'][i]['@odata.id']
                 response_led_url = REDFISH_OBJ.get(led_url, None)
                 if response_led_url.status == 200:
-                    if "ComputerSystems" in response_led_url.dict["Links"]:
-                        led_status["indicatorLED"] = response_led_url.dict['IndicatorLED']
-                        result = {'ret': True, 'msg': led_status}
-                        return result
+                    if response_chassis_url.dict['Members@odata.count'] > 1 and "ComputerSystems" not in response_led_url.dict["Links"]:
+                        continue
+                    led_status["indicatorLED"] = response_led_url.dict['IndicatorLED']
+                    result = {'ret': True, 'msg': led_status}
+                    return result
                 else:
                     error_message = utils.get_extended_error(response_led_url)
                     result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
