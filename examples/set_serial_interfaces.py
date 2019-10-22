@@ -116,11 +116,22 @@ def set_serial_interfaces(ip, login_account, login_password, interfaceid, bitrat
             # Get the serial interfaces url form serial interfaces url collection
             try:
                 # check interface id invalidity
-                index = int(interfaceid) - 1
-                if(index == -1):
+                serial_interfaces_x_url = ""
+                # treat input interfaceid as resource id string
+                for interface_member in serial_interfaces_url_collection:
+                    interface_name = interface_member['@odata.id'].split("/")[-1]
+                    if interfaceid == interface_name:
+                        serial_interfaces_x_url = interface_member['@odata.id']
+                        break
+                # treat input interfaceid as sequence number
+                if serial_interfaces_x_url == "" and interfaceid.isdigit():
+                    index = int(interfaceid) - 1
+                    if index >= 0 and index < len(serial_interfaces_url_collection):
+                        serial_interfaces_x_url = serial_interfaces_url_collection[index]['@odata.id']
+                # invalid interfaceid
+                if(serial_interfaces_x_url == ""):
                     result = {'ret': False, 'msg': "The specified Interface Id does not exist."}
                     return result
-                serial_interfaces_x_url = serial_interfaces_url_collection[index]['@odata.id']
 
                 # get etag to set If-Match precondition
                 response_serial_interfaces_x_url = REDFISH_OBJ.get(serial_interfaces_x_url, None)
