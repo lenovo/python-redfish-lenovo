@@ -63,17 +63,17 @@ def get_fan_inventory(ip, login_account, login_password):
         response_chassis_url = REDFISH_OBJ.get(chassis_url, None)
         if response_chassis_url.status == 200:
             #get Fan info
+            rt_list_fan = []
             for request in response_chassis_url.dict['Members']:
                 request_url = request['@odata.id']
                 response_url = REDFISH_OBJ.get(request_url, None)
                 if response_url.status == 200:
                     # if chassis is not normal skip it
-                    if "ComputerSystems" not in response_url.dict["Links"]:
+                    if len(response_chassis_url.dict['Members']) > 1 and "ComputerSystems" not in response_url.dict["Links"]:
                         continue
                     thermal_url = response_url.dict['Thermal']['@odata.id']
                     response_thermal_url = REDFISH_OBJ.get(thermal_url, None)
                     if response_thermal_url.status == 200:
-                        rt_list_fan = []
                         list_fan = response_thermal_url.dict["Fans"]
                         for fan_item in list_fan:
                             tmp_fan_item = {}
