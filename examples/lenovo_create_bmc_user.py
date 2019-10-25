@@ -113,8 +113,8 @@ def create_bmc_user(ip, login_account, login_password, username, password,author
 
     # Get ServiceBase resource
     try:
+        # Get /redfish/v1
         response_base_url = REDFISH_OBJ.get('/redfish/v1', None)
-        # Get response_base_url
         if response_base_url.status == 200:
             account_service_url = response_base_url.dict['AccountService']['@odata.id']
         else:
@@ -122,11 +122,58 @@ def create_bmc_user(ip, login_account, login_password, username, password,author
             result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
                 '/redfish/v1', response_base_url.status, error_message)}
             return result
+
+        # Get /redfish/v1/AccountService
         response_account_service_url = REDFISH_OBJ.get(account_service_url, None)
-        if response_account_service_url.status == 200:
-            accounts_url = response_account_service_url.dict['Accounts']['@odata.id']
-            response_accounts_url = REDFISH_OBJ.get(accounts_url, None)
-            if response_accounts_url.status == 200:
+        if response_account_service_url.status != 200:
+            error_message = utils.get_extended_error(response_account_service_url)
+            result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                account_service_url, response_account_service_url.status, error_message)}
+            return result
+
+        # Get /redfish/v1/AccountService/Accounts
+        accounts_url = response_account_service_url.dict['Accounts']['@odata.id']
+        response_accounts_url = REDFISH_OBJ.get(accounts_url, None)
+        if response_accounts_url.status != 200:
+            error_message = utils.get_extended_error(response_accounts_url)
+            result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                accounts_url, response_accounts_url.status, error_message)}
+            return result
+
+        # Set user privilege
+        rolename = ""
+        if "Supervisor" in authority:
+            rolename = "Administrator"
+        elif "Operator" in authority:
+            rolename = "Operator"
+        elif "ReadOnly" in authority:
+            rolename = "ReadOnly"
+
+        # Check user create mode
+        create_mode = "POST_Action"
+        if response_accounts_url.dict["Members@odata.count"] == 12:
+             create_mode = "PATCH_Action"
+
+        if create_mode == "POST_Action":
+                #create new user account
+                headers = None
+                parameter = {
+                    "Password": password,
+                    "Name": username,
+                    "UserName": username,
+                    "RoleId":rolename
+                    }
+                response_create_url = REDFISH_OBJ.post(accounts_url, body=parameter, headers=headers)
+                if response_create_url.status == 200 or response_create_url.status == 201 or response_create_url.status == 204:
+                    result = {'ret': True, 'msg': "create new user successful"}
+                    return result
+                else:
+                    error_message = utils.get_extended_error(response_create_url)
+                    result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                        response_create_url, response_create_url.status, error_message)}
+                    return result
+
+        if create_mode == "PATCH_Action":
                 max_account_num = response_accounts_url.dict["Members@odata.count"]
                 list_account_url = []
                 for i in range(max_account_num):
@@ -160,13 +207,7 @@ def create_bmc_user(ip, login_account, login_password, username, password,author
                     result = {'ret': False, 'msg': "Accounts is full,can't create a new account"}
                     return result
                 #set user privilege
-                if "Supervisor" in authority:
-                    rolename = "Administrator"
-                elif "Operator" in authority:
-                    rolename = "Operator"
-                elif "ReadOnly" in authority:
-                    rolename = "ReadOnly"
-                else:
+                if rolename == "":
                     rolename = "CustomRole" + str(user_pos)
                 links_role = {}
                 if "CustomRole" in rolename:
@@ -211,16 +252,7 @@ def create_bmc_user(ip, login_account, login_password, username, password,author
                     result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
                         response_create_url, response_create_url.status, error_message)}
                     return result
-            else:
-                error_message = utils.get_extended_error(response_accounts_url)
-                result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                    accounts_url, response_accounts_url.status, error_message)}
-                return result
-        else:
-            error_message = utils.get_extended_error(response_account_service_url)
-            result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                account_service_url, response_account_service_url.status, error_message)}
-            return result
+
     except Exception as e:
         result = {'ret': False, 'msg': "exception msg %s" % e}
         return result

@@ -55,9 +55,8 @@ def delete_bmc_user(ip, login_account, login_password, username):
         return result
     # Get ServiceRoot resource
     try:
+        # Get /redfish/v1
         response_base_url = REDFISH_OBJ.get('/redfish/v1', None)
-
-        # Get response_account_service_url
         if response_base_url.status == 200:
             account_service_url = response_base_url.dict['AccountService']['@odata.id']
         else:
@@ -65,40 +64,74 @@ def delete_bmc_user(ip, login_account, login_password, username):
             result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
                 '/redfish/v1', response_base_url.status, error_message)}
             return result
-        # Get AccountService resource
+
+        # Get /redfish/v1/AccountService
         response_account_service_url = REDFISH_OBJ.get(account_service_url, None)
-        if response_account_service_url.status == 200:
-            accounts_url = response_account_service_url.dict['Accounts']['@odata.id']
-            response_accounts_url = REDFISH_OBJ.get(accounts_url, None)
-            # Get the user account url
-            if response_accounts_url.status == 200:
-                max_account_num = response_accounts_url.dict["Members@odata.count"]
-                list_account_url = []
-                for i in range(max_account_num):
-                    account_url = response_accounts_url.dict["Members"][i]["@odata.id"]
-                    list_account_url.append(account_url)
-                dest_account_url = ""
-                for account_url in list_account_url:
-                    response_account_url = REDFISH_OBJ.get(account_url, None)
-                    if response_account_url.status == 200:
-                        account_username = response_account_url.dict["UserName"]
-                        if account_username == username:
-                            dest_account_url = account_url
-                            break
-                    else:
-                        error_message = utils.get_extended_error(response_account_url)
-                        result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                            account_url, response_account_url.status, error_message)}
-                        return result
-                if dest_account_url == "":
-                    result = {'ret': False,
-                              'msg': "Account %s is not existed" %username}
+        if response_account_service_url.status != 200:
+            error_message = utils.get_extended_error(response_account_service_url)
+            result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                account_service_url, response_account_service_url.status, error_message)}
+            return result
+
+        # Get /redfish/v1/AccountService/Accounts
+        accounts_url = response_account_service_url.dict['Accounts']['@odata.id']
+        response_accounts_url = REDFISH_OBJ.get(accounts_url, None)
+        # Get the user account url
+        if response_accounts_url.status != 200:
+            error_message = utils.get_extended_error(response_accounts_url)
+            result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                accounts_url, response_accounts_url.status, error_message)}
+            return result
+
+        # Find target account url
+        max_account_num = response_accounts_url.dict["Members@odata.count"]
+        list_account_url = []
+        for i in range(max_account_num):
+            account_url = response_accounts_url.dict["Members"][i]["@odata.id"]
+            list_account_url.append(account_url)
+        dest_account_url = ""
+        for account_url in list_account_url:
+            response_account_url = REDFISH_OBJ.get(account_url, None)
+            if response_account_url.status == 200:
+                account_username = response_account_url.dict["UserName"]
+                if account_username == username:
+                    dest_account_url = account_url
+                    break
+            else:
+                error_message = utils.get_extended_error(response_account_url)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                    account_url, response_account_url.status, error_message)}
+                return result
+        if dest_account_url == "":
+            result = {'ret': False,
+                      'msg': "Account %s is not existed" %username}
+            return result
+
+        # set header
+        if "@odata.etag" in response_account_url.dict:
+            etag = response_account_url.dict['@odata.etag']
+        else:
+            etag = ""
+        headers = {"If-Match": etag, }
+
+        # Check user delete mode
+        delete_mode = "DELETE_Action"
+        if response_accounts_url.dict["Members@odata.count"] == 12:
+             delete_mode = "PATCH_Action"
+
+        if delete_mode == "DELETE_Action":
+                # delete bmc user
+                response_delete_account_url = REDFISH_OBJ.delete(dest_account_url, headers=headers)
+                if response_delete_account_url.status == 200 or response_delete_account_url.status == 204:
+                    result = {'ret': True, 'msg': "account %s delete successfully" % username}
                     return result
-                if "@odata.etag" in response_account_url.dict:
-                    etag = response_account_url.dict['@odata.etag']
                 else:
-                    etag = ""
-                headers = {"If-Match": etag}
+                    error_message = utils.get_extended_error(response_delete_account_url)
+                    result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                        response_delete_account_url, response_delete_account_url.status, error_message)}
+                    return result
+
+        if delete_mode == "PATCH_Action":
                 # Set the body info
                 parameter = {
                     "Enabled": False,
@@ -114,16 +147,7 @@ def delete_bmc_user(ip, login_account, login_password, username):
                     result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
                         response_delete_account_url, response_delete_account_url.status, error_message)}
                     return result
-            else:
-                error_message = utils.get_extended_error(response_accounts_url)
-                result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                    accounts_url, response_accounts_url.status, error_message)}
-                return result
-        else:
-            error_message = utils.get_extended_error(response_account_service_url)
-            result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                account_service_url, response_account_service_url.status, error_message)}
-            return result
+
     except Exception as e:
         result = {'ret': False, 'msg': "exception msg %s" % e}
         return result
