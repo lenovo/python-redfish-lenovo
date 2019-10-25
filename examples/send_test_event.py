@@ -63,18 +63,27 @@ def send_test_event(ip, login_account, login_password,eventid,message,severity):
         return result
     # Get ServiceBase resource
     try:
+        # Get /redfish/v1
         response_base_url = REDFISH_OBJ.get('/redfish/v1', None)
         if response_base_url.status == 200:
+            # Get /redfish/v1/EventService
             event_url = response_base_url.dict["EventService"]["@odata.id"]
             response_event_url = REDFISH_OBJ.get(event_url,None)
             if response_event_url.status == 200:
+                # Check EventService Version
+                EventService_Version = 130 #default version v1_3_0
+                EventService_Type = response_event_url.dict["@odata.type"]
+                EventService_Type = EventService_Type.split('.')[-2]
+                if EventService_Type.startswith('v'):
+                    EventService_Version = int(EventService_Type.replace('v','').replace('_',''))
+                # Construct hearders and body to do post
                 target_url = response_event_url.dict["Actions"]["#EventService.SubmitTestEvent"]["target"]
                 timestamp = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S+08:00')
                 headers = {"Content-Type": "application/json"}
                 parameter = {}
                 if "@Redfish.ActionInfo" in response_event_url.dict["Actions"]["#EventService.SubmitTestEvent"]:
                     parameter = {"EventType": "Alert"}
-                else:
+                elif EventService_Version >= 130:
                     parameter = {"EventId": eventid,
                             "EventTimestamp": timestamp,
                             "Message": message,
@@ -82,7 +91,23 @@ def send_test_event(ip, login_account, login_password,eventid,message,severity):
                             "MessageId":"Base.1.1.GeneralError",
                             "Severity": severity,
                             "OriginOfCondition":"/redfish/v1/Systems/1/LogServices/StandardLog"}
-
+                elif EventService_Version >= 106:
+                    parameter = {"EventId": eventid,
+                            "EventType": "Alert",
+                            "EventTimestamp": timestamp,
+                            "Message": message,
+                            "MessageArgs": [],
+                            "MessageId":"Base.1.1.GeneralError",
+                            "Severity": severity,
+                            "OriginOfCondition":"/redfish/v1/Systems/1/LogServices/StandardLog"}
+                else:
+                    parameter = {"EventId": eventid,
+                            "EventType": "Alert",
+                            "EventTimestamp": timestamp,
+                            "Message": message,
+                            "MessageArgs": [],
+                            "MessageId":"Base.1.1.GeneralError",
+                            "Severity": severity}
                 response_send_event = REDFISH_OBJ.post(target_url,headers=headers,body=parameter)
                 if response_send_event.status == 200 or response_send_event.status == 204:
                     result = {"ret":True,"msg":"Send event successsfully,event id is " + eventid \

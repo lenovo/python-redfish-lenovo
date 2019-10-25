@@ -67,16 +67,33 @@ def add_event_subscriptions(ip, login_account, login_password,destination,eventt
         return result
     # Get ServiceBase resource
     try:
+        # Get /redfish/v1
         response_base_url = REDFISH_OBJ.get('/redfish/v1', None)
         if response_base_url.status == 200:
+            # Get /redfish/v1/EventService
             event_url = response_base_url.dict["EventService"]["@odata.id"]
             response_event_url = REDFISH_OBJ.get(event_url,None)
             if response_event_url.status == 200:
+                # Check EventService Version
+                EventService_Version = 130 #default version v1_3_0
+                EventService_Type = response_event_url.dict["@odata.type"]
+                EventService_Type = EventService_Type.split('.')[-2]
+                if EventService_Type.startswith('v'):
+                    EventService_Version = int(EventService_Type.replace('v','').replace('_',''))
+                # Get /redfish/v1/EventService/Subscriptions
                 subscriptions_url = response_event_url.dict["Subscriptions"]["@odata.id"]
                 response_subscriptions_url = REDFISH_OBJ.get(subscriptions_url,None)
                 if response_subscriptions_url.status == 200:
+                    # Construct hearders and body to do post
                     headers = {"Content-Type": "application/json"}
-                    parameter = {
+                    if EventService_Version >= 130:
+                        parameter = {
+                             "Destination":destination,
+                             "Context":context,
+                             "Protocol":"Redfish"
+                            }
+                    else:
+                        parameter = {
                              "Destination":destination,
                              "EventTypes":eventtypes,
                              "Context":context,
@@ -116,8 +133,8 @@ def add_event_subscriptions(ip, login_account, login_password,destination,eventt
 
 def add_helpmessage(argget):
     argget.add_argument('--destination', type=str, help="The new subscription's destination url you want to set",required=True)
-    argget.add_argument('--eventtypes', type=str, nargs='+',
-                        help="The event types you want to receive,supported eventtypes[StatusChange,ResourceUpdated,ResourceAdded,ResourceRemoved,Alert,MetricReport]",required=True)
+    argget.add_argument('--eventtypes', type=str, nargs='+', default=['Alert'],
+                        help="The event types you want to receive,supported eventtypes[StatusChange,ResourceUpdated,ResourceAdded,ResourceRemoved,Alert,MetricReport]")
     argget.add_argument('--context', type=str,
                         help="Specify a client-supplied string that is stored with the event destination subscription.",required=True)
 
