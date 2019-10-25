@@ -71,8 +71,11 @@ def send_test_event(ip, login_account, login_password,eventid,message,severity):
                 target_url = response_event_url.dict["Actions"]["#EventService.SubmitTestEvent"]["target"]
                 timestamp = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S+08:00')
                 headers = {"Content-Type": "application/json"}
-                parameter = {"EventId": eventid,
-                            "EventType": "Alert",
+                parameter = {}
+                if "@Redfish.ActionInfo" in response_event_url.dict["Actions"]["#EventService.SubmitTestEvent"]:
+                    parameter = {"EventType": "Alert"}
+                else:
+                    parameter = {"EventId": eventid,
                             "EventTimestamp": timestamp,
                             "Message": message,
                             "MessageArgs": [],
