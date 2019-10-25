@@ -73,7 +73,24 @@ def get_system_log(ip, login_account, login_password, system_id):
         manager_x_url = response_managers_url.dict['Members'][i]['@odata.id']
         response_manager_x_url = REDFISH_OBJ.get(manager_x_url, None)
         if response_manager_x_url.status == 200:
-            log_services_url = response_manager_x_url.dict['LogServices']['@odata.id']
+            if "LogServices" in response_manager_x_url.dict:
+                log_services_url = response_manager_x_url.dict['LogServices']['@odata.id']
+            else:
+                system = utils.get_system_url("/redfish/v1",system_id, REDFISH_OBJ)
+                if not system:
+                    result = {'ret': False, 'msg': "This system id is not exist or system member is None"}
+                    REDFISH_OBJ.logout()
+                    return result
+                for i in range(len(system)):
+                    system_url = system[i]
+                    response_system_url = REDFISH_OBJ.get(system_url, None)
+                    if response_system_url.status == 200:
+                        log_services_url = response_system_url.dict['LogServices']['@odata.id']
+                    else:
+                        result = {'ret': False, 'msg': "response system url Error code %s" % response_system_url.status}
+                        REDFISH_OBJ.logout()
+                        return result
+
         else:
             result = {'ret': False, 'msg': "response managers url Error code %s" % response_manager_x_url.status}
             REDFISH_OBJ.logout()
