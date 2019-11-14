@@ -25,7 +25,7 @@ import redfish
 import json
 import lenovo_utils as utils
 
-def get_fw_inventory(ip, login_account, login_password):
+def get_fw_inventory(ip, login_account, login_password, cafile):
     """Get BMC inventory    
     :params ip: BMC IP address
     :type ip: string
@@ -33,6 +33,8 @@ def get_fw_inventory(ip, login_account, login_password):
     :type login_account: string
     :params login_password: BMC user password
     :type login_password: string
+    :params cafile: The security certificate file 
+    :type cafile: string
     :returns: returns firmware inventory when succeeded or error message when failed
     """
     result = {}
@@ -41,11 +43,11 @@ def get_fw_inventory(ip, login_account, login_password):
         # Create a REDFISH object
         login_host = "https://" + ip
         REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
-                                             password=login_password, default_prefix='/redfish/v1')
+                                             password=login_password, default_prefix='/redfish/v1', cafile=cafile)
         # Login into the server and create a session
         REDFISH_OBJ.login(auth="session")
     except:
-        result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
+        result = {'ret': False, 'msg': "Please check if the username, password, IP is correct."}
         return result
 
     fw_version = []
@@ -96,22 +98,39 @@ def get_fw_inventory(ip, login_account, login_password):
     return result
 
 
-if __name__ == '__main__':
-    # Get parameters from config.ini and/or command line
+import argparse
+def add_helpmessage(argget):
+    argget.add_argument('--cafile', type=str, default="", help='Specify the security certificate file for SSL connections.')
+
+
+def add_parameter():
+    """Add set chassis indicator led parameter"""
     argget = utils.create_common_parameter_list()
+    add_helpmessage(argget)
     args = argget.parse_args()
     parameter_info = utils.parse_parameter(args)
-    
+    parameter_info['cafile'] = args.cafile
+    return parameter_info
+
+
+
+if __name__ == '__main__':
+     # Get parameters from config.ini and/or command line
+    parameter_info = add_parameter()
+
     # Get connection info from the parameters user specified
     ip = parameter_info['ip']
     login_account = parameter_info["user"]
     login_password = parameter_info["passwd"]
-    
+
+    # Get set info from the parameters user specified
+    cafile = parameter_info['cafile']
+   
     # Get firmware inventory and check result
-    result = get_fw_inventory(ip, login_account, login_password)
+    result = get_fw_inventory(ip, login_account, login_password, cafile)
 
     if result['ret'] is True:
         del result['ret']
-        sys.stdout.write(json.dumps(result['fw_version_detail'], sort_keys=True, indent=2))
+        sys.stdout.write(json.dumps(result['fw_version_detail'], sort_keys=True, indent=2) + '\n')
     else:
-        sys.stderr.write(result['msg'])
+        sys.stderr.write(result['msg'] + '\n')
