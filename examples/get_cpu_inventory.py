@@ -43,13 +43,13 @@ def get_cpu_info(ip, login_account, login_password, system_id):
     login_host = "https://" + ip
     try:
         # Connect using the BMC address, account name, and password
-        # Create a REDFISH object
-        REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
-                                             password=login_password, default_prefix='/redfish/v1')
+        # Create a REDFISH object 
+        REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account, 
+                                             password=login_password, default_prefix='/redfish/v1', max_retry=3)
         # Login into the server and create a session
         REDFISH_OBJ.login(auth="session")
-    except:
-        result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
+    except Exception as e:
+        result = {'ret': False, 'msg': "Error_message: %s. Please check if username, password and IP are correct" % repr(e)}
         return result
 
     cpu_details = []
@@ -88,13 +88,15 @@ def get_cpu_info(ip, login_account, login_password, system_id):
             members_url = response_processors_url.dict['Members'][i]['@odata.id']
             response_members_url = REDFISH_OBJ.get(members_url, None)
             if response_members_url.status == 200:
-                for property in ['Id', 'Name', 'TotalThreads', 'InstructionSet', 'Status', 'ProcessorType', 
-                    'TotalCores', 'Manufacturer', 'MaxSpeedMHz', 'Model', 'Socket']:
+                for property in ['Id', 'Name', 'TotalThreads', 'InstructionSet', 'Status', 'ProcessorType', 'ProcessorId', 'ProcessorMemory', 
+                    'ProcessorArchitecture', 'TotalCores', 'TotalEnabledCores', 'Manufacturer', 'MaxSpeedMHz', 'Model', 'Socket', 'TDPWatts']:
                     if property in response_members_url.dict:
                         cpu[property] = response_members_url.dict[property]
                 cpu_details.append(cpu)
             else:
                 result = {'ret': False, 'msg': "response_members_url Error code %s" % response_members_url.status}
+                REDFISH_OBJ.logout()
+                return result
 
     result['ret'] = True
     result['entries'] = cpu_details
@@ -121,4 +123,4 @@ if __name__ == '__main__':
         del result['ret']
         sys.stdout.write(json.dumps(result['entries'], sort_keys=True, indent=2))
     else:
-        sys.stderr.write(result['msg'])
+        sys.stderr.write(result['msg'] + '\n')
