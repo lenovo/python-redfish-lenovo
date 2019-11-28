@@ -151,7 +151,7 @@ def create_bmc_user(ip, login_account, login_password, username, password,author
 
         # Check user create mode
         create_mode = "POST_Action"
-        if response_accounts_url.dict["Members@odata.count"] == 12:
+        if response_accounts_url.dict["Members@odata.count"] in [9, 12]:
              create_mode = "PATCH_Action"
 
         if create_mode == "POST_Action":

@@ -116,7 +116,7 @@ def delete_bmc_user(ip, login_account, login_password, username):
 
         # Check user delete mode
         delete_mode = "DELETE_Action"
-        if response_accounts_url.dict["Members@odata.count"] == 12:
+        if response_accounts_url.dict["Members@odata.count"] in [9, 12]:
              delete_mode = "PATCH_Action"
 
         if delete_mode == "DELETE_Action":
