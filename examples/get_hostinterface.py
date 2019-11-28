@@ -53,14 +53,7 @@ def get_hostinterface_inventory(ip, login_account, login_password, cafile):
     # Get ServiceRoot resource
     response_base_url = REDFISH_OBJ.get('/redfish/v1', None)
     # Get response_telemetry_service_url
-    if response_base_url.status == 200:
-        if 'TelemetryService' in response_base_url.dict:
-            telemetry_service_url = response_base_url.dict['TelemetryService']['@odata.id']
-        else:
-            result = {'ret': False, 'msg': "TelemetryService is not supported"}
-            REDFISH_OBJ.logout()
-            return result
-    else:
+    if response_base_url.status != 200:
         result = {'ret': False, 'msg': "Access url /redfish/v1 failed. Error code %s" % response_base_url.status}
         REDFISH_OBJ.logout()
         return result
