@@ -26,7 +26,7 @@ import json
 import lenovo_utils as utils
 
 def get_metric_inventory(ip, login_account, login_password, cafile):
-    """Get BMC inventory    
+    """Get metric inventory    
     :params ip: BMC IP address
     :type ip: string
     :params login_account: BMC user name
@@ -142,7 +142,6 @@ def add_helpmessage(argget):
 
 
 def add_parameter():
-    """Add set chassis indicator led parameter"""
     argget = utils.create_common_parameter_list()
     add_helpmessage(argget)
     args = argget.parse_args()
