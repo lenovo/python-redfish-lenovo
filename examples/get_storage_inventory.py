@@ -90,7 +90,7 @@ def get_storage_info(ip, login_account, login_password, system_id):
                                 if response_disk_url.status == 200:
                                     for key in response_disk_url.dict:
                                         if key not in ["Description", "@odata.context", "@odata.id", "@odata.type",
-                                                       "@odata.etag", "Links"]:
+                                                       "@odata.etag", "Links", "Actions", "RelatedItem"]:
                                             disk_inventory[key] = response_disk_url.dict[key]
                                     drive_list.append(disk_inventory)
                                 else:
@@ -114,7 +114,7 @@ def get_storage_info(ip, login_account, login_password, system_id):
                                     if response_volume_url.status == 200:
                                         for key in response_volume_url.dict:
                                             if key not in ["Description", "@odata.context", "@odata.id", "@odata.type",
-                                                           "@odata.etag", "Links"]:
+                                                           "@odata.etag", "Links", "Actions", "RelatedItem"]:
                                                 volume_inventory[key] = response_volume_url.dict[key]
                                         volumes_list.append(volume_inventory)
                                     else:
@@ -140,7 +140,7 @@ def get_storage_info(ip, login_account, login_password, system_id):
                             storage_controller = {}
                             for key in response_storage_x_url.dict["StorageControllers"][controller]:
                                 if key not in ["Description", "@odata.context", "@odata.id", "@odata.type",
-                                               "@odata.etag", "Links"]:
+                                               "@odata.etag", "Links", "Actions", "RelatedItem"]:
                                     storage_controller[key] = response_storage_x_url.dict["StorageControllers"][controller][key]
                             storage_list.append(storage_controller)
                         storage['storage_controller'] = storage_list

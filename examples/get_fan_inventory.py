@@ -78,9 +78,10 @@ def get_fan_inventory(ip, login_account, login_password):
                         for fan_item in list_fan:
                             tmp_fan_item = {}
                             for key in fan_item:
-                                if key == "RelatedItem" or key == "@odata.type" or key == "@odata.id" or key == "Oem":
+                                if key == "Oem":
                                     continue
-                                else:
+                                if key not in ["Description", "@odata.context", "@odata.id", "@odata.type",
+                                               "@odata.etag", "Links", "Actions", "RelatedItem"]:
                                     tmp_fan_item[key] = fan_item[key]
                             rt_list_fan.append(tmp_fan_item)
                     else:

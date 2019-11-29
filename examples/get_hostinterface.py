@@ -100,7 +100,7 @@ def get_hostinterface_inventory(ip, login_account, login_password, cafile):
 
             hostinterface_dict = {}
             for key in response_url.dict:
-                if key not in ["Description","@odata.context","@odata.id","@odata.type","@odata.etag", "Links",
+                if key not in ["Description","@odata.context","@odata.id","@odata.type","@odata.etag", "Links", "Actions", "RelatedItem",
                                "HostEthernetInterfaces", "ManagerEthernetInterface", "NetworkProtocol"]:
                     hostinterface_dict[key] = response_url.dict[key]
 
@@ -130,7 +130,7 @@ def get_hostinterface_inventory(ip, login_account, login_password, cafile):
                     return result
                 hostethernetinterface_dict = {}
                 for key in response_url.dict:
-                    if key not in ["Description","@odata.context","@odata.id","@odata.type","@odata.etag", "Links"]:
+                    if key not in ["Description","@odata.context","@odata.id","@odata.type","@odata.etag", "Links", "Actions", "RelatedItem"]:
                         hostethernetinterface_dict[key] = response_url.dict[key]
                 HostEthernetInterfaces.append(hostethernetinterface_dict)
 

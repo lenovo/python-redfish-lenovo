@@ -78,9 +78,11 @@ def get_power_redundant(ip, login_account, login_password):
                         for redundancy_item in list_power_redundancy:
                             dict_power_redundant = {}
                             for key in redundancy_item:
-                                if key.startswith("@") or key == "RedundancySet":
+                                if key == "RedundancySet":
                                     continue
-                                dict_power_redundant[key] = redundancy_item[key]
+                                if key not in ["Description", "@odata.context", "@odata.id", "@odata.type",
+                                               "@odata.etag", "Links", "Actions", "RelatedItem"]:
+                                    dict_power_redundant[key] = redundancy_item[key]
                             rt_list_redundant.append(dict_power_redundant)
                     else:
                         error_message = utils.get_extended_error(response_power_url)

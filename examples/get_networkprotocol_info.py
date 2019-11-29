@@ -80,7 +80,8 @@ def get_service_port(ip, login_account, login_password):
                 response_network_protocol_url = REDFISH_OBJ.get(network_protocol_url, None)
                 if response_network_protocol_url.status == 200:
                     for key in response_network_protocol_url.dict:
-                        if key not in ["Description","@odata.context","@odata.id","@odata.type","@odata.etag"]:
+                        if key not in ["Description", "@odata.context", "@odata.id", "@odata.type",
+                                       "@odata.etag", "Links", "Actions", "RelatedItem"]:
                             network_protocol_dict[key] = response_network_protocol_url.dict[key]
                     result = {'ret': True, 'msg': network_protocol_dict}
                     return result
