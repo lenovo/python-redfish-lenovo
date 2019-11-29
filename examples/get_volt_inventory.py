@@ -78,9 +78,8 @@ def get_volt_inventory(ip, login_account, login_password):
                         for volt_item in list_volt:
                             tmp_volt_item = {}
                             for key in volt_item:
-                                if key == "RelatedItem" or key == "@odata.id":
-                                    continue
-                                else:
+                                if key not in ["Description", "@odata.context", "@odata.id", "@odata.type",
+                                               "@odata.etag", "Links", "Actions", "RelatedItem"]:
                                     tmp_volt_item[key] = volt_item[key]
                             rt_list_volt.append(tmp_volt_item)
                     else:

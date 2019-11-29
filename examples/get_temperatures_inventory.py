@@ -78,9 +78,8 @@ def get_temperatures_inventory(ip, login_account, login_password):
                         for temperatures_item in list_temperatures:
                             tmp_temperatures_item = {}
                             for key in temperatures_item:
-                                if key == "RelatedItem" or key == "@odata.type" or key == "@odata.id":
-                                    continue
-                                else:
+                                if key not in ["Description", "@odata.context", "@odata.id", "@odata.type",
+                                               "@odata.etag", "Links", "Actions", "RelatedItem"]:
                                     tmp_temperatures_item[key] = temperatures_item[key]
                             rt_list_temperatures.append(tmp_temperatures_item)
                     else:

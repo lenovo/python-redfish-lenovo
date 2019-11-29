@@ -91,12 +91,14 @@ def get_memory_inventory(ip, login_account, login_password, system_id, member_id
                                 memory_info["Status"] = response_sub_memory_url.dict["Status"]
                                 memory_info["MemoryLocation"] = response_sub_memory_url.dict["MemoryLocation"]
                                 memory_info["Id"] = response_sub_memory_url.dict["Id"]
+                                memory_info["Name"] = response_sub_memory_url.dict["Name"]
                                 list_memory_info.append(memory_info)
                                 continue
                             for key in response_sub_memory_url.dict:
-                                if key == "Links" or key.startswith("@") or key == "Oem":
+                                if key == "Oem":
                                     continue
-                                else:
+                                if key not in ["Description", "@odata.context", "@odata.id", "@odata.type",
+                                               "@odata.etag", "Links", "Actions", "RelatedItem"]:
                                     memory_info[key] = response_sub_memory_url.dict[key]
                             list_memory_info.append(memory_info)
                         else:

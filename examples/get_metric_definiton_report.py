@@ -89,7 +89,7 @@ def get_metric_inventory(ip, login_account, login_password, cafile):
         if response_metric_url.status == 200:
             metric_detail = {}
             for property in response_metric_url.dict:
-                if property not in ["Description","@odata.context","@odata.id","@odata.type","@odata.etag"]:
+                if property not in ["Description","@odata.context","@odata.id","@odata.type","@odata.etag", "Links", "Actions", "RelatedItem"]:
                     metric_detail[property] = response_metric_url.dict[property]
             metric_entry = {metric_list[-1]: metric_detail}
             metric_definitons.append(metric_entry)
@@ -116,7 +116,7 @@ def get_metric_inventory(ip, login_account, login_password, cafile):
         if response_metric_url.status == 200:
             metric_detail = {}
             for property in response_metric_url.dict:
-                if property not in ["Description","@odata.context","@odata.id","@odata.type","@odata.etag"]:
+                if property not in ["Description","@odata.context","@odata.id","@odata.type","@odata.etag", "Links", "Actions", "RelatedItem"]:
                     metric_detail[property] = response_metric_url.dict[property]
             metric_entry = {metric_list[-1]: metric_detail}
             metric_reports.append(metric_entry)
