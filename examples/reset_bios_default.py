@@ -48,9 +48,10 @@ def reset_bios_default(ip, login_account, login_password, system_id):
                                              password=login_password, default_prefix='/redfish/v1')
         # Login into the server and create a session
         REDFISH_OBJ.login(auth="session")
-    except:
-        result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
+    except Exception as e:
+        result = {'ret': False, 'msg': "Error_message: %s. Please check if username, password and IP are correct" % repr(e)}
         return result
+
     try:
         # GET the ComputerSystem resource
         system = utils.get_system_url("/redfish/v1", system_id, REDFISH_OBJ)
@@ -89,7 +90,7 @@ def reset_bios_default(ip, login_account, login_password, system_id):
                     body = {"ResetType": "default"}
                     response_reset_bios = REDFISH_OBJ.post(reset_bios_url, body=body, headers=headers)
                 else:
-                    response_reset_bios = REDFISH_OBJ.post(reset_bios_url, headers=headers)
+                    response_reset_bios = REDFISH_OBJ.post(reset_bios_url, headers=headers, body=body)
                 if response_reset_bios.status in [200, 204]:
                     result = {'ret': True, 'msg': 'Reset bios default successfully'}
                 else:
@@ -126,4 +127,4 @@ if __name__ == '__main__':
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
     else:
-        sys.stderr.write(result['msg'])
+        sys.stderr.write(result['msg'] + '\n')
