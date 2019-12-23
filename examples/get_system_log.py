@@ -27,7 +27,7 @@ import time
 import lenovo_utils as utils
 
 
-def get_system_log(ip, login_account, login_password, system_id):
+def get_system_log(ip, login_account, login_password, system_id, type):
     """Get system log    
     :params ip: BMC IP address
     :type ip: string
@@ -37,6 +37,8 @@ def get_system_log(ip, login_account, login_password, system_id):
     :type login_password: string
     :params system_id: ComputerSystem instance id(None: first instance, All: all instances)
     :type system_id: None or string
+    :params type: The type of log to get
+    :type type: string
     :returns: returns system log when succeeded or error message when failed
     """
     result = {}
@@ -55,83 +57,70 @@ def get_system_log(ip, login_account, login_password, system_id):
 
     # Get response_base_url resource
     response_base_url = REDFISH_OBJ.get('/redfish/v1', None)
-    if response_base_url.status == 200:
-        managers_url = response_base_url.dict['Managers']['@odata.id']
-    else:
+    if response_base_url.status != 200:
         result = {'ret': False, 'msg': "response base url Error code %s" % response_base_url.status}
         REDFISH_OBJ.logout()
         return result
-    # Get Managers url resource
-    response_managers_url = REDFISH_OBJ.get(managers_url, None)
-    if response_managers_url.status == 200:
-        manager_count = response_managers_url.dict['Members@odata.count']
+
+    # Find target LogService url from specified resource type
+    if type == "system":
+        resource_url = response_base_url.dict['Systems']['@odata.id']
+    elif type == "manager":
+        resource_url = response_base_url.dict['Managers']['@odata.id']
     else:
-        result = {'ret': False, 'msg': "response managers url Error code %s" % response_managers_url.status}
+        resource_url = response_base_url.dict['Chassis']['@odata.id']
+    response_resource_url = REDFISH_OBJ.get(resource_url, None)
+    if response_resource_url.status != 200:
+        result = {'ret': False, 'msg': "response resource url %s failed. Error code %s" % (resource_url, response_resource_url.status)}
         REDFISH_OBJ.logout()
         return result
-    for i in range(manager_count):
-        manager_x_url = response_managers_url.dict['Members'][i]['@odata.id']
-        response_manager_x_url = REDFISH_OBJ.get(manager_x_url, None)
-        if response_manager_x_url.status == 200:
-            if "LogServices" in response_manager_x_url.dict:
-                log_services_url = response_manager_x_url.dict['LogServices']['@odata.id']
-            else:
-                system = utils.get_system_url("/redfish/v1",system_id, REDFISH_OBJ)
-                if not system:
-                    result = {'ret': False, 'msg': "This system id is not exist or system member is None"}
-                    REDFISH_OBJ.logout()
-                    return result
-                for i in range(len(system)):
-                    system_url = system[i]
-                    response_system_url = REDFISH_OBJ.get(system_url, None)
-                    if response_system_url.status == 200:
-                        log_services_url = response_system_url.dict['LogServices']['@odata.id']
-                    else:
-                        result = {'ret': False, 'msg': "response system url Error code %s" % response_system_url.status}
-                        REDFISH_OBJ.logout()
-                        return result
+    resource_count = response_resource_url.dict['Members@odata.count']
+    for i in range(resource_count):
+        resource_x_url = response_resource_url.dict['Members'][i]['@odata.id']
+        response_resource_x_url = REDFISH_OBJ.get(resource_x_url, None)
+        if response_resource_x_url.status != 200:
+            result = {'ret': False, 'msg': "response resource url %s failed. Error code %s" % (resource_x_url, response_resource_x_url.status)}
+            REDFISH_OBJ.logout()
+            return result
+        if "LogServices" in response_resource_x_url.dict:
+            log_services_url = response_resource_x_url.dict['LogServices']['@odata.id']
+        else:
+            result = {'ret': False, 'msg': "There is no LogServices in %s" % resource_x_url}
+            REDFISH_OBJ.logout()
+            return result
 
-        else:
-            result = {'ret': False, 'msg': "response managers url Error code %s" % response_manager_x_url.status}
-            REDFISH_OBJ.logout()
-            return result
+        # Get log from LogServices
         response_log_services_url = REDFISH_OBJ.get(log_services_url, None)
-        if response_log_services_url.status == 200:
-            # Get the log url collection
-            members = response_log_services_url.dict['Members']
-        else:
-            result = {'ret': False, 'msg': "response_log_services_url Error code %s" % response_log_services_url.status}
+        if response_log_services_url.status != 200:
+            result = {'ret': False, 'msg': "response resource url %s failed. Error code %s" % (log_services_url, response_log_services_url.status)}
             REDFISH_OBJ.logout()
             return result
-        
+        members = response_log_services_url.dict['Members']
         for member in members:
             log_url = member['@odata.id']
             # Get the log url resource
             response_log_url = REDFISH_OBJ.get(log_url, None)
-            if response_log_url.status == 200:
-                entries_url = response_log_url.dict['Entries']['@odata.id']
-                response_entries_url = REDFISH_OBJ.get(entries_url, None)
-                if response_entries_url.status == 200:
-                    # description = response_entries_url.dict['Description']
-                    for logEntry in response_entries_url.dict['Members']:
-                        entry = {}
-                        for log_property in ['Id', 'Name', 'Created', 'Message', 'MessageId', 'Severity',
-                                                       'EntryCode', 'EntryType', 'EventId', 'EventTimestamp', 
-                                                       'SensorNumber', 'SensorType', 'OemRecordFormat']:
-                            if log_property in logEntry:
-                                entry[log_property] = logEntry[log_property]
-
-                        if entry not in log_details:
-                            log_details.append(entry)
-                else:
-                    result = {'ret': False, 'msg': "response members url Error code %s" % response_entries_url.status}
-                    REDFISH_OBJ.logout()
-                    return result
-                
-            else:
+            if response_log_url.status != 200:
                 result = {'ret': False, 'msg': "response members url Error code %s" % response_log_url.status}
                 REDFISH_OBJ.logout()
                 return result
+            entries_url = response_log_url.dict['Entries']['@odata.id']
+            response_entries_url = REDFISH_OBJ.get(entries_url, None)
+            if response_entries_url.status != 200:
+                result = {'ret': False, 'msg': "response members url Error code %s" % response_entries_url.status}
+                REDFISH_OBJ.logout()
+                return result
+            # description = response_entries_url.dict['Description']
+            for logEntry in response_entries_url.dict['Members']:
+                entry = {}
+                for log_property in ['Id', 'Name', 'Created', 'Message', 'MessageId', 'Severity',
+                                               'EntryCode', 'EntryType', 'EventId', 'EventTimestamp', 
+                                               'SensorNumber', 'SensorType', 'OemRecordFormat']:
+                    if log_property in logEntry:
+                        entry[log_property] = logEntry[log_property]
+
+                if entry not in log_details:
+                    log_details.append(entry)
                 
     result['ret'] = True            
     result['entries'] = log_details
@@ -207,6 +196,7 @@ import argparse
 def add_helpmessage(parser):
     """Add filter system log parameter"""
 
+    parser.add_argument('--type', type=str, default='system', choices=["system", "chassis", "manager"], help='Specify the type of the log to get. Default is system')
     parser.add_argument('--severity', nargs="*", type=str, default='error warning info', help='Specify severity to filter log with severity. "error", "warning", "info" are supported')
     parser.add_argument('--date', type=str, default='all', help='Specify date to filter log within date, Support "all", "2hours", "24hours", "7days", "30days"')
 
@@ -227,7 +217,7 @@ if __name__ == '__main__':
     system_id = parameter_info['sysid']
     
     # Get system log and check result
-    result = get_system_log(ip, login_account, login_password, system_id)
+    result = get_system_log(ip, login_account, login_password, system_id, args.type)
     if result['ret'] is True:
         filtered_entries = filter_system_log(result['entries'], args.severity, args.date)
         sys.stdout.write(json.dumps(filtered_entries, sort_keys=True, indent=2))
