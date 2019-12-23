@@ -75,6 +75,7 @@ def set_manager_vlanid(ip, login_account, login_password, vlanid, vlanEnable):
                     ethernet_interface = response_manager_url.dict['EthernetInterfaces']['@odata.id']
                     response_ethernet_interface = REDFISH_OBJ.get(ethernet_interface, None)
                     if response_ethernet_interface.status == 200:
+                        vlan_found = False
                         for i in range(response_ethernet_interface.dict['Members@odata.count']):
                             interface_url = response_ethernet_interface.dict['Members'][i]['@odata.id']
                             if "NIC" in interface_url or "eth" in interface_url:
@@ -86,6 +87,11 @@ def set_manager_vlanid(ip, login_account, login_password, vlanid, vlanEnable):
                                     result = {'ret': False, 'msg': "Url '%s' get failed. response Error code %s \nerror_message: %s" % (
                                         interface_url, response_interface_url.status, error_message)}
                                     return result
+
+                                if "VLAN" not in response_interface_url.text:
+                                    continue
+                                vlan_found = True
+                                
                                 if "@odata.etag" in response_interface_url.dict:
                                     etag = response_interface_url.dict['@odata.etag']
                                 else:
@@ -104,6 +110,8 @@ def set_manager_vlanid(ip, login_account, login_password, vlanid, vlanEnable):
                                                   interface_url, response_interface_url.status,
                                                   error_message)}
                                     return result
+                        if vlan_found == False:
+                            result = {'ret': False, 'msg': "VLAN does not exist."}
                     else:
                         error_message = utils.get_extended_error(response_ethernet_interface)
                         result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
@@ -167,4 +175,4 @@ if __name__ == '__main__':
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
     else:
-        sys.stderr.write(result['msg'])
+        sys.stderr.write(result['msg'] + '\n')
