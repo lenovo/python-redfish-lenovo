@@ -4,7 +4,7 @@
 #
 # Copyright Notice:
 #
-# Copyright 2018 Lenovo Corporation
+# Copyright 2019 Lenovo Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
 # not use this file except in compliance with the License. You may obtain
@@ -48,9 +48,10 @@ def get_serial_interfaces(ip, login_account, login_password, interfaceid):
     
         # Login into the server and create a session
         REDFISH_OBJ.login(auth="session")
-    except:
-        result = {'ret': False, 'msg': "Please check if username, password, IP are correct"}
+    except Exception as e:
+        result = {'ret': False, 'msg': "Error_message: %s. Please check if username, password and IP are correct" % repr(e)}
         return result
+        
     try:
         base_response = REDFISH_OBJ.get('/redfish/v1', None)
         if base_response.status == 200:
@@ -71,16 +72,17 @@ def get_serial_interfaces(ip, login_account, login_password, interfaceid):
             return result
 
         # Get the manager url from managers url collection
-        serial_details = []
-        for i in managers_url_collection:
-            manager_x_url = i["@odata.id"]
-            manager_x_url_response = REDFISH_OBJ.get(manager_x_url, None)
-            if manager_x_url_response.status == 200:
+        serial_details_all = []
+        id_found = False
+        for manager in managers_url_collection:
+            manager_url = manager["@odata.id"]
+            manager_url_response = REDFISH_OBJ.get(manager_url, None)
+            if manager_url_response.status == 200:
                 # Get the serial interfaces url
-                serial_interfaces_url = manager_x_url_response.dict['SerialInterfaces']['@odata.id']
+                serial_interfaces_url = manager_url_response.dict['SerialInterfaces']['@odata.id']
             else:
-                error_message = utils.get_extended_error(manager_x_url_response)
-                result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (manager_x_url, manager_x_url_response.status, error_message)}
+                error_message = utils.get_extended_error(manager_url_response)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (manager_url, manager_url_response.status, error_message)}
                 return result
 
             # Get the serial interfaces url collection
@@ -92,46 +94,55 @@ def get_serial_interfaces(ip, login_account, login_password, interfaceid):
                 result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (serial_interfaces_url, serial_interfaces_url_response.status, error_message)}
                 return result
 
-            # Get the serial interfaces url form serial interfaces url collection
-            try:
-                if interfaceid:
-                    index = int(interfaceid) - 1
-                    if(index == -1):
-                        result = {'ret': False, 'msg': "The specified Interface Id does not exist."}
-                        return result
-                else:
-                    index = 0
-                serial_interfaces_x_url = serial_interfaces_url_collection[index]['@odata.id']
-                response_serial_interfaces_x_url = REDFISH_OBJ.get(serial_interfaces_x_url, None)
-                if response_serial_interfaces_x_url.status == 200:
-                    serial_interfaces_dict = {}
+
+            # go through all serial interafces
+            for serial_interafce in serial_interfaces_url_collection:
+                serial_interface_url = serial_interafce['@odata.id']
+                # Get single serial interface info
+                response_serial_interface_url = REDFISH_OBJ.get(serial_interface_url, None)
+
+                if response_serial_interface_url.status == 200:
+                    serial_interface_dict = {}
                     for serial_property in ['Id', 'InterfaceEnabled', 'Name', 'SignalType', 'DataBits', 'StopBits', 
                         'Parity', 'BitRate', 'FlowControl']:
-                        if serial_property in response_serial_interfaces_x_url.dict:
-                            serial_interfaces_dict[serial_property] = response_serial_interfaces_x_url.dict[serial_property]
-                    serial_details.append(serial_interfaces_dict)
+                        if serial_property in response_serial_interface_url.dict:
+                            serial_interface_dict[serial_property] = response_serial_interface_url.dict[serial_property]
+
+                    if interfaceid != '' and interfaceid == response_serial_interface_url.dict['Id']:
+                        id_found = True
+                        result['ret'] = True
+                        result['entries'] = serial_interface_dict
+                        return result
+                    else:
+                        serial_details_all.append(serial_interface_dict)
+                        continue
                 else:
-                    error_message = utils.get_extended_error(response_serial_interfaces_x_ur)
-                    result = {'ret': False, 'msg': "Url '%s'response Error code %s \nerror_message: %s" % (serial_interfaces_x_url, response_serial_interfaces_x_ur.status, error_message)}
+                    error_message = utils.get_extended_error(response_serial_interface_url)
+                    result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                        serial_interface_url, response_serial_interface_url.status, error_message)}
                     return result
-            except IndexError:
-                result = {'ret': False, 'msg': "The specified Interface Id does not exist."}
-                return result
+
+        if interfaceid != '' and id_found == False:
+            result = {'ret': False, 'msg': "The specified Interface Id %s does not exist." % interfaceid}
+            return result
+
         result['ret'] = True
-        result['entries'] = serial_details    
+        result['entries'] = serial_details_all
+        return result
+
     except Exception as e:
-        result = {'ret':False, 'msg':"error_message:%s" %(e)}
+        result = {'ret': False, 'msg': "Error_message: %s" % repr(e)}
+        return result
     finally:
         # Logout of the current session
         REDFISH_OBJ.logout()
-        return result  
 
 
 import argparse
 def add_parameter():
-    """Add set serial interfaces attribute parameter"""
+    """Add get serial interfaces attribute parameter"""
     argget = utils.create_common_parameter_list()
-    argget.add_argument('--interfaceid', type=str, default='', help='Serial interface instance id(default first instance)')
+    argget.add_argument('--interfaceid', type=str, default='', help='Serial interface instance id(default to get all serial interfaces)')
     args = argget.parse_args()
     parameter_info = utils.parse_parameter(args)
     # Parse the added parameters
@@ -156,6 +167,5 @@ if __name__ == '__main__':
         del result['ret']
         sys.stdout.write(json.dumps(result['entries'], sort_keys=True, indent=2))
     else:
-        sys.stderr.write(result['msg'])
+        sys.stderr.write(result['msg'] + '\n')
 
-    
