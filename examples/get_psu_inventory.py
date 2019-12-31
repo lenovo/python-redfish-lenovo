@@ -49,9 +49,10 @@ def get_psu_info(ip, login_account, login_password, system_id):
 
         # Login into the server and create a session
         REDFISH_OBJ.login(auth="session")
-    except:
-        result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
+    except Exception as e:
+        result = {'ret': False, 'msg': "Error_message: %s. Please check if username, password and IP are correct" % repr(e)}
         return result
+
     # GET the ComputerSystem resource
     system = utils.get_system_url("/redfish/v1", system_id, REDFISH_OBJ)
     if not system:
@@ -90,7 +91,8 @@ def get_psu_info(ip, login_account, login_password, system_id):
             power_supply_list = response_power_url.dict['PowerSupplies']
             for PowerSupplies in power_supply_list:
                 entry = {}
-                for property in ['Name', 'SerialNumber', 'PartNumber', 'FirmwareVersion', 'PowerCapacityWatts', 
+                for property in ['Name', 'SerialNumber', 'PowerOutputWatts', 'EfficiencyPercent', 'LineInputVoltage', 
+                    'PartNumber', 'FirmwareVersion', 'PowerCapacityWatts', 'PowerInputWatts', 'Model',
                     'PowerSupplyType', 'Status', 'Manufacturer']:
                     if property in PowerSupplies:
                         entry[property] = PowerSupplies[property]
@@ -125,4 +127,4 @@ if __name__ == '__main__':
         del result['ret']
         sys.stdout.write(json.dumps(result['entry_details'], sort_keys=True, indent=2))
     else:
-        sys.stderr.write(result['msg'])
+        sys.stderr.write(result['msg'] + '\n')
