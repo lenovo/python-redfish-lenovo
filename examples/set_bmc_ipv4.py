@@ -152,7 +152,7 @@ def set_bmc_ip(ip, login_account, login_password, dhcp_enabled, static_ip, stati
         if isinstance(set_value, dict):
             for subprop in payload[property].keys():
                 if subprop not in target_ethernet_current_setting[property]:
-                    return {'ret': False, 'msg': "Sub-property %s in nic_config is invalid" % subprop}
+                    return {'ret': False, 'msg': "Sub-property %s is invalid" % subprop}
                 sub_set_value = payload[property][subprop]
                 sub_cur_value = target_ethernet_current_setting[property][subprop]
                 if sub_set_value != sub_cur_value:
@@ -162,7 +162,7 @@ def set_bmc_ip(ip, login_account, login_password, dhcp_enabled, static_ip, stati
             for i in range(len(set_value)):
                 for subprop in payload[property][i].keys():
                     if subprop not in target_ethernet_current_setting[property][i]:
-                        return {'ret': False, 'msg': "Sub-property %s in nic_config is invalid" % subprop}
+                        return {'ret': False, 'msg': "Sub-property %s is invalid" % subprop}
                     sub_set_value = payload[property][i][subprop]
                     sub_cur_value = target_ethernet_current_setting[property][i][subprop]
                     if sub_set_value != sub_cur_value:
@@ -186,9 +186,9 @@ def set_bmc_ip(ip, login_account, login_password, dhcp_enabled, static_ip, stati
 def add_helpmessage(argget):
     argget.add_argument('--dhcpenabled', type=str, choices = ["0", "1"], required=True,
                         help='Indicates if DHCP is enabled or disabled for the bmc nic. (0:false, 1:true)')
-    argget.add_argument('--staticip', type=str, required=False, help='Indicates static ip for the manager nic')
-    argget.add_argument('--staticgateway', type=str, required=False, help='Indicates static gateway for the manager nic')
-    argget.add_argument('--staticmask', type=str, required=False, help='Indicates static subnetmask for the manager nic')
+    argget.add_argument('--staticip', type=str, required=False, help='Indicates static ip for the manager nic. It will be ignored when dhcpenabled is set to 1')
+    argget.add_argument('--staticgateway', type=str, required=False, help='Indicates static gateway for the manager nic. It will be ignored when dhcpenabled is set to 1')
+    argget.add_argument('--staticmask', type=str, required=False, help='Indicates static subnetmask for the manager nic. It will be ignored when dhcpenabled is set to 1')
 
 
 def add_parameter():
@@ -198,9 +198,14 @@ def add_parameter():
     args = argget.parse_args()
     parameter_info = utils.parse_parameter(args)
     parameter_info["dhcpenabled"] = args.dhcpenabled
-    parameter_info["staticip"] = args.staticip
-    parameter_info["staticgateway"] = args.staticgateway
-    parameter_info["staticmask"] = args.staticmask
+    if args.dhcpenabled == "0":
+        parameter_info["staticip"] = args.staticip
+        parameter_info["staticgateway"] = args.staticgateway
+        parameter_info["staticmask"] = args.staticmask
+    else:
+        parameter_info["staticip"] = None
+        parameter_info["staticgateway"] = None
+        parameter_info["staticmask"] = None
     return parameter_info
 
 
