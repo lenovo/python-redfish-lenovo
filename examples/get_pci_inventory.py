@@ -64,13 +64,29 @@ def get_pci_inventory(ip, login_account, login_password, system_id):
         # Get pcidevices collection
         system_url = system[i]
         response_system_url = REDFISH_OBJ.get(system_url, None)
-        if response_system_url.status == 200:
-            pcidevices_collection = response_system_url.dict['PCIeDevices']
-            members_count = response_system_url.dict['PCIeDevices@odata.count']
-        else:
+        if response_system_url.status != 200:
             result = {'ret': False, 'msg': "response_system_url Error code %s" % response_system_url.status}
             REDFISH_OBJ.logout()
             return result
+        pcidevices_collection = []
+        members_count = 0
+        if 'PCIeDevices' in response_system_url.dict:
+            pcidevices_collection = response_system_url.dict['PCIeDevices']
+            members_count = len(pcidevices_collection)
+
+        # If no pcidevice in system, try to get pcidevice info from Chassis
+        if members_count == 0 and 'Links' in response_system_url.dict and 'Chassis' in response_system_url.dict['Links']:
+            chassis_url = response_system_url.dict['Links']['Chassis'][0]['@odata.id']
+            response_chassis_url = REDFISH_OBJ.get(chassis_url, None)
+            if response_chassis_url.status == 200 and 'PCIeDevices' in response_chassis_url.dict:
+                request_url = response_chassis_url.dict['PCIeDevices']['@odata.id']
+                response_url = REDFISH_OBJ.get(request_url, None)
+                if response_url.status == 200 and 'Members' in response_url.dict:
+                    pcidevices_collection = response_url.dict['Members']
+                    members_count = len(pcidevices_collection)
+            elif response_chassis_url.status == 200 and 'Links' in response_chassis_url.dict and 'PCIeDevices' in response_chassis_url.dict['Links']:
+                pcidevices_collection = response_chassis_url.dict['Links']['PCIeDevices']
+                members_count = len(pcidevices_collection)
 
         # Get each pci device info
         for i in range(members_count):
