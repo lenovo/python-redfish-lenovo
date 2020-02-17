@@ -55,8 +55,8 @@ def export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip, fsuser
         REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
                                          password=login_password, default_prefix='/redfish/v1')
         REDFISH_OBJ.login(auth="session")
-    except:
-        result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
+    except Exception as e:
+        result = {'ret': False, 'msg': "Error_message: %s. Please check if username, password and IP are correct" % repr(e)}
         return result
 
     try:
@@ -94,6 +94,7 @@ def export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip, fsuser
                 body['DataCollectionType'] = "ProcessorDump"
 
                 # Check the transport protocol, only support sftp and tftp protocols
+                export_uri = ""
                 if fsprotocol:
                     export_uri = fsprotocol.lower() + "://" + fsip + ":/" + fsdir + "/"
                     body['ExportURI'] = export_uri
@@ -125,7 +126,7 @@ def export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip, fsuser
                             task_state = response_task_uri.dict['TaskState']
                             if task_state == "Completed":
                                 # If the user does not specify export uri, the ffdc data file will be downloaded to the local
-                                if 'Oem' in response_task_uri.dict:
+                                if not fsprotocol and 'Oem' in response_task_uri.dict:
                                     download_uri = response_task_uri.dict['Oem']['Lenovo']['FFDCForDownloading']['Path']
                                     # Download FFDC data from download uri when the task completed
                                     download_sign = download_ffdc(ip, login_account, login_password, download_uri)
@@ -137,10 +138,13 @@ def export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip, fsuser
                                     else:
                                         result = {'ret': False, 'msg':  "The FFDC data download failed"}
                                     break
-                                else:
+                                elif fsprotocol:
                                     time_end = time.time()    
                                     print('time cost: %.2f' %(time_end-time_start)+'s')
                                     result = {'ret': True, 'msg':  "The FFDC data is saved as %s " %export_uri}
+                                    break
+                                else:
+                                    result = {'ret': False, 'msg':  "If the user wants to download to a remote server, you need to specify the server type."}
                                     break
                             elif task_state in ["Exception", "Killed"]:
                                 result = {"ret": False, "msg": "Task state is %s, The FFDC data download failed" %task_state}
@@ -216,9 +220,7 @@ def download_ffdc(ip, login_account, login_password, download_uri):
             get_cwd = os.getcwd()
             with open(os.getcwd() + os.sep + ffdc_file_name, 'wb') as f:
                 f.write(response_download_uri.content)
-                # f.write(response_download_uri.text)
                 download_sign = True
-            # print(response_download_uri.text)
         else:
             print("response manaegr uri Error code %s" %response_download_uri.status_code)
     except Exception as e:
@@ -235,11 +237,11 @@ def download_ffdc(ip, login_account, login_password, download_uri):
 
 import argparse
 def add_helpmessage(argget):
-    argget.add_argument('--fsprotocol', type=str, help='Specify the file server protocol.Support:["SFTP"]')
+    argget.add_argument('--fsprotocol', type=str, help='Specify the file server protocol. Support:["SFTP", "TFTP"]')
     argget.add_argument('--fsip', type=str, help='Specify the file server ip.')
     argget.add_argument('--fsusername', type=str, help='Specify the file server username.')
     argget.add_argument('--fspassword', type=str, help='Specify the file server password.')
-    argget.add_argument('--fsdir', type=str, help='Specify the file server dir to the firmware upload.')
+    argget.add_argument('--fsdir', type=str, help='Specify the directory under which ffdc data will be saved on file server.')
 
 
 import configparser
@@ -303,4 +305,4 @@ if __name__ == '__main__':
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
     else:
-        sys.stderr.write(result['msg'])
+        sys.stderr.write(result['msg'] + '\n')
