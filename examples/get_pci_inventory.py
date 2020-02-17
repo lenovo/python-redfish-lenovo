@@ -48,8 +48,8 @@ def get_pci_inventory(ip, login_account, login_password, system_id):
                                              password=login_password, default_prefix='/redfish/v1')
         # Login into the server and create a session
         REDFISH_OBJ.login(auth="session")
-    except:
-        result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
+    except Exception as e:
+        result = {'ret': False, 'msg': "Error_message: %s. Please check if username, password and IP are correct." % repr(e)}
         return result
 
     pci_details = []
@@ -95,7 +95,7 @@ def get_pci_inventory(ip, login_account, login_password, system_id):
             members_url = pcidevices_collection[i]['@odata.id']
             response_members_url = REDFISH_OBJ.get(members_url, None)
             if response_members_url.status == 200:
-                for property in ['Id', 'Name', 'Status', 'Manufacturer', 'Model', 'DeviceType', 'SerialNumber', 'PartNumber', 'FirmwareVersion', 'SKU']:
+                for property in ['Id', 'Name', 'Description', 'Status', 'Manufacturer', 'Model', 'DeviceType', 'SerialNumber', 'PartNumber', 'FirmwareVersion', 'SKU']:
                     if property in response_members_url.dict:
                         pci[property] = response_members_url.dict[property]
                 pci_details.append(pci)
@@ -127,5 +127,5 @@ if __name__ == '__main__':
         del result['ret']
         sys.stdout.write(json.dumps(result['entries'], sort_keys=True, indent=2))
     else:
-        sys.stderr.write(result['msg'])
+        sys.stderr.write(result['msg'] + '\n')
 
