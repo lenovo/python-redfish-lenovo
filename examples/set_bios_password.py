@@ -115,7 +115,7 @@ def set_bios_password(ip, login_account, login_password, system_id, bios_passwor
 
                 # Check whether password name is in allowable value list  
                 if len(password_allowed_values) != 0 and bios_password_name not in password_allowed_values:
-                    result = {'ret': False, 'msg': "Specified password name is not included in allowable value list. Please select password name from list: %s" % (''.join(password_allowed_values))}
+                    result = {'ret': False, 'msg': "Specified password name is not included in allowable value list. Please select password name from list: %s" % (str(password_allowed_values))}
                     return result
 
                 # get parameter requirement if ActionInfo is provided
@@ -167,8 +167,8 @@ def set_bios_password(ip, login_account, login_password, system_id, bios_passwor
 import argparse
 def add_helpmessage(parser):
     parser.add_argument('--name', type=str, required=True, help='Input the bios password name (Such as "UefiAdminPassword", "UefiPowerOnPassword")')
-    parser.add_argument('--biospasswd', type=str, required=True, help='Input the new bios password')
-    parser.add_argument('--oldbiospasswd', type=str, default=None, help='Input the old bios password')
+    parser.add_argument('--biospasswd', type=str, required=True, help='Input the new bios password. Input null string "" if you want to clear the password')
+    parser.add_argument('--oldbiospasswd', type=str, default=None, help='Input the old bios password if needed')
 
 
 def add_parameter():
