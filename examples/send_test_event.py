@@ -80,40 +80,60 @@ def send_test_event(ip, login_account, login_password,eventid,message,severity):
                 target_url = response_event_url.dict["Actions"]["#EventService.SubmitTestEvent"]["target"]
                 timestamp = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S+08:00')
                 headers = {"Content-Type": "application/json"}
-                parameter = {}
+                payload = {}
                 if "@Redfish.ActionInfo" in response_event_url.dict["Actions"]["#EventService.SubmitTestEvent"]:
-                    parameter = {"EventType": "Alert"}
+                    actioninfo_url = response_event_url.dict["Actions"]["#EventService.SubmitTestEvent"]["@Redfish.ActionInfo"]
+                    response_actioninfo_url = REDFISH_OBJ.get(actioninfo_url, None)
+                    if (response_actioninfo_url.status == 200) and ("Parameters" in response_actioninfo_url.dict):
+                        for parameter in response_actioninfo_url.dict["Parameters"]:
+                            if ("Required" in parameter) and parameter["Required"]:
+                               if parameter["Name"] == "EventId":
+                                   payload["EventId"] = eventid
+                               elif parameter["Name"] == "EventType":
+                                   payload["EventType"] = "Alert"
+                               elif parameter["Name"] == "EventTimestamp":
+                                   payload["EventTimestamp"] = timestamp
+                               elif parameter["Name"] == "Message":
+                                   payload["Message"] = message
+                               elif parameter["Name"] == "MessageArgs":
+                                   payload["MessageArgs"] = []
+                               elif parameter["Name"] == "MessageId":
+                                   payload["MessageId"] = "Created"
+                               elif parameter["Name"] == "Severity":
+                                   payload["Severity"] = severity
+                               elif parameter["Name"] == "OriginOfCondition":
+                                   payload["OriginOfCondition"] = event_url
                 elif EventService_Version >= 130:
-                    parameter = {"EventId": eventid,
-                            "EventTimestamp": timestamp,
-                            "Message": message,
-                            "MessageArgs": [],
-                            "MessageId":"Base.1.1.GeneralError",
-                            "Severity": severity,
-                            "OriginOfCondition":"/redfish/v1/Systems/1/LogServices/StandardLog"}
+                    payload["EventId"] = eventid
+                    payload["EventTimestamp"] = timestamp
+                    payload["Message"] = message
+                    payload["MessageArgs"] = []
+                    payload["MessageId"] = "Created"
+                    payload["Severity"] = severity
+                    payload["OriginOfCondition"] = event_url
                 elif EventService_Version >= 106:
-                    parameter = {"EventId": eventid,
-                            "EventType": "Alert",
-                            "EventTimestamp": timestamp,
-                            "Message": message,
-                            "MessageArgs": [],
-                            "MessageId":"Base.1.1.GeneralError",
-                            "Severity": severity,
-                            "OriginOfCondition":"/redfish/v1/Systems/1/LogServices/StandardLog"}
+                    payload["EventId"] = eventid
+                    payload["EventType"] = "Alert"
+                    payload["EventTimestamp"] = timestamp
+                    payload["Message"] = message
+                    payload["MessageArgs"] = []
+                    payload["MessageId"] = "Created"
+                    payload["Severity"] = severity
+                    payload["OriginOfCondition"] = event_url
                 else:
-                    parameter = {"EventId": eventid,
-                            "EventType": "Alert",
-                            "EventTimestamp": timestamp,
-                            "Message": message,
-                            "MessageArgs": [],
-                            "MessageId":"Base.1.1.GeneralError",
-                            "Severity": severity}
-                response_send_event = REDFISH_OBJ.post(target_url,headers=headers,body=parameter)
+                    payload["EventId"] = eventid
+                    payload["EventType"] = "Alert"
+                    payload["EventTimestamp"] = timestamp
+                    payload["Message"] = message
+                    payload["MessageArgs"] = []
+                    payload["MessageId"] = "Created"
+                    payload["Severity"] = severity
+                response_send_event = REDFISH_OBJ.post(target_url, headers=headers, body=payload)
                 if response_send_event.status == 200 or response_send_event.status == 204:
                     result = {"ret":True,"msg":"Send event successsfully,event id is " + eventid \
                               + ",EventType:Alert,EventTimestamp:" + timestamp + ",Message:" + message \
-                              + ",MessageArgs:[],MessageId:Base.1.1.GeneralError,Severity:" + severity\
-                              + ",OriginOfCondition:/redfish/v1/Systems/1/LogServices/StandardLog" }
+                              + ",MessageArgs:[],MessageId:Created,Severity:" + severity\
+                              + ",OriginOfCondition:" + event_url }
                     return result
                 else:
                     error_message = utils.get_extended_error(response_send_event)
