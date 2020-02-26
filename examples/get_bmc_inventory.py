@@ -75,7 +75,7 @@ def get_bmc_info(ip, login_account, login_password, system_id):
         # Get the BMC information
         response_manager_url = REDFISH_OBJ.get(manager_url, None)
         if response_manager_url.status == 200:
-            for bmc_property in ['FirmwareVersion', 'Model', 'DateTime']:
+            for bmc_property in ['FirmwareVersion', 'Model', 'DateTime', 'DateTimeLocalOffset']:
                 if bmc_property in response_manager_url.dict:
                     bmc_info[bmc_property] = response_manager_url.dict[bmc_property]
         else:
