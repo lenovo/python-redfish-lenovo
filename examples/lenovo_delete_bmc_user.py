@@ -4,7 +4,7 @@
 #
 # Copyright Notice:
 #
-# Copyright 2018 Lenovo Corporation
+# Copyright 2019 Lenovo Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
 # not use this file except in compliance with the License. You may obtain
@@ -50,9 +50,10 @@ def delete_bmc_user(ip, login_account, login_password, username):
                                              password=login_password, default_prefix='/redfish/v1')
         # Login into the server and create a session
         REDFISH_OBJ.login(auth="session")
-    except:
-        result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
+    except Exception as e:
+        result = {'ret': False, 'msg': "Error_message: %s. Please check if username, password and IP are correct." % repr(e)}
         return result
+
     # Get ServiceRoot resource
     try:
         # Get /redfish/v1
@@ -112,41 +113,42 @@ def delete_bmc_user(ip, login_account, login_password, username):
             etag = response_account_url.dict['@odata.etag']
         else:
             etag = ""
-        headers = {"If-Match": etag, }
-
+        
         # Check user delete mode
         delete_mode = "DELETE_Action"
         if response_accounts_url.dict["Members@odata.count"] in [9, 12]:
-             delete_mode = "PATCH_Action"
-
+            delete_mode = "PATCH_Action"
+            
         if delete_mode == "DELETE_Action":
-                # delete bmc user
-                response_delete_account_url = REDFISH_OBJ.delete(dest_account_url, headers=headers)
-                if response_delete_account_url.status == 200 or response_delete_account_url.status == 204:
-                    result = {'ret': True, 'msg': "account %s delete successfully" % username}
-                    return result
-                else:
-                    error_message = utils.get_extended_error(response_delete_account_url)
-                    result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                        response_delete_account_url, response_delete_account_url.status, error_message)}
-                    return result
+            headers = {"If-Match": "*" }
+            # delete bmc user
+            response_delete_account_url = REDFISH_OBJ.delete(dest_account_url, headers=headers)
+            if response_delete_account_url.status == 200 or response_delete_account_url.status == 204:
+                result = {'ret': True, 'msg': "account %s delete successfully" % username}
+                return result
+            else:
+                error_message = utils.get_extended_error(response_delete_account_url)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                    response_delete_account_url, response_delete_account_url.status, error_message)}
+                return result
 
         if delete_mode == "PATCH_Action":
-                # Set the body info
-                parameter = {
-                    "Enabled": False,
-                    "UserName": ""
-                }
-                #delete bmc user
-                response_delete_account_url = REDFISH_OBJ.patch(dest_account_url, body=parameter, headers=headers)
-                if response_delete_account_url.status in [200, 204]:
-                    result = {'ret': True, 'msg': "Account %s deleted successfully" % username}
-                    return result
-                else:
-                    error_message = utils.get_extended_error(response_delete_account_url)
-                    result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                        response_delete_account_url, response_delete_account_url.status, error_message)}
-                    return result
+            headers = {"If-Match": etag}
+            # Set the body info
+            parameter = {
+                "Enabled": False,
+                "UserName": ""
+            }
+            #delete bmc user
+            response_delete_account_url = REDFISH_OBJ.patch(dest_account_url, body=parameter, headers=headers)
+            if response_delete_account_url.status in [200, 204]:
+                result = {'ret': True, 'msg': "Account %s deleted successfully" % username}
+                return result
+            else:
+                error_message = utils.get_extended_error(response_delete_account_url)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                    response_delete_account_url, response_delete_account_url.status, error_message)}
+                return result
 
     except Exception as e:
         result = {'ret': False, 'msg': "exception msg %s" % e}
@@ -192,4 +194,4 @@ if __name__ == '__main__':
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
     else:
-        sys.stderr.write(result['msg'])
+        sys.stderr.write(result['msg'] + '\n')
