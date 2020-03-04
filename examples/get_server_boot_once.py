@@ -51,6 +51,7 @@ def get_server_boot_once(ip, login_account, login_password, system_id):
     except:
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
         return result
+
     # GET the ComputerSystem resource
     boot_details = []
     system = utils.get_system_url("/redfish/v1", system_id, REDFISH_OBJ)
@@ -64,8 +65,10 @@ def get_server_boot_once(ip, login_account, login_password, system_id):
         if response_system_url.status == 200:
             # Get the response
             boot_server = {}
-            BootSourceOverrideTarget = response_system_url.dict["Boot"]["BootSourceOverrideTarget"]
-            boot_server["BootSourceOverrideTarget"] = BootSourceOverrideTarget
+            properties = ['BootSourceOverrideEnabled', 'BootSourceOverrideMode', 'BootSourceOverrideTarget']
+            for property in properties:
+                if property in response_system_url.dict["Boot"]:
+                    boot_server[property] = response_system_url.dict["Boot"][property]
             boot_details.append(boot_server)
         else:
             result = {'ret': False, 'msg': "response_system_url Error code %s" % response_system_url.status}

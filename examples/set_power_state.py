@@ -71,7 +71,7 @@ def set_reset_system(ip, login_account, login_password, system_id, reset_type):
                 # POST Reset Action
                 post_response = REDFISH_OBJ.post(target_url, body=post_body)
                 # If Response return 200/OK, return successful , else print the response Error code
-                if post_response.status in [200, 204]:
+                if post_response.status in [200, 202, 204]:
                     result = {'ret': True, 'msg': "reset system '%s' successful" % reset_type}
                 else:
                     error_message = utils.get_extended_error(post_response)
