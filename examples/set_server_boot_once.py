@@ -135,7 +135,7 @@ if __name__ == '__main__':
     boot_mode = parameter_info['boot_mode']
 
     # Set server boot once result and check result
-    result = set_server_boot_once(ip, login_account, login_password, system_id, boot_source, parameter_info['boot_mode'])
+    result = set_server_boot_once(ip, login_account, login_password, system_id, boot_source, boot_mode)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
