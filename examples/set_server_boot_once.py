@@ -26,7 +26,7 @@ import redfish
 import lenovo_utils as utils
 
 
-def set_server_boot_once(ip, login_account, login_password, system_id, boot_source):
+def set_server_boot_once(ip, login_account, login_password, system_id, boot_source, mode):
     """Set server boot once    
     :params ip: BMC IP address
     :type ip: string
@@ -38,6 +38,8 @@ def set_server_boot_once(ip, login_account, login_password, system_id, boot_sour
     :type system_id: None or string
     :params boot_source: Boot source type by user specified
     :type boot_source: string
+    :params mode: Boot mode
+    :type mode: string
     :returns: returns set server boot once result when succeeded or error message when failed
     """
     result = {}
@@ -76,10 +78,14 @@ def set_server_boot_once(ip, login_account, login_password, system_id, boot_sour
 
             # Prepare PATCH Body to set Boot once to the user specified target
             patch_body = {"Boot": {"BootSourceOverrideEnabled": "", "BootSourceOverrideTarget": ""}}
-            patch_body["Boot"]["BootSourceOverrideEnabled"] = "Once"
-            patch_body["Boot"]["BootSourceOverrideTarget"] = boot_source
             if boot_source == "None":
                 patch_body["Boot"]["BootSourceOverrideEnabled"] = "Disabled"
+            else:
+                patch_body["Boot"]["BootSourceOverrideEnabled"] = "Once"
+                patch_body["Boot"]["BootSourceOverrideTarget"] = boot_source
+                if mode:
+                    patch_body["Boot"]["BootSourceOverrideMode"] = mode
+
             patch_response = REDFISH_OBJ.patch(system_url, body=patch_body, headers=headers)
 
             # If Response does not return 200/OK or 204, print the response Extended Error message
@@ -100,6 +106,7 @@ def set_server_boot_once(ip, login_account, login_password, system_id, boot_sour
 import argparse
 def add_helpmessage(argget):
     argget.add_argument('--bootsource', type=str, choices=["None", "Pxe", "Cd", "Usb","Hdd","BiosSetup","Diags"], required=True, help='Specify the device for one-time boot at next server restart. The supported boot option(s) include :("None", "Pxe", "Cd", "Usb","Hdd","BiosSetup","Diags")')
+    argget.add_argument('--mode', type=str, choices=["Legacy", "UEFI"], help='The BIOS boot mode to use when the system boots from one-time boot')
 
 
 def add_parameter():
@@ -109,6 +116,7 @@ def add_parameter():
     args = argget.parse_args()
     parameter_info = utils.parse_parameter(args)
     parameter_info['boot_source'] = args.bootsource
+    parameter_info['boot_mode'] = args.mode
     return parameter_info
 
 
@@ -123,14 +131,11 @@ if __name__ == '__main__':
     system_id = parameter_info['sysid']
 
     # Get set info from the parameters user specified
-    try:
-        boot_source = parameter_info['boot_source']
-    except:
-        sys.stderr.write("Please run the command 'python %s -h' to view the help info" % sys.argv[0])
-        sys.exit(1)
+    boot_source = parameter_info['boot_source']
+    boot_mode = parameter_info['boot_mode']
 
     # Set server boot once result and check result
-    result = set_server_boot_once(ip, login_account, login_password, system_id, boot_source)
+    result = set_server_boot_once(ip, login_account, login_password, system_id, boot_source, boot_mode)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))

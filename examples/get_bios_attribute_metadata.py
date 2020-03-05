@@ -21,7 +21,7 @@
 
 
 
-import sys
+import sys, os
 import json
 import redfish
 import lenovo_utils as utils
@@ -62,25 +62,67 @@ def get_bios_attribute_metadata(ip, login_account, login_password, system_id):
         system_url = system[i]
         response_system_url = REDFISH_OBJ.get(system_url, None)
         if response_system_url.status == 200:
-            # Get the ComputerBios resource
+            if len(system) > 1 and 'Bios' not in response_system_url.dict:
+                continue
             bios_url = response_system_url.dict['Bios']['@odata.id']
         else:
             result = {'ret': False, 'msg': "response system url Error code %s" % response_system_url.status}
             REDFISH_OBJ.logout()
             return result
+
+        # Get Bios resource
         response_bios_url = REDFISH_OBJ.get(bios_url, None)
-        if response_bios_url.status == 200:
-            metadata_url = response_bios_url.dict['@odata.context']
-            result = {'ret': True, 'msg': "Metadata_url %s" % metadata_url}
-        elif response_bios_url.status_code == 400:
-            result = {'ret': False, 'msg': 'Not supported on this platform'}
-        else:
-            result = {'ret': False, 'msg': "response bios url Error code %s" % response_bios_url.status}
+        if response_bios_url.status != 200:
+            error_message = utils.get_extended_error(response_bios_url)
+            result = {'ret': False, 'msg': "Url '%s' response error code %s \nerror_message: %s"
+                                           % (bios_url, response_bios_url.status, error_message)}
             REDFISH_OBJ.logout()
             return result
 
+        # Get used AttributeRegistry from Bios url
+        attribute_registry = response_bios_url.dict['AttributeRegistry']
 
-    result['ret'] = True
+        # Find the AttributeRegistry json file uri from Registries
+        registry_url = "/redfish/v1/Registries"
+        registry_response = REDFISH_OBJ.get(registry_url, None)
+        if registry_response.status != 200:
+            error_message = utils.get_extended_error(registry_response)
+            result = {'ret': False, 'msg': "Url '%s' response error code %s \nerror_message: %s"
+                                           % (registry_url, registry_response.status, error_message)}
+            REDFISH_OBJ.logout()
+            return result
+        bios_registry_url = None
+        members_list = registry_response.dict["Members"]
+        for registry in members_list:
+            if attribute_registry in registry["@odata.id"]:
+                bios_registry_url = registry["@odata.id"]
+        if bios_registry_url is None:
+            result = {'ret': False, 'msg': "Can not find %s in Registries" % (attribute_registry)}
+            REDFISH_OBJ.logout()
+            return result
+        bios_registry_response = REDFISH_OBJ.get(bios_registry_url, None)
+        if bios_registry_response.status != 200:
+            error_message = utils.get_extended_error(bios_registry_response)
+            result = {'ret': False, 'msg': "Url '%s' response error code %s \nerror_message: %s"
+                                           % (bios_registry_url, bios_registry_response.status, error_message)}
+            REDFISH_OBJ.logout()
+            return result
+        bios_registry_json_url = bios_registry_response.dict["Location"][0]["Uri"]
+
+        # Download the AttributeRegistry json file
+        bios_registry_json_response = REDFISH_OBJ.get(bios_registry_json_url, None)
+        if bios_registry_json_response.status != 200:
+            error_message = utils.get_extended_error(bios_registry_json_response)
+            result = {'ret': False, 'msg': "Url '%s' response error code %s \nerror_message: %s"
+                                           % (bios_registry_json_url, bios_registry_json_response.status, error_message)}
+            REDFISH_OBJ.logout()
+            return result
+        filename = os.getcwd() + os.sep + bios_registry_json_url.split("/")[-1]
+        with open(filename, 'w') as f:
+            json.dump(bios_registry_json_response.dict, f, indent=2)
+        result = {'ret': True, 'msg': "Download Bios AttributeRegistry file %s" % (bios_registry_json_url.split("/")[-1])}
+        break
+
     # Logout of the current session
     REDFISH_OBJ.logout()
     return result
