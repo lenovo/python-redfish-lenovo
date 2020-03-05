@@ -122,11 +122,7 @@ if __name__ == '__main__':
     system_id = parameter_info['sysid']
 
     # Get set info from the parameters user specified
-    try:
-        reset_keys_type = parameter_info['reset_keys_type']
-    except:
-        sys.stderr.write("Please run the coommand 'python %s -h' to view the help info" % sys.argv[0])
-        sys.exit(1)
+    reset_keys_type = parameter_info['reset_keys_type']
 
     # Get reset secure boot result and check result
     result = reset_secure_boot(ip, login_account, login_password, system_id, reset_keys_type)
