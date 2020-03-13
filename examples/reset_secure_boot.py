@@ -62,32 +62,38 @@ def reset_secure_boot(ip, login_account, login_password, system_id, reset_keys_t
         for i in range(len(system)):
             system_url = system[i]
             response_system_url = REDFISH_OBJ.get(system_url, None)
-            # Get the ComputerEthernetInterfaces resource
-            if response_system_url.status == 200:
-                secure_boot_url = response_system_url.dict['SecureBoot']['@odata.id']
-            else:
+            if response_system_url.status != 200:
                 error_message = utils.get_extended_error(response_system_url)
                 result = {'ret': False, 'msg': "Url '%s' response error code %s \nerror_message: %s" % (
                     system_url, response_system_url.status, error_message)}
                 return result
 
-            response_secure_boot_url = REDFISH_OBJ.get(secure_boot_url, None)
-            if response_secure_boot_url.status == 200:
+            if 'SecureBoot' in response_system_url.dict:
                 # Get the reset secure boot url
+                secure_boot_url = response_system_url.dict['SecureBoot']['@odata.id']
+                response_secure_boot_url = REDFISH_OBJ.get(secure_boot_url, None)
+                if response_secure_boot_url.status != 200:
+                    error_message = utils.get_extended_error(response_secure_boot_url)
+                    result = {'ret': False, 'msg': "Url '%s' response error code %s \nerror_message: %s" % (
+                        secure_boot_url, response_secure_boot_url.status, error_message)}
+                    return result
+
+                # Perform post to reset keys
                 reset_action_url = response_secure_boot_url.dict["Actions"]["#SecureBoot.ResetKeys"]["target"]
                 body = {"ResetKeysType": reset_keys_type}
                 response_reset_url = REDFISH_OBJ.post(reset_action_url, body=body)
                 if response_reset_url.status in [200,204]:
                     result = {'ret': True, 'msg': "reset keys successfully"}
+                    return result
                 else:
                     error_message = utils.get_extended_error(response_reset_url)
                     result = {'ret': False, 'msg': "Url '%s' response error code %s \nerror_message: %s" % (
                         reset_action_url, response_reset_url.status, error_message)}
                     return result
-            else:
-                error_message = utils.get_extended_error(response_secure_boot_url)
-                result = {'ret': False, 'msg': "Url '%s' response error code %s \nerror_message: %s" % (
-                    secure_boot_url, response_secure_boot_url.status, error_message)}
+
+        result = {'ret': False, 'msg': "Not support SecureBoot"}
+        return result
+
     except Exception as e:
         result = {'ret': False, 'msg': "error message %s" % e}
     finally:

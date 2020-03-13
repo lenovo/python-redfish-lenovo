@@ -50,6 +50,7 @@ def get_secure_boot_status(ip, login_account, login_password, system_id):
     except:
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
         return result
+
     # GET the ComputerSystem resource
     secure_details = []
     system = utils.get_system_url("/redfish/v1", system_id, REDFISH_OBJ)
@@ -60,14 +61,17 @@ def get_secure_boot_status(ip, login_account, login_password, system_id):
     for i in range(len(system)):
         system_url = system[i]
         response_system_url = REDFISH_OBJ.get(system_url, None)
-        # Get the ComputerEthernetInterfaces resource
-        if response_system_url.status == 200:
-            secure_boot_url = response_system_url.dict['SecureBoot']['@odata.id']
-            
-        else:
-            print("response_system_url Error code %s" % response_system_url.status)
-            result = {'ret': False, 'msg': "response_system_url Error code %s" % response_system_url.status}
+        if response_system_url.status != 200:
+            error_message = utils.get_extended_error(response_system_url)
+            result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                system_url, response_system_url.status, error_message)}
+            REDFISH_OBJ.logout()
             return result
+
+        if 'SecureBoot' not in response_system_url.dict:
+            continue
+
+        secure_boot_url = response_system_url.dict['SecureBoot']['@odata.id']    
         # Get the secure boot url resource
         response_secure_boot_url = REDFISH_OBJ.get(secure_boot_url, None)
         if response_secure_boot_url.status == 200:
@@ -78,12 +82,17 @@ def get_secure_boot_status(ip, login_account, login_password, system_id):
             secure['SecureBootMode'] = secure_boot_mode
             secure_details.append(secure)
         else:
-            result = {'ret': False, 'msg': " response_secure_boot_url Error code %s" %  response_secure_boot_url.status}
+            error_message = utils.get_extended_error(response_secure_boot_url)
+            result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % ( 
+                secure_boot_url, response_secure_boot_url.status, error_message)}
             REDFISH_OBJ.logout()
             return result
 
-    result['ret'] = True
-    result['entries'] = secure_details
+    if len(secure_details) == 0:
+        result = {'ret': False, 'msg': "Not support SecureBoot"}
+    else:
+        result['ret'] = True
+        result['entries'] = secure_details
     # Logout of the current session
     REDFISH_OBJ.logout()
     return result
