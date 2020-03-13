@@ -72,8 +72,9 @@ def lenovo_get_bmc_user_global(ip, login_account, login_password):
                           "MinimumPasswordChangeIntervalHours", "PasswordExpirationPeriodDays",
                           "PasswordChangeOnFirstAccess", "MinimumPasswordReuseCycle",
                           "PasswordLength", "WebInactivitySessionTimeout", "PasswordExpirationWarningPeriod"]:
-            if item_name in response_account_service_url.dict['Oem']['Lenovo']:
-                global_setting[item_name] = response_account_service_url.dict['Oem']['Lenovo'][item_name]
+            if 'Oem' in response_account_service_url.dict and 'Lenovo' in response_account_service_url.dict['Oem']:
+                if item_name in response_account_service_url.dict['Oem']['Lenovo']:
+                   global_setting[item_name] = response_account_service_url.dict['Oem']['Lenovo'][item_name]
 
         result['ret'] = True
         result['entries'] = global_setting
