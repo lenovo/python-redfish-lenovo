@@ -27,7 +27,7 @@ import redfish
 import lenovo_utils as utils
 
 
-def get_bios_attribute_metadata(ip, login_account, login_password, system_id):
+def get_bios_attribute_metadata(ip, login_account, login_password, system_id, auth):
     """Get bios attribute metadata    
     :params ip: BMC IP address
     :type ip: string
@@ -37,6 +37,8 @@ def get_bios_attribute_metadata(ip, login_account, login_password, system_id):
     :type login_password: string
     :params system_id: ComputerSystem instance id(None: first instance, All: all instances)
     :type system_id: None or string
+    :params auth: Authentication mode(session or basic)
+    :type auth: string
     :returns: returns bios attribute metadata when succeeded or error message when failed
     """
     result = {}
@@ -47,7 +49,7 @@ def get_bios_attribute_metadata(ip, login_account, login_password, system_id):
         REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
                                              password=login_password, default_prefix='/redfish/v1')
         # Login into the server and create a session
-        REDFISH_OBJ.login(auth="session")
+        REDFISH_OBJ.login(auth=auth)
     except:
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
         return result
@@ -139,9 +141,10 @@ if __name__ == '__main__':
     login_account = parameter_info["user"]
     login_password = parameter_info["passwd"]
     system_id = parameter_info['sysid']
+    auth = parameter_info['auth']
     
     # Get bios attribute metadata and check result
-    result = get_bios_attribute_metadata(ip, login_account, login_password, system_id)
+    result = get_bios_attribute_metadata(ip, login_account, login_password, system_id, auth)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
