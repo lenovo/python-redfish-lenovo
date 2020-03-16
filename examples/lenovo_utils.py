@@ -103,7 +103,7 @@ def read_config(config_file):
         if os.sep not in config_file:
             config_file = cur_dir + os.sep + config_file
 
-        config_ini_info = {"ip": "", "user": "", "passwd": ""}
+        config_ini_info = {"ip": "", "user": "", "passwd": "", "auth": ""}
         # Check whether the config file exists
         if os.path.exists(config_file):
             cfg.read(config_file)
@@ -112,6 +112,10 @@ def read_config(config_file):
             config_ini_info["user"] = cfg.get('ConnectCfg', 'BmcUsername')
             config_ini_info["passwd"] = cfg.get('ConnectCfg', 'BmcUserpassword')
             config_ini_info['sysid'] = cfg.get('ConnectCfg', 'SystemId')
+            try:
+                config_ini_info['auth'] = cfg.get('ConnectCfg', 'Auth')
+            except:
+                config_ini_info['auth'] = 'session'
     except:
         sys.stderr.write("Please check the file path is correct")
         sys.exit(1)
@@ -139,6 +143,7 @@ def create_common_parameter_list(description_string="This tool can be used to pe
     argget.add_argument('-u', '--user', type=str, help='BMC user name')
     argget.add_argument('-p', '--passwd', type=str, help='BMC user password')
     argget.add_argument('-s', '--sysid', type=str, default=None, help='ComputerSystem instance id(None: first instance, All: all instances)')
+    argget.add_argument('-a', '--auth', type=str, default=None, choices=['session', 'basic'], help='Authentication mode(session or basic), the default is session')
     
     return argget
 
@@ -163,6 +168,8 @@ def parse_parameter(args):
         parameter_info["passwd"] = args.passwd
     if args.sysid is not None:
         parameter_info["sysid"] = args.sysid
+    if args.auth is not None:
+        parameter_info["auth"] = args.auth
 
     # Use parameters from command line to overrided Configuration file
     for key in parameter_info:
@@ -170,6 +177,10 @@ def parse_parameter(args):
             config_ini_info[key] = parameter_info[key]
     if "sysid" not in config_ini_info:
         config_ini_info["sysid"] = "None"
+
+    # Check auth
+    if config_ini_info["auth"] not in ['session', 'basic']:
+        config_ini_info["auth"] = 'session'
 
     # Check connect information
     if not config_ini_info['ip'] or not config_ini_info['user'] or not config_ini_info['passwd']:
