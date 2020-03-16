@@ -27,7 +27,7 @@ import redfish
 import lenovo_utils as utils
 
 
-def set_bios_attribute(ip, login_account, login_password, system_id, attribute_name, attribute_value):
+def set_bios_attribute(ip, login_account, login_password, system_id, auth, attribute_name, attribute_value):
     """Set Bios attribute    
     :params ip: BMC IP address
     :type ip: string
@@ -37,6 +37,8 @@ def set_bios_attribute(ip, login_account, login_password, system_id, attribute_n
     :type login_password: string
     :params system_id: ComputerSystem instance id(None: first instance, All: all instances)
     :type system_id: None or string
+    :params auth: Authentication mode(session or basic)
+    :type auth: string
     :params attribute_name: Bios attribute name by user specified
     :type attribute_name: string
     :params attribute_value: Bios attribute value by user specified
@@ -51,7 +53,7 @@ def set_bios_attribute(ip, login_account, login_password, system_id, attribute_n
         REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
                                              password=login_password, default_prefix='/redfish/v1')
         # Login into the server and create a session
-        REDFISH_OBJ.login(auth="session")
+        REDFISH_OBJ.login(auth=auth)
     except:
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
         return result
@@ -197,6 +199,7 @@ if __name__ == '__main__':
     login_account = parameter_info["user"]
     login_password = parameter_info["passwd"]
     system_id = parameter_info['sysid']
+    auth = parameter_info['auth']
 
     # Get set info from the parameters user specified
     try:
@@ -207,7 +210,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     # Set bios sttribute result and check result
-    result = set_bios_attribute(ip, login_account, login_password, system_id, attribute_name, attribute_value)
+    result = set_bios_attribute(ip, login_account, login_password, system_id, auth, attribute_name, attribute_value)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))

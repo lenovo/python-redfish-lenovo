@@ -30,7 +30,7 @@ import time
 import lenovo_utils as utils
 
 
-def update_fw(ip, login_account, login_password, cafile, image, targets, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir):
+def update_fw(ip, login_account, login_password, auth, cafile, image, targets, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir):
     """Update firmware
     :params ip: BMC IP address
     :type ip: string
@@ -38,6 +38,8 @@ def update_fw(ip, login_account, login_password, cafile, image, targets, fsproto
     :type login_account: string
     :params login_password: BMC user password
     :type login_password: string
+    :params auth: Authentication mode(session or basic)
+    :type auth: string
     :params cafile: The security file path. 
     :type cafile: string
     :params image: Firmware image url
@@ -65,7 +67,7 @@ def update_fw(ip, login_account, login_password, cafile, image, targets, fsproto
         result = {}
         REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
                                          password=login_password, default_prefix='/redfish/v1', cafile=cafile)
-        REDFISH_OBJ.login(auth="session")
+        REDFISH_OBJ.login(auth=auth)
     except:
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
         return result
@@ -290,6 +292,7 @@ if __name__ == '__main__':
     ip = parameter_info['ip']
     login_account = parameter_info["user"]
     login_password = parameter_info["passwd"]
+    auth = parameter_info['auth']
 
     # Get set info from the parameters user specified
     try:
@@ -307,7 +310,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     # Update firmware result and check result
-    result = update_fw(ip, login_account, login_password, cafile, image, targets, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir)
+    result = update_fw(ip, login_account, login_password, auth, cafile, image, targets, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))

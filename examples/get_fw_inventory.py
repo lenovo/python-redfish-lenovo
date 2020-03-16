@@ -25,7 +25,7 @@ import redfish
 import json
 import lenovo_utils as utils
 
-def get_fw_inventory(ip, login_account, login_password, cafile):
+def get_fw_inventory(ip, login_account, login_password, auth, cafile):
     """Get BMC inventory    
     :params ip: BMC IP address
     :type ip: string
@@ -33,6 +33,8 @@ def get_fw_inventory(ip, login_account, login_password, cafile):
     :type login_account: string
     :params login_password: BMC user password
     :type login_password: string
+    :params auth: Authentication mode(session or basic)
+    :type auth: string
     :params cafile: The security certificate file 
     :type cafile: string
     :returns: returns firmware inventory when succeeded or error message when failed
@@ -45,7 +47,7 @@ def get_fw_inventory(ip, login_account, login_password, cafile):
         REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
                                              password=login_password, default_prefix='/redfish/v1', cafile=cafile)
         # Login into the server and create a session
-        REDFISH_OBJ.login(auth="session")
+        REDFISH_OBJ.login(auth=auth)
     except:
         result = {'ret': False, 'msg': "Please check if the username, password, IP is correct."}
         return result
@@ -122,12 +124,13 @@ if __name__ == '__main__':
     ip = parameter_info['ip']
     login_account = parameter_info["user"]
     login_password = parameter_info["passwd"]
+    auth = parameter_info['auth']
 
     # Get set info from the parameters user specified
     cafile = parameter_info['cafile']
    
     # Get firmware inventory and check result
-    result = get_fw_inventory(ip, login_account, login_password, cafile)
+    result = get_fw_inventory(ip, login_account, login_password, auth, cafile)
 
     if result['ret'] is True:
         del result['ret']
