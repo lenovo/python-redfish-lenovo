@@ -60,11 +60,16 @@ def disable_secure_boot(ip, login_account, login_password, system_id):
     for i in range(len(system)):
         system_url = system[i]
         response_system_url = REDFISH_OBJ.get(system_url, None)
+        if response_system_url.status != 200:
+            error_message = utils.get_extended_error(response_system_url)
+            result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                system_url, response_system_url.status, error_message)}
+            REDFISH_OBJ.logout()
+            return result
 
-        if response_system_url.status == 200:
-            # Get the SecureBoot resource
+        if 'SecureBoot' in response_system_url.dict:
+            # Get the SecureBoot resource url
             secureboot_url = response_system_url.dict['SecureBoot']['@odata.id']
-
             # get etag to set If-Match precondition
             response_secureboot_url = REDFISH_OBJ.get(secureboot_url, None)
             if response_secureboot_url.status != 200:
@@ -75,7 +80,7 @@ def disable_secure_boot(ip, login_account, login_password, system_id):
             if "@odata.etag" in response_secureboot_url.dict:
                 etag = response_secureboot_url.dict['@odata.etag']
             else:
-                etag = ""
+                etag = "*"
             headers = {"If-Match": etag}
 
             # perform patch to Disable secure boot
@@ -86,12 +91,14 @@ def disable_secure_boot(ip, login_account, login_password, system_id):
                 result = {'ret': True,
                           'msg': "PATCH command successfully completed. SecureBootEnable has been set to False, it will take effect after system reboot."}
             else:
-                result = {'ret': False, 'msg': "response secureboot Error code %s" % response_secureboot.status}
-                REDFISH_OBJ.logout()
-                return result
-        else:
-            result = {'ret': False, 'msg': "response system url Error code %s" % response_system_url.status}
+                error_message = utils.get_extended_error(response_secureboot)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                    secureboot_url, response_secureboot.status, error_message)}
 
+            REDFISH_OBJ.logout()
+            return result
+
+    result = {'ret': False, 'msg': "Not support SecureBoot"}
     REDFISH_OBJ.logout()
     return result
 
