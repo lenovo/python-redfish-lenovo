@@ -54,7 +54,7 @@ def export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip, fsuser
         # Create a REDFISH object
         REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
                                          password=login_password, default_prefix='/redfish/v1')
-        REDFISH_OBJ.login(auth="session")
+        REDFISH_OBJ.login(auth=utils.g_AUTH)
     except Exception as e:
         result = {'ret': False, 'msg': "Error_message: %s. Please check if username, password and IP are correct" % repr(e)}
         return result

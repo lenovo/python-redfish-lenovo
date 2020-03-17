@@ -50,7 +50,7 @@ def set_power_limit(ip, login_account, login_password,isenable,power_limit):
 
     # Login into the server and create a session
     try:
-        REDFISH_OBJ.login(auth="session")
+        REDFISH_OBJ.login(auth=utils.g_AUTH)
     except:
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result

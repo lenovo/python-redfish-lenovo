@@ -22,7 +22,12 @@ import argparse
 import configparser
 import redfish
 
-# set _MAXHEADERS to avoid header over 100 error
+
+# Define global variable
+g_AUTH = "session"
+
+
+# Set _MAXHEADERS to avoid header over 100 error
 if sys.version_info.major == 2:
     import httplib
     httplib._MAXHEADERS = 1000
@@ -181,6 +186,9 @@ def parse_parameter(args):
     # Check auth
     if config_ini_info["auth"] not in ['session', 'basic']:
         config_ini_info["auth"] = 'session'
+
+    global g_AUTH
+    g_AUTH = config_ini_info["auth"]
 
     # Check connect information
     if not config_ini_info['ip'] or not config_ini_info['user'] or not config_ini_info['passwd']:
