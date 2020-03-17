@@ -48,7 +48,7 @@ def get_psu_info(ip, login_account, login_password, system_id):
                                              password=login_password, default_prefix='/redfish/v1')
 
         # Login into the server and create a session
-        REDFISH_OBJ.login(auth="session")
+        REDFISH_OBJ.login(auth=utils.g_AUTH)
     except Exception as e:
         result = {'ret': False, 'msg': "Error_message: %s. Please check if username, password and IP are correct" % repr(e)}
         return result

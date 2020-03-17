@@ -57,7 +57,7 @@ def send_test_event(ip, login_account, login_password,eventid,message,severity):
 
     # Login into the server and create a session
     try:
-        REDFISH_OBJ.login(auth="session")
+        REDFISH_OBJ.login(auth=utils.g_AUTH)
     except:
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result
