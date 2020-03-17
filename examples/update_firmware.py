@@ -30,7 +30,7 @@ import time
 import lenovo_utils as utils
 
 
-def update_fw(ip, login_account, login_password, cafile, image, targets, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir):
+def update_fw(ip, login_account, login_password, image, targets, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir):
     """Update firmware
     :params ip: BMC IP address
     :type ip: string
@@ -38,8 +38,6 @@ def update_fw(ip, login_account, login_password, cafile, image, targets, fsproto
     :type login_account: string
     :params login_password: BMC user password
     :type login_password: string
-    :params cafile: The security file path. 
-    :type cafile: string
     :params image: Firmware image url
     :type image: string
     :params targets: Targets list
@@ -64,7 +62,7 @@ def update_fw(ip, login_account, login_password, cafile, image, targets, fsproto
         # Create a REDFISH object
         result = {}
         REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
-                                         password=login_password, default_prefix='/redfish/v1', cafile=cafile)
+                                         password=login_password, default_prefix='/redfish/v1', cafile=utils.g_CAFILE)
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except:
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
@@ -98,8 +96,8 @@ def update_fw(ip, login_account, login_password, cafile, image, targets, fsproto
                 auth = HTTPBasicAuth(login_account, login_password)
 
                 # Get the sessions uri from the session server response
-                if cafile:
-                    firmware_update_response = requests.post(firmware_update_url, headers=headers, auth=auth, files=files, verify=cafile)
+                if utils.g_CAFILE is not None and utils.g_CAFILE != "":
+                    firmware_update_response = requests.post(firmware_update_url, headers=headers, auth=auth, files=files, verify=utils.g_CAFILE)
                 else:
                     # Ignore SSL Certificates
                     requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
@@ -221,7 +219,6 @@ def task_monitor(REDFISH_OBJ, task_uri):
 
 import argparse
 def add_helpmessage(argget):
-    argget.add_argument('--cafile', type=str, default='', help='Specify the security certificate to be used for SSL connections.')
     argget.add_argument('--image', type=str, required=True, help='Specify the fixid of the firmware to be updated.')
     argget.add_argument('--targets', nargs='*', help='Input the targets list')
     argget.add_argument('--fsprotocol', type=str, choices=["SFTP", "TFTP", "HTTPPUSH"], help='Specify the file server protocol.Support:["SFTP", "TFTP", "HTTPPUSH"]')
@@ -265,7 +262,6 @@ def add_parameter():
 
     # Get the user specify parameter from the command line
     parameter_info = utils.parse_parameter(args)
-    parameter_info["cafile"] = args.cafile
     parameter_info["image"] = args.image
     parameter_info["targets"] = args.targets
     parameter_info['fsprotocol'] = args.fsprotocol
@@ -293,7 +289,6 @@ if __name__ == '__main__':
 
     # Get set info from the parameters user specified
     try:
-        cafile = parameter_info['cafile']
         image = parameter_info['image']
         targets = parameter_info['targets']
         fsprotocol = parameter_info['fsprotocol']
@@ -307,7 +302,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     # Update firmware result and check result
-    result = update_fw(ip, login_account, login_password, cafile, image, targets, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir)
+    result = update_fw(ip, login_account, login_password, image, targets, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))

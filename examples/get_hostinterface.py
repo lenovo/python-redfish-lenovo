@@ -25,7 +25,7 @@ import redfish
 import json
 import lenovo_utils as utils
 
-def get_hostinterface_inventory(ip, login_account, login_password, cafile):
+def get_hostinterface_inventory(ip, login_account, login_password):
     """Get hostinterface inventory    
     :params ip: BMC IP address
     :type ip: string
@@ -33,8 +33,6 @@ def get_hostinterface_inventory(ip, login_account, login_password, cafile):
     :type login_account: string
     :params login_password: BMC user password
     :type login_password: string
-    :params cafile: The security certificate file 
-    :type cafile: string
     :returns: returns hostinterface inventory when succeeded or error message when failed
     """
     result = {}
@@ -43,7 +41,7 @@ def get_hostinterface_inventory(ip, login_account, login_password, cafile):
         # Create a REDFISH object
         login_host = "https://" + ip
         REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
-                                             password=login_password, default_prefix='/redfish/v1', cafile=cafile)
+                                             password=login_password, default_prefix='/redfish/v1', cafile=utils.g_CAFILE)
         # Login into the server and create a session
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except:
@@ -146,17 +144,10 @@ def get_hostinterface_inventory(ip, login_account, login_password, cafile):
     return result
 
 
-import argparse
-def add_helpmessage(argget):
-    argget.add_argument('--cafile', type=str, default="", help='Specify the security certificate file for SSL connections.')
-
-
 def add_parameter():
     argget = utils.create_common_parameter_list()
-    add_helpmessage(argget)
     args = argget.parse_args()
     parameter_info = utils.parse_parameter(args)
-    parameter_info['cafile'] = args.cafile
     return parameter_info
 
 
@@ -170,11 +161,8 @@ if __name__ == '__main__':
     login_account = parameter_info["user"]
     login_password = parameter_info["passwd"]
 
-    # Get set info from the parameters user specified
-    cafile = parameter_info['cafile']
-   
     # Get hostinterface inventory and check result
-    result = get_hostinterface_inventory(ip, login_account, login_password, cafile)
+    result = get_hostinterface_inventory(ip, login_account, login_password)
 
     if result['ret'] is True:
         del result['ret']

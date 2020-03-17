@@ -46,7 +46,7 @@ def set_reset_system(ip, login_account, login_password, system_id, reset_type):
         # Connect using the address, account name, and password
         # Create a REDFISH object
         REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
-                                             password=login_password, default_prefix='/redfish/v1')
+                                             password=login_password, default_prefix='/redfish/v1', cafile=utils.g_CAFILE)
         # Login into the server and create a session
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except:

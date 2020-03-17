@@ -53,7 +53,7 @@ def export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip, fsuser
         result = {}        
         # Create a REDFISH object
         REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
-                                         password=login_password, default_prefix='/redfish/v1')
+                                         password=login_password, default_prefix='/redfish/v1', cafile=utils.g_CAFILE)
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except Exception as e:
         result = {'ret': False, 'msg': "Error_message: %s. Please check if username, password and IP are correct" % repr(e)}
@@ -204,7 +204,10 @@ def download_ffdc(ip, login_account, login_password, download_uri):
         session_uri = "https://" + ip + "/redfish/v1/SessionService/Sessions/"
         body = {"UserName":username, "Password":password}
         headers = {"Content-Type": "application/json"}
-        response_session_uri = requests.post(session_uri, data=json.dumps(body), headers = headers, verify=False)
+        if utils.g_CAFILE is not None and utils.g_CAFILE != "":
+            response_session_uri = requests.post(session_uri, data=json.dumps(body), headers = headers, verify=utils.g_CAFILE)
+        else:
+            response_session_uri = requests.post(session_uri, data=json.dumps(body), headers = headers, verify=False)
         if response_session_uri.status_code == 201:
             x_auth_token = response_session_uri.headers['X-Auth-Token']
             location_uri = response_session_uri.headers['Location']
@@ -214,7 +217,10 @@ def download_ffdc(ip, login_account, login_password, download_uri):
 
         jsonHeader = {"X-Auth-Token":x_auth_token, "Content-Type":"application/json"}
         # Download FFDC file
-        response_download_uri = requests.get(download_uri, headers=jsonHeader, verify=False)
+        if utils.g_CAFILE is not None and utils.g_CAFILE != "":
+            response_download_uri = requests.get(download_uri, headers=jsonHeader, verify=utils.g_CAFILE)
+        else:
+            response_download_uri = requests.get(download_uri, headers=jsonHeader, verify=False)
         if response_download_uri.status_code == 200:
             ffdc_file_name = download_uri.split('/')[-1]
             get_cwd = os.getcwd()
@@ -229,7 +235,10 @@ def download_ffdc(ip, login_account, login_password, download_uri):
         # Delete session
         delete_session_uri = "https://" + ip + location_uri
         jsonHeader = {"X-Auth-Token":x_auth_token, "Content-Type":"application/json"}
-        response_delete_session = requests.delete(delete_session_uri, headers=jsonHeader, verify=False)
+        if utils.g_CAFILE is not None and utils.g_CAFILE != "":
+            response_delete_session = requests.delete(delete_session_uri, headers=jsonHeader, verify=utils.g_CAFILE)
+        else:
+            response_delete_session = requests.delete(delete_session_uri, headers=jsonHeader, verify=False)
         if response_delete_session.status_code == 204 and download_sign:
             temp = True
         return temp
