@@ -206,7 +206,7 @@ def parse_parameter(args):
         sys.exit(1)
         
     # Check cafile exist or not
-    if not os.path.exists(g_CAFILE):
+    if g_CAFILE is not None and g_CAFILE != "" and not os.path.exists(g_CAFILE):
         sys.stderr.write("Specified certificate file %s does not exist." % (g_CAFILE))
         sys.exit(1)
         
