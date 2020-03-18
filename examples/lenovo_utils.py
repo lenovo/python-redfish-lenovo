@@ -108,7 +108,7 @@ def read_config(config_file):
         if os.sep not in config_file:
             config_file = cur_dir + os.sep + config_file
 
-        config_ini_info = {"ip": "", "user": "", "passwd": "", "auth": ""}
+        config_ini_info = {"ip": "", "user": "", "passwd": "", "auth": "", "cafile": ""}
         # Check whether the config file exists
         if os.path.exists(config_file):
             cfg.read(config_file)
@@ -121,6 +121,10 @@ def read_config(config_file):
                 config_ini_info['auth'] = cfg.get('ConnectCfg', 'Auth')
             except:
                 config_ini_info['auth'] = 'session'
+            try:
+                config_ini_info['cafile'] = cfg.get('ConnectCfg', 'Cafile')
+            except:
+                config_ini_info['cafile'] = ''
     except:
         sys.stderr.write("Please check the file path is correct")
         sys.exit(1)
@@ -149,6 +153,7 @@ def create_common_parameter_list(description_string="This tool can be used to pe
     argget.add_argument('-p', '--passwd', type=str, help='BMC user password')
     argget.add_argument('-s', '--sysid', type=str, default=None, help='ComputerSystem instance id(None: first instance, All: all instances)')
     argget.add_argument('-a', '--auth', type=str, default=None, choices=['session', 'basic'], help='Authentication mode(session or basic), the default is session')
+    argget.add_argument('-f', '--cafile', type=str, default=None, help='Specify the security certificate file for SSL connections')
     
     return argget
 
@@ -175,6 +180,8 @@ def parse_parameter(args):
         parameter_info["sysid"] = args.sysid
     if args.auth is not None:
         parameter_info["auth"] = args.auth
+    if args.cafile is not None:
+        parameter_info["cafile"] = args.cafile
 
     # Use parameters from command line to overrided Configuration file
     for key in parameter_info:
@@ -187,12 +194,20 @@ def parse_parameter(args):
     if config_ini_info["auth"] not in ['session', 'basic']:
         config_ini_info["auth"] = 'session'
 
+    # Set global variables
     global g_AUTH
     g_AUTH = config_ini_info["auth"]
+    global g_CAFILE
+    g_CAFILE = config_ini_info["cafile"]
 
     # Check connect information
     if not config_ini_info['ip'] or not config_ini_info['user'] or not config_ini_info['passwd']:
         sys.stderr.write("BMC connect information (ip/username/password) is needed. Please provide them by command line -i,-u,-p or configuration file (default config.ini).")
+        sys.exit(1)
+        
+    # Check cafile exist or not
+    if g_CAFILE is not None and g_CAFILE != "" and not os.path.exists(g_CAFILE):
+        sys.stderr.write("Specified certificate file %s does not exist." % (g_CAFILE))
         sys.exit(1)
         
     return config_ini_info

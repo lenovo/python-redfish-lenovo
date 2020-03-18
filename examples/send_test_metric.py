@@ -26,7 +26,7 @@ import json
 import datetime
 import lenovo_utils as utils
 
-def send_test_metric(ip, login_account, login_password, cafile, reportname):
+def send_test_metric(ip, login_account, login_password, reportname):
     """Send Test Metric
     :params ip: BMC IP address
     :type ip: string
@@ -34,8 +34,6 @@ def send_test_metric(ip, login_account, login_password, cafile, reportname):
     :type login_account: string
     :params login_password: BMC user password
     :type login_password: string
-    :params cafile: The security certificate file 
-    :type cafile: string
     :params reportname: The MetricReportName you want to send
     :type reportname: string
     :returns: returns Send test metric result when succeeded or error message when failed
@@ -46,7 +44,7 @@ def send_test_metric(ip, login_account, login_password, cafile, reportname):
         # Create a REDFISH object
         login_host = "https://" + ip
         REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
-                                             password=login_password, default_prefix='/redfish/v1', cafile=cafile)
+                                             password=login_password, default_prefix='/redfish/v1', cafile=utils.g_CAFILE)
         # Login into the server and create a session
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except:
@@ -127,7 +125,6 @@ def send_test_metric(ip, login_account, login_password, cafile, reportname):
 
 import argparse
 def add_helpmessage(argget):
-    argget.add_argument('--cafile', type=str, default="", help='Specify the security certificate file for SSL connections.')
     argget.add_argument('--reportname', type=str,default="CPUTemp",help="The MetricReportName you want to send, such as CPUTemp,InletAirTemp,PowerMetrics,PowerSupplyStats")
 
 def add_parameter():
@@ -135,7 +132,6 @@ def add_parameter():
     add_helpmessage(argget)
     args = argget.parse_args()
     parameter_info = utils.parse_parameter(args)
-    parameter_info['cafile'] = args.cafile
     parameter_info['reportname'] = args.reportname
     return parameter_info
 
@@ -150,11 +146,10 @@ if __name__ == '__main__':
     login_password = parameter_info["passwd"]
 
     # Get set info from the parameters user specified
-    cafile = parameter_info['cafile']
     reportname = parameter_info['reportname']
    
     # Send test metric report and check result
-    result = send_test_metric(ip, login_account, login_password, cafile, reportname)
+    result = send_test_metric(ip, login_account, login_password, reportname)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2) + "\n")

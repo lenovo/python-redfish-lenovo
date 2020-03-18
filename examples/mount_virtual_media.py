@@ -62,7 +62,7 @@ def insert_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fs
         # Connect using the address, account name, and password
         # Create a REDFISH object
         REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
-                                             password=login_password, default_prefix='/redfish/v1')
+                                             password=login_password, default_prefix='/redfish/v1', cafile=utils.g_CAFILE)
         REDFISH_OBJ.login(auth="basic")
     except:
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}

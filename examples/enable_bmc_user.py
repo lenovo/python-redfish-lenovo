@@ -45,7 +45,7 @@ def enable_user(ip, login_account, login_password, username):
         # Create a REDFISH object
         # Connect using the BMC address, account name, and password
         REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
-                                             password=login_password, default_prefix='/redfish/v1')
+                                             password=login_password, default_prefix='/redfish/v1', cafile=utils.g_CAFILE)
         # Login into the server and create a session
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except:

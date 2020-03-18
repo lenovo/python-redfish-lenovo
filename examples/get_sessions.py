@@ -41,7 +41,7 @@ def get_sessions(ip, login_account, login_password):
         # Create a REDFISH object
         login_host = "https://" + ip
         REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
-                                             password=login_password, default_prefix='/redfish/v1')
+                                             password=login_password, default_prefix='/redfish/v1', cafile=utils.g_CAFILE)
         # Login into the server and create a session
         REDFISH_OBJ.login(auth="basic")
     except:
