@@ -71,9 +71,15 @@ def get_power_redundant(ip, login_account, login_password):
                     # if chassis is not normal skip it
                     if len(response_chassis_url.dict['Members']) > 1 and "ComputerSystems" not in response_url.dict["Links"]:
                         continue
+                    # if no Power property, skip it
+                    if "Power" not in response_url.dict:
+                        continue
                     power_url = response_url.dict["Power"]['@odata.id']
                     response_power_url = REDFISH_OBJ.get(power_url, None)
                     if response_power_url.status == 200:
+                        # if no Redundancy property, skip it
+                        if "Redundancy" not in response_power_url.dict:
+                            continue
                         list_power_redundancy = response_power_url.dict["Redundancy"]
                         for redundancy_item in list_power_redundancy:
                             dict_power_redundant = {}
@@ -94,8 +100,11 @@ def get_power_redundant(ip, login_account, login_password):
                     result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
                         request_url, response_url.status, error_message)}
                     return result
-            result["ret"] = True
-            result["entries"] = rt_list_redundant
+            if len(rt_list_redundant) > 0:
+                result["ret"] = True
+                result["entries"] = rt_list_redundant
+            else:
+                result = {'ret': False, 'msg': "No Redundancy found"}
             return result
         else:
             error_message = utils.get_extended_error(response_chassis_url)
