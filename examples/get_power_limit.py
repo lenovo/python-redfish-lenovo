@@ -71,9 +71,15 @@ def get_power_limit(ip, login_account, login_password):
                     # if chassis is not normal skip it
                     if len(response_chassis_url.dict['Members']) > 1 and "ComputerSystems" not in response_url.dict["Links"]:
                         continue
+                    # if no Power property, skip it
+                    if "Power" not in response_url.dict:
+                        continue
                     power_url = response_url.dict["Power"]['@odata.id']
                     response_power_url = REDFISH_OBJ.get(power_url, None)
                     if response_power_url.status == 200:
+                        # if no PowerControl property, skip it
+                        if "PowerControl" not in response_power_url.dict:
+                            continue
                         list_power_control = response_power_url.dict["PowerControl"]
                         for control_item in list_power_control:
                             if "PowerLimit" not in control_item:
@@ -91,8 +97,11 @@ def get_power_limit(ip, login_account, login_password):
                     result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
                         request_url, response_url.status, error_message)}
                     return result
-            result["ret"] = True
-            result["entries"] = rt_list_limit
+            if len(rt_list_limit) > 0:
+                result["ret"] = True
+                result["entries"] = rt_list_limit
+            else:
+                result = {'ret': False, 'msg': "No PowerLimit found"}
             return result
         else:
             error_message = utils.get_extended_error(response_chassis_url)
