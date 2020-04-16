@@ -1,10 +1,10 @@
 ###
 #
-# Lenovo Redfish examples - Get the PCI information include onBoard and external PCI devices
+# Lenovo Redfish examples - Get the external PCI cards information
 #
 # Copyright Notice:
 #
-# Copyright 2019 Lenovo Corporation
+# Copyright 2020 Lenovo Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
 # not use this file except in compliance with the License. You may obtain
@@ -27,8 +27,8 @@ import redfish
 import lenovo_utils as utils
 
 
-def get_pci_inventory(ip, login_account, login_password, system_id):
-    """Get pci inventory    
+def get_pci_external_cards(ip, login_account, login_password, system_id):
+    """Get pci external cards  
     :params ip: BMC IP address
     :type ip: string
     :params login_account: BMC user name
@@ -37,7 +37,7 @@ def get_pci_inventory(ip, login_account, login_password, system_id):
     :type login_password: string
     :params system_id: ComputerSystem instance id(None: first instance, All: all instances)
     :type system_id: None or string
-    :returns: returns pci inventory when succeeded or error message when failed
+    :returns: returns pci external cards when succeeded or error message when failed
     """
     result = {}
     login_host = "https://" + ip
@@ -61,46 +61,50 @@ def get_pci_inventory(ip, login_account, login_password, system_id):
         return result
 
     for i in range(len(system)):
-        # Get pcidevices collection
+        # Get System url to locate Chassis link
         system_url = system[i]
         response_system_url = REDFISH_OBJ.get(system_url, None)
         if response_system_url.status != 200:
             result = {'ret': False, 'msg': "response_system_url Error code %s" % response_system_url.status}
             REDFISH_OBJ.logout()
             return result
-        pcidevices_collection = []
-        members_count = 0
-        if 'PCIeDevices' in response_system_url.dict:
-            pcidevices_collection = response_system_url.dict['PCIeDevices']
-            members_count = len(pcidevices_collection)
 
-        # If no pcidevice in system, try to get pcidevice info from Chassis
-        if members_count == 0 and 'Links' in response_system_url.dict and 'Chassis' in response_system_url.dict['Links']:
+        # Get pcislots collection from Chassis link
+        pcislots_collection = []
+        members_count = 0
+        if 'Chassis' in response_system_url.dict['Links']:
             chassis_url = response_system_url.dict['Links']['Chassis'][0]['@odata.id']
             response_chassis_url = REDFISH_OBJ.get(chassis_url, None)
-            if response_chassis_url.status == 200 and 'PCIeDevices' in response_chassis_url.dict:
-                request_url = response_chassis_url.dict['PCIeDevices']['@odata.id']
+            if response_chassis_url.status == 200 and 'PCIeSlots' in response_chassis_url.dict:
+                request_url = response_chassis_url.dict['PCIeSlots']['@odata.id']
                 response_url = REDFISH_OBJ.get(request_url, None)
-                if response_url.status == 200 and 'Members' in response_url.dict:
-                    pcidevices_collection = response_url.dict['Members']
-                    members_count = len(pcidevices_collection)
-            elif response_chassis_url.status == 200 and 'Links' in response_chassis_url.dict and 'PCIeDevices' in response_chassis_url.dict['Links']:
-                pcidevices_collection = response_chassis_url.dict['Links']['PCIeDevices']
-                members_count = len(pcidevices_collection)
+                if response_url.status == 200 and 'Slots' in response_url.dict:
+                    pcislots_collection = response_url.dict['Slots']
+                    members_count = len(pcislots_collection)
 
-        # Get each pci device info
+        # Get each pci slot
         for i in range(members_count):
             pci = {}
             # Get members url resource
-            members_url = pcidevices_collection[i]['@odata.id']
-            response_members_url = REDFISH_OBJ.get(members_url, None)
-            if response_members_url.status == 200:
-                for property in ['Id', 'Name', 'Description', 'Status', 'Manufacturer', 'Model', 'DeviceType', 'SerialNumber', 'PartNumber', 'FirmwareVersion', 'SKU']:
-                    if property in response_members_url.dict:
-                        pci[property] = response_members_url.dict[property]
+            if 'Links' in pcislots_collection[i] and 'PCIeDevice' in pcislots_collection[i]['Links']:
+                for property in ['HotPluggable', 'Location']:
+                    if property in pcislots_collection[i]:
+                        pci[property] = pcislots_collection[i][property]
+                # Get pci devices for the slot
+                pcidevices = list()
+                device_links = pcislots_collection[i]['Links']['PCIeDevice']
+                for device_link in device_links:
+                    pcidevice = {}
+                    request_url = device_link['@odata.id']
+                    response_url = REDFISH_OBJ.get(request_url, None)
+                    print(response_url.dict)
+                    for property in ['Id', 'Name', 'Description', 'Status', 'Manufacturer', 'Model', 'PCIeInterface',
+                                     'DeviceType', 'SerialNumber', 'PartNumber', 'FirmwareVersion', 'SKU']:
+                        if property in response_url.dict:
+                            pcidevice[property] = response_url.dict[property]
+                    pcidevices.append(pcidevice)
+                pci['PCIeDevice'] = pcidevices
                 pci_details.append(pci)
-            else:
-                result = {'ret': False, 'msg': "response_members_url Error code %s" % response_members_url.status}
 
     result['ret'] = True
     result['entries'] = pci_details
@@ -121,8 +125,8 @@ if __name__ == '__main__':
     login_password = parameter_info["passwd"]
     system_id = parameter_info['sysid']
     
-    # Get pci inventory and check result
-    result = get_pci_inventory(ip, login_account, login_password, system_id)
+    # Get pci external cards and check result
+    result = get_pci_external_cards(ip, login_account, login_password, system_id)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['entries'], sort_keys=True, indent=2))
