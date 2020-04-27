@@ -34,7 +34,7 @@ def set_custom_role_privileges(REDFISH_OBJ,response_account_service_url,roleid,a
 ,"AdapterConfiguration_NetworkingAndSecurity","AdapterConfiguration_Advanced")
     for auth in authority:
         if auth not in rang_custom_auth:
-            result = {'ret': False, 'msg': "custom privileges out of rang"}
+            result = {'ret': False, 'msg': "custom privileges %s out of rang %s" %(auth, str(rang_custom_auth))}
             return result
         list_auth.append(auth)
     roles_url = response_account_service_url.dict['Roles']['@odata.id']
@@ -140,21 +140,22 @@ def create_bmc_user(ip, login_account, login_password, username, password,author
                 accounts_url, response_accounts_url.status, error_message)}
             return result
 
-        # Set user privilege
-        rolename = ""
-        if "Supervisor" in authority:
-            rolename = "Administrator"
-        elif "Operator" in authority:
-            rolename = "Operator"
-        elif "ReadOnly" in authority:
-            rolename = "ReadOnly"
-
         # Check user create mode
         create_mode = "POST_Action"
         if response_accounts_url.dict["Members@odata.count"] in [9, 12]:
              create_mode = "PATCH_Action"
 
         if create_mode == "POST_Action":
+                # Set user privilege
+                rolename = ""
+                if "Supervisor" in authority:
+                    rolename = "Administrator"
+                elif "Operator" in authority:
+                    rolename = "Operator"
+                elif "ReadOnly" in authority:
+                    rolename = "ReadOnly"
+                else:
+                    rolename = authority[0]
                 #create new user account
                 headers = None
                 parameter = {
@@ -207,15 +208,14 @@ def create_bmc_user(ip, login_account, login_password, username, password,author
                     result = {'ret': False, 'msg': "Accounts is full,can't create a new account"}
                     return result
                 #set user privilege
-                if rolename == "":
-                    rolename = "CustomRole" + str(user_pos)
+                rolename = "CustomRole" + str(user_pos)
                 links_role = {}
                 if "CustomRole" in rolename:
                     result = set_custom_role_privileges(REDFISH_OBJ,response_account_service_url,rolename,authority)
                     if result['ret'] == False:
                         return result
-                elif rolename not in roleuri:
-                    links_role = {"Role":{"@odata.id": "/redfish/v1/AccountService/Roles/"+rolename}}
+                    if rolename not in roleuri:
+                        links_role = {"Role":{"@odata.id": "/redfish/v1/AccountService/Roles/"+rolename}}
                 #create new user account
                 response_empty_account_url = REDFISH_OBJ.get(first_empty_account, None)
                 if response_empty_account_url.status != 200:
@@ -269,7 +269,7 @@ def add_helpmessage(argget):
     help_str += "For the user to view information only, this parameter shall be ReadOnly. "
     help_str += "For other OEM authority, you can choose one or more values in the OEM privileges list:"
     help_str += "[UserAccountManagement,RemoteConsoleAccess,RemoteConsoleAndVirtualMediaAcccess,RemoteServerPowerRestartAccess,AbilityClearEventLogs,AdapterConfiguration_Basic,AdapterConfiguration_NetworkingAndSecurity,AdapterConfiguration_Advanced]"
-    argget.add_argument('--authority', nargs='*', default=["Supervisor"], required=True, help=help_str)
+    argget.add_argument('--authority', nargs='*', default=["Supervisor"], help=help_str)
 
 
 def add_parameter():
