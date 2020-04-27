@@ -210,12 +210,11 @@ def create_bmc_user(ip, login_account, login_password, username, password,author
                 #set user privilege
                 rolename = "CustomRole" + str(user_pos)
                 links_role = {}
-                if "CustomRole" in rolename:
-                    result = set_custom_role_privileges(REDFISH_OBJ,response_account_service_url,rolename,authority)
-                    if result['ret'] == False:
-                        return result
-                    if rolename not in roleuri:
-                        links_role = {"Role":{"@odata.id": "/redfish/v1/AccountService/Roles/"+rolename}}
+                result = set_custom_role_privileges(REDFISH_OBJ,response_account_service_url,rolename,authority)
+                if result['ret'] == False:
+                    return result
+                if rolename not in roleuri:
+                    links_role = {"Role":{"@odata.id": "/redfish/v1/AccountService/Roles/"+rolename}}
                 #create new user account
                 response_empty_account_url = REDFISH_OBJ.get(first_empty_account, None)
                 if response_empty_account_url.status != 200:
