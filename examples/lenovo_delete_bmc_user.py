@@ -182,11 +182,7 @@ if __name__ == '__main__':
     login_password = parameter_info["passwd"]
 
     # Get set info from the parameters user specified
-    try:
-        username = parameter_info['username']
-    except:
-        sys.stderr.write("Please run the coommand 'python %s -h' to view the help info" % sys.argv[0])
-        sys.exit(1)
+    username = parameter_info['username']
 
     # Get delete bmc user result and check result
     result = delete_bmc_user(ip, login_account, login_password,username)
