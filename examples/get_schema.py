@@ -145,11 +145,7 @@ if __name__ == '__main__':
     login_password = parameter_info["passwd"]
 
     # Get set info from the parameters user specified
-    try:
-        schema_prefix = parameter_info['schemaprefix']
-    except:
-        sys.stderr.write("Please run the coommand 'python %s -h' to view the help info" % sys.argv[0])
-        sys.exit(1)
+    schema_prefix = parameter_info['schemaprefix']
 
     # Get schema and check result
     result = get_schema(ip, login_account, login_password, schema_prefix)

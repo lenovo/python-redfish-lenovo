@@ -128,7 +128,7 @@ def disable_user(ip, login_account, login_password, username):
 def add_parameter():
     """Add disable user name parameter"""
     argget = utils.create_common_parameter_list()
-    argget.add_argument('--username', type=str, help='Input the set disabled BMC user name')
+    argget.add_argument('--username', type=str, required=True, help='Input the set disabled BMC user name')
     args = argget.parse_args()
     parameter_info = utils.parse_parameter(args)
     if args.username is not None:
@@ -146,11 +146,7 @@ if __name__ == '__main__':
     login_password = parameter_info["passwd"]
 
     # Get set info from the parameters user specified
-    try:
-        username = parameter_info['username']
-    except:
-        sys.stderr.write("Please run the coommand 'python %s -h' to view the help info" % sys.argv[0])
-        sys.exit(1)
+    username = parameter_info['username']
 
     # Get disable user result and check result
     result = disable_user(ip, login_account, login_password, username)
