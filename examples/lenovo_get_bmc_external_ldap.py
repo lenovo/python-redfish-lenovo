@@ -69,7 +69,7 @@ def lenovo_get_bmc_external_ldap(ip, login_account, login_password):
             return result
 
         ldap_client_info = {}
-        if "LDAP" in response_accounts_url.dict and "LDAPService" in response_accounts_url.dict["LDAP"]:
+        if "LDAP" in response_accounts_url.dict and response_accounts_url.dict["LDAP"] and "LDAPService" in response_accounts_url.dict["LDAP"]:
             properties = ['LDAPService', 'ServiceEnabled', 'ServiceAddresses', 'Authentication']
             for property in properties:
                 if property in response_accounts_url.dict["LDAP"]:
@@ -97,6 +97,8 @@ def lenovo_get_bmc_external_ldap(ip, login_account, login_password):
                     request_url, response_url.status, error_message)}
                 return result
             # Access /redfish/v1/Managers/1/NetworkProtocol
+            if "NetworkProtocol" not in response_url.dict:
+                continue
             network_protocol_url = response_url.dict["NetworkProtocol"]['@odata.id']
             response_network_protocol_url = REDFISH_OBJ.get(network_protocol_url, None)
             if response_network_protocol_url.status != 200:
@@ -105,17 +107,25 @@ def lenovo_get_bmc_external_ldap(ip, login_account, login_password):
                     network_protocol_url, response_network_protocol_url.status, error_message)}
                 return result
             # Access /redfish/v1/Managers/1/NetworkProtocol/Oem/Lenovo/LDAPClient
-            ldap_client_uri = response_network_protocol_url.dict["Oem"]["Lenovo"]["LDAPClient"]["@odata.id"]
-            response_ldap_client = REDFISH_OBJ.get(ldap_client_uri, None)
-            if response_ldap_client.status == 200:
-                ldap_client_info = map_oem2standard_property(response_ldap_client.dict)
-                result = {'ret': True, 'msg': ldap_client_info}
-                return result
-            else:
-                error_message = utils.get_extended_error(response_ldap_client)
-                result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                    ldap_client_uri, response_ldap_client.status, error_message)}
-                return result
+            if "Oem" not in response_network_protocol_url.dict:
+                continue
+            if response_network_protocol_url.dict["Oem"] and "Lenovo" in response_network_protocol_url.dict["Oem"]:
+                if "LDAPClient" in response_network_protocol_url.dict["Oem"]["Lenovo"]:
+                    ldap_client_uri = response_network_protocol_url.dict["Oem"]["Lenovo"]["LDAPClient"]["@odata.id"]
+                    response_ldap_client = REDFISH_OBJ.get(ldap_client_uri, None)
+                    if response_ldap_client.status == 200:
+                        ldap_client_info = map_oem2standard_property(response_ldap_client.dict)
+                        result = {'ret': True, 'msg': ldap_client_info}
+                        return result
+                    else:
+                        error_message = utils.get_extended_error(response_ldap_client)
+                        result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                            ldap_client_uri, response_ldap_client.status, error_message)}
+                        return result
+
+        # No LDAP resource found
+        result = {'ret': False, 'msg': 'LDAP is not supported'}
+        return result
 
     except Exception as e:
         result = {'ret': False, 'msg': 'exception msg %s' % e}

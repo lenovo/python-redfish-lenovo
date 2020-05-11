@@ -68,7 +68,7 @@ def lenovo_get_bmc_user_ldap_policy(ip, login_account, login_password):
                 accounts_url, response_accounts_url.status, error_message)}
             return result
 
-        # Use standard property LocalAccountAuth first, if not existing use Oem property AuthenticationMethod instead
+        # Use standard property LocalAccountAuth first
         logon_dict = {}
         if "LocalAccountAuth" in response_accounts_url.dict:
             value = response_accounts_url.dict["LocalAccountAuth"]
@@ -79,14 +79,16 @@ def lenovo_get_bmc_user_ldap_policy(ip, login_account, login_password):
                 logon_dict["AuthenticationMethod"] = value
             result = {'ret': True, 'msg': logon_dict}
             return result
-        if "Oem" in response_accounts_url.dict and "Lenovo" in response_accounts_url.dict["Oem"]:
+
+        # Use Oem property AuthenticationMethod instead if standard not existing
+        if "Oem" in response_accounts_url.dict and response_accounts_url.dict["Oem"] and "Lenovo" in response_accounts_url.dict["Oem"]:
             if "AuthenticationMethod" in response_accounts_url.dict["Oem"]["Lenovo"]:
                 logon_dict["AuthenticationMethod"] = response_accounts_url.dict["Oem"]["Lenovo"]["AuthenticationMethod"]
                 result = {'ret': True, 'msg': logon_dict}
                 return result
 
-        # Fail case
-        result = {'ret': False, 'msg': 'Fail to find AuthenticationMethod or LocalAccountAuth in AccountService'}
+        # No related resource found
+        result = {'ret': False, 'msg': 'Only local user is supported'}
         return result
 
     except Exception as e:

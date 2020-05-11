@@ -90,7 +90,7 @@ def set_ldap_info(ip, login_account, login_password, ldapserver, client_distingu
                     accounts_url, response_accounts_url.status, error_message)}
                 return result
  
-            if "LDAP" in response_accounts_url.dict and "LDAPService" in response_accounts_url.dict["LDAP"]:
+            if "LDAP" in response_accounts_url.dict and response_accounts_url.dict["LDAP"] and "LDAPService" in response_accounts_url.dict["LDAP"]:
                 # Build request body for set ldap server
                 body = {}
                 if client_distinguished_name is not None:
@@ -122,76 +122,84 @@ def set_ldap_info(ip, login_account, login_password, ldapserver, client_distingu
         # Use Oem API /redfish/v1/Managers/1/NetworkProtocol/Oem/Lenovo/LDAPClient
         managers_url = response_base_url.dict['Managers']['@odata.id']
         response_managers_url = REDFISH_OBJ.get(managers_url, None)
-        if response_managers_url.status == 200:
-            for request in response_managers_url.dict['Members']:
-                request_url = request['@odata.id']
-                response_url = REDFISH_OBJ.get(request_url, None)
-                # Get Network Protocol url from the manager url response
-                if response_url.status == 200:
-                    network_protocol_url = response_url.dict["NetworkProtocol"]['@odata.id']
-                else:
-                    error_message = utils.get_extended_error(response_url)
-                    result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                        request_url, response_url.status, error_message)}
-                    return result
-
-                response_network_protocol_url = REDFISH_OBJ.get(network_protocol_url, None)
-                if response_network_protocol_url.status == 200:
-                    ldap_client_uri = response_network_protocol_url.dict["Oem"]["Lenovo"]["LDAPClient"]["@odata.id"]
-                else:
-                    error_message = utils.get_extended_error(response_network_protocol_url)
-                    result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                        network_protocol_url, response_network_protocol_url.status, error_message)}
-                    return result
-
-                # Build request body for set ldap server
-                body = {}
-                if client_distinguished_name is None or client_distinguished_name == '':
-                    binding_method = 'Anonymously'
-                else:
-                    binding_method = 'Configured'
-                body["BindingMethod"] = {"ClientPassword":client_password,"ClientDN":client_distinguished_name, "Method":binding_method}
-                body["RootDN"] = rootdn
-                body["GroupFilter"] = group_filter
-                body["GroupSearchAttribute"] = group_search_attribute
-                body["UIDSearchAttribute"] = uid_search_attribute
-                server_info = {}
-                server_info["Method"] = "Pre_Configured"
-                (serverlist, portlist) = parse_ldapserver(ldapserver)
-                for i in range(len(serverlist)):
-                    server_info["Server"+ str(i+1) +"HostName_IPAddress"] = serverlist[i]
-                    server_info["Server" + str(i+1) + "Port"] = portlist[i]
-                body["LDAPServers"] = server_info
-
-                ### Extended settings examples begin ###
-                ## Use LoginPermissionAttribute property to set the permission attribute for user that successfully authenticates via a LDAP server.
-                #body["LoginPermissionAttribute"] = "IBMRBSPermissions=010000000000" #Supervisor Access
-                ## or
-                #body["LoginPermissionAttribute"] = "IBMRBSPermissions=001000000000" #Read Only Access
-                ## Use Authorization property to set authorization mode
-                #body["Authorization"] = "LDAPServer" #use LDAP server for authentication and authorization
-                ## or
-                #body["Authorization"] = "Locally" #use LDAP server for authentication only(without authorization). This mode is only supported in an Active Directory environment.
-                ## Use ActiveDirectory property to enable enhanced role-based security for Active Directory Users
-                #body["ActiveDirectory"] = {"ServerTargetName": "YourServerName", "RoleBasedSecurity": True}
-                ### Extended settings examples end ###
-
-                # Patch the new LDAP setting
-                request_body = body
-                response_ldap_client = REDFISH_OBJ.patch(ldap_client_uri, body=request_body)
-                if response_ldap_client.status == 200:
-                    result =  {"ret": True, "msg":"Ldap server was successfully configured"}
-                    return result
-                else:
-                    error_message = utils.get_extended_error(response_ldap_client)
-                    result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                        ldap_client_uri, response_ldap_client.status, error_message)}
-                    return result
-        else:
+        if response_managers_url.status != 200:
             error_message = utils.get_extended_error(response_managers_url)
             result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
                 managers_url, response_managers_url.status, error_message)}
             return result
+
+        for request in response_managers_url.dict['Members']:
+            # Access /redfish/v1/Managers/1
+            request_url = request['@odata.id']
+            response_url = REDFISH_OBJ.get(request_url, None)
+            if response_url.status != 200:
+                error_message = utils.get_extended_error(response_url)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                    request_url, response_url.status, error_message)}
+                return result
+            # Access /redfish/v1/Managers/1/NetworkProtocol
+            if "NetworkProtocol" not in response_url.dict:
+                continue
+            network_protocol_url = response_url.dict["NetworkProtocol"]['@odata.id']
+            response_network_protocol_url = REDFISH_OBJ.get(network_protocol_url, None)
+            if response_network_protocol_url.status != 200:
+                error_message = utils.get_extended_error(response_network_protocol_url)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                    network_protocol_url, response_network_protocol_url.status, error_message)}
+                return result
+            # Access /redfish/v1/Managers/1/NetworkProtocol/Oem/Lenovo/LDAPClient
+            if "Oem" not in response_network_protocol_url.dict:
+                continue
+            if response_network_protocol_url.dict["Oem"] and "Lenovo" in response_network_protocol_url.dict["Oem"]:
+                if "LDAPClient" in response_network_protocol_url.dict["Oem"]["Lenovo"]:
+                    ldap_client_uri = response_network_protocol_url.dict["Oem"]["Lenovo"]["LDAPClient"]["@odata.id"]
+                    # Build request body for set ldap server
+                    body = {}
+                    if client_distinguished_name is None or client_distinguished_name == '':
+                        binding_method = 'Anonymously'
+                    else:
+                        binding_method = 'Configured'
+                    body["BindingMethod"] = {"ClientPassword":client_password,"ClientDN":client_distinguished_name, "Method":binding_method}
+                    body["RootDN"] = rootdn
+                    body["GroupFilter"] = group_filter
+                    body["GroupSearchAttribute"] = group_search_attribute
+                    body["UIDSearchAttribute"] = uid_search_attribute
+                    server_info = {}
+                    server_info["Method"] = "Pre_Configured"
+                    (serverlist, portlist) = parse_ldapserver(ldapserver)
+                    for i in range(len(serverlist)):
+                        server_info["Server"+ str(i+1) +"HostName_IPAddress"] = serverlist[i]
+                        server_info["Server" + str(i+1) + "Port"] = portlist[i]
+                    body["LDAPServers"] = server_info
+      
+                    ### Extended settings examples begin ###
+                    ## Use LoginPermissionAttribute property to set the permission attribute for user that successfully authenticates via a LDAP server.
+                    #body["LoginPermissionAttribute"] = "IBMRBSPermissions=010000000000" #Supervisor Access
+                    ## or
+                    #body["LoginPermissionAttribute"] = "IBMRBSPermissions=001000000000" #Read Only Access
+                    ## Use Authorization property to set authorization mode
+                    #body["Authorization"] = "LDAPServer" #use LDAP server for authentication and authorization
+                    ## or
+                    #body["Authorization"] = "Locally" #use LDAP server for authentication only(without authorization). This mode is only supported in an Active Directory environment.
+                    ## Use ActiveDirectory property to enable enhanced role-based security for Active Directory Users
+                    #body["ActiveDirectory"] = {"ServerTargetName": "YourServerName", "RoleBasedSecurity": True}
+                    ### Extended settings examples end ###
+      
+                    # Patch the new LDAP setting
+                    request_body = body
+                    response_ldap_client = REDFISH_OBJ.patch(ldap_client_uri, body=request_body)
+                    if response_ldap_client.status == 200:
+                        result =  {"ret": True, "msg":"Ldap server was successfully configured"}
+                        return result
+                    else:
+                        error_message = utils.get_extended_error(response_ldap_client)
+                        result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                            ldap_client_uri, response_ldap_client.status, error_message)}
+                        return result
+
+        # No LDAP resource found
+        result = {'ret': False, 'msg': 'LDAP is not supported'}
+        return result
 
     except Exception as e:
         traceback.print_exc()
