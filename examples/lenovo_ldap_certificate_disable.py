@@ -19,7 +19,7 @@
 # under the License.
 ###
 
-import sys, os, struct
+import sys, os
 import redfish
 import json
 import lenovo_utils as utils
