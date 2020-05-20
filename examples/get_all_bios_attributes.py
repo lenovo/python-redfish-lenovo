@@ -1,6 +1,6 @@
 ###
 #
-# Lenovo Redfish examples - Get all Bios attribute
+# Lenovo Redfish examples - Get all Bios attributes
 #
 # Copyright Notice:
 #
@@ -27,7 +27,7 @@ import redfish
 import lenovo_utils as utils
 
 
-def get_bios_attribute(ip, login_account, login_password, system_id, bios_get):
+def get_all_bios_attributes(ip, login_account, login_password, system_id, bios_get):
     """Get all bios attribute    
     :params ip: BMC IP address
     :type ip: string
@@ -141,7 +141,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     # Get all bios attribute and check result
-    result = get_bios_attribute(ip, login_account, login_password, system_id, bios_get)
+    result = get_all_bios_attributes(ip, login_account, login_password, system_id, bios_get)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['attributes'], sort_keys=True, indent=2))
