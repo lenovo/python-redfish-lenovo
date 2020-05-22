@@ -25,16 +25,20 @@ import json
 import lenovo_utils as utils
 
 
-def set_power_limit(ip, login_account, login_password,isenable,power_limit):
+def set_power_limit(ip, login_account, login_password, isenable, power_limit):
     """Set power limit
-        :params ip: BMC IP address
-        :type ip: string
-        :params login_account: BMC user name
-        :type login_account: string
-        :params login_password: BMC user password
-        :type login_password: string
-        :returns: returns Set power limit result when succeeded or error message when failed
-        """
+    :params ip: BMC IP address
+    :type ip: string
+    :params login_account: BMC user name
+    :type login_account: string
+    :params login_password: BMC user password
+    :type login_password: string
+    :params isenable: Enable/Disable power limit
+    :type isenable int
+    :params power_limit: Value of power limit
+    :type power_limit: int
+    :returns: returns Set power limit result when succeeded or error message when failed
+    """
     isenable = bool(isenable)
     #check paramater
     if isenable is True and (power_limit < 1 or power_limit > 32766):
@@ -51,8 +55,8 @@ def set_power_limit(ip, login_account, login_password,isenable,power_limit):
     # Login into the server and create a session
     try:
         REDFISH_OBJ.login(auth=utils.g_AUTH)
-    except:
-        result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
+    except Exception as e:
+        result = {'ret': False, 'msg': "Error_message: %s. Please check if username, password and IP are correct" % repr(e)}
         return result
     # Get ServiceBase resource
     try:
@@ -139,10 +143,10 @@ def set_power_limit(ip, login_account, login_password,isenable,power_limit):
 def add_helpmessage(argget):
     help_str = 'It is used to set power capping enabled or disabled(0:disabled,1:enabled).'
     help_str += 'When power capping is enabled, the system may be throttled in order to maintain the power limit, you can set power limit using paramater powerlimit.'
-    argget.add_argument('--isenable',type=int,help = help_str)
-    help_str = 'Input the power limit you want to set (When isenable is 1,powerlimit is necessary. When isenable is 0,powerlimit is ignored).'
+    argget.add_argument('--isenable', type=int, help = help_str)
+    help_str = 'Input the power limit you want to set (When isenable is 1, powerlimit is necessary. When isenable is 0, powerlimit is ignored).'
     help_str += 'Note: maximum power limit is 32766.'
-    argget.add_argument('--powerlimit', type=int,default = 0,help=help_str)
+    argget.add_argument('--powerlimit', type=int, default = 0, help = help_str)
 
 
 def add_parameter():
@@ -168,9 +172,9 @@ if __name__ == '__main__':
     power_limit = parameter_info["powerlimit"]
     isenable = parameter_info["isenable"]
     # Set power limit and check result
-    result = set_power_limit(ip, login_account, login_password,isenable,power_limit)
+    result = set_power_limit(ip, login_account, login_password, isenable, power_limit)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
     else:
-        sys.stderr.write(result['msg'])
+        sys.stderr.write(result['msg'] + '\n')
