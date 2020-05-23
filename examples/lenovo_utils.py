@@ -25,7 +25,7 @@ import redfish
 
 # Define global variable
 g_AUTH = "session"
-
+g_CAFILE = ""
 
 # Set _MAXHEADERS to avoid header over 100 error
 if sys.version_info.major == 2:
