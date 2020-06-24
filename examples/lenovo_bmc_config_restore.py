@@ -24,6 +24,7 @@ import redfish
 import json
 import lenovo_utils as utils
 import os
+import time
 
 # get file size
 def getDocSize(path):
@@ -115,6 +116,7 @@ def lenovo_config_restore(ip, login_account, login_password,backup_password,back
     except:
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result
+
     # Get ServiceBase resource
     response_base_url = REDFISH_OBJ.get('/redfish/v1', None)
     # Get response_base_url
@@ -127,81 +129,109 @@ def lenovo_config_restore(ip, login_account, login_password,backup_password,back
         REDFISH_OBJ.logout()
         back_file.close()
         return result
+
+    # Get /redfish/v1/Managers resource
     response_manager_url = REDFISH_OBJ.get(manager_url, None)
     bmc_time_detail = []
-    if response_manager_url.status == 200:
-        for request in response_manager_url.dict['Members']:
-            request_url = request['@odata.id']
-            response_url = REDFISH_OBJ.get(request_url, None)
-            if response_url.status == 200:
-                # get configuration url
-                oem_resource = response_url.dict['Oem']['Lenovo']
-                config_url = oem_resource['Configuration']['@odata.id']
-                response_config_url = REDFISH_OBJ.get(config_url, None)
-                if response_config_url.status == 200:
-                    #restore configuration
-                    restore_target_url = response_config_url.dict['Actions']['#LenovoConfigurationService.RestoreConfiguration']['target']
-                    try:
-                        list_data = json.load(back_file)
-                    except:
-                        result = {'ret': False,
-                                  'msg': "load file error,Please check your input file"}
-                        REDFISH_OBJ.logout()
-                        back_file.close()
-                        return result
-                    if len(list_data) == 0:
-                        result = {'ret': False,
-                                  'msg': "list_data is empty"}
-                        REDFISH_OBJ.logout()
-                        back_file.close()
-                        return result
+    if response_manager_url.status != 200:
+        error_message = utils.get_extended_error(response_manager_url)
+        result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+            manager_url, response_manager_url.status, error_message)}
+        REDFISH_OBJ.logout()
+        back_file.close()
+        return result
 
-                    #check schema to specify proper body
-                    restore_body = {}
-                    if check_whether_new_schema(response_config_url.dict['@odata.type'], REDFISH_OBJ) == True:
-                        restore_body = {
-                        "ConfigContent":list_data,
-                        "Passphrase":backup_password
-                        }
-                    else:
-                        restore_body = {
-                        "bytes":list_data,
-                        "Passphrase":backup_password
-                        }
+    for request in response_manager_url.dict['Members']:
+        # Get Manager member resource
+        request_url = request['@odata.id']
+        response_url = REDFISH_OBJ.get(request_url, None)
+        if response_url.status != 200:
+            error_message = utils.get_extended_error(response_url)
+            result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                request_url, response_url.status, error_message)}
+            REDFISH_OBJ.logout()
+            back_file.close()
+            return result
 
-                    response_restore_url = REDFISH_OBJ.post(restore_target_url, body=restore_body)
-                    if response_restore_url.status == 200:
-                        result = {'ret': True,
-                                  'msg':"BMC configuration restore successfully"}
-                        REDFISH_OBJ.logout()
-                        back_file.close()
-                        return result
-                    else:
-                        error_message = utils.get_extended_error(response_restore_url)
-                        result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                            restore_target_url, response_restore_url.status, error_message)}
-                        REDFISH_OBJ.logout()
-                        back_file.close()
-                        return result
-                else:
-                    error_message = utils.get_extended_error(response_config_url)
-                    result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                        config_url, response_config_url.status, error_message)}
-                    REDFISH_OBJ.logout()
-                    back_file.close()
-                    return result
-            else:
+        # get configuration url
+        if 'Oem' not in response_url.dict or 'Lenovo' not in response_url.dict['Oem'] or 'Configuration' not in response_url.dict['Oem']['Lenovo']:
+            result = {'ret': False, 'msg': "No Oem/Lenovo/Configuration found, so not support."}
+            REDFISH_OBJ.logout()
+            back_file.close()
+            return result
+        oem_resource = response_url.dict['Oem']['Lenovo']
+        config_url = oem_resource['Configuration']['@odata.id']
+        response_config_url = REDFISH_OBJ.get(config_url, None)
+        if response_config_url.status != 200:
+            error_message = utils.get_extended_error(response_config_url)
+            result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                config_url, response_config_url.status, error_message)}
+            REDFISH_OBJ.logout()
+            back_file.close()
+            return result
+
+        #restore configuration
+        restore_target_url = response_config_url.dict['Actions']['#LenovoConfigurationService.RestoreConfiguration']['target']
+        try:
+            list_data = json.load(back_file)
+        except:
+            result = {'ret': False,
+                      'msg': "load file error,Please check your input file"}
+            REDFISH_OBJ.logout()
+            back_file.close()
+            return result
+        if len(list_data) == 0:
+            result = {'ret': False,
+                      'msg': "list_data is empty"}
+            REDFISH_OBJ.logout()
+            back_file.close()
+            return result
+
+        #check schema to specify proper body
+        restore_body = {}
+        if check_whether_new_schema(response_config_url.dict['@odata.type'], REDFISH_OBJ) == True:
+            restore_body = {
+            "ConfigContent":list_data,
+            "Passphrase":backup_password
+            }
+        else:
+            restore_body = {
+            "bytes":list_data,
+            "Passphrase":backup_password
+            }
+
+        # Perform post to do restore action
+        print("It may take 1 or 2 minutes to restore bmc config, please wait...")
+        response_restore_url = REDFISH_OBJ.post(restore_target_url, body=restore_body)
+        if response_restore_url.status != 200:
+            error_message = utils.get_extended_error(response_restore_url)
+            result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                restore_target_url, response_restore_url.status, error_message)}
+            REDFISH_OBJ.logout()
+            back_file.close()
+            return result
+        
+        # Check restore status after action
+        for i in range(120):
+            response_url = REDFISH_OBJ.get(config_url, None)
+            if response_url.status != 200:
                 error_message = utils.get_extended_error(response_url)
                 result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
                     request_url, response_url.status, error_message)}
                 REDFISH_OBJ.logout()
                 back_file.close()
                 return result
-        return result
-    else:
-        error_message = utils.get_extended_error(response_manager_url)
-        result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-            manager_url, response_manager_url.status, error_message)}
+            if 'RestoreStatus' in response_url.dict and 'Restore was successful' in response_url.dict['RestoreStatus']:
+                result = {'ret': True,
+                          'msg':"BMC configuration restore successfully"}
+                REDFISH_OBJ.logout()
+                back_file.close()
+                return result
+            time.sleep(1)
+            continue
+
+        result = {'ret': True,
+                  'msg':"BMC configuration restore does not finished in 2 minutes, please check it manually"}
         REDFISH_OBJ.logout()
         back_file.close()
         return result
