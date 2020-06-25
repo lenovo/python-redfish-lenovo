@@ -82,7 +82,7 @@ def set_custom_role_privileges(REDFISH_OBJ,response_account_service_url,roleid,a
 
 
 
-def create_bmc_user(ip, login_account, login_password, username, password,authority):
+def create_bmc_user(ip, login_account, login_password, username, password, authority):
     """create bmc user
     :params ip: BMC IP address
     :type ip: string
@@ -91,7 +91,7 @@ def create_bmc_user(ip, login_account, login_password, username, password,author
     :params login_password: BMC user password
     :type login_password: string
     :params username: new  username by user specified
-    :type userid: string
+    :type username: string
     :params password: new password by user specified
     :type password: string
     :params authority: user authority by user specified
