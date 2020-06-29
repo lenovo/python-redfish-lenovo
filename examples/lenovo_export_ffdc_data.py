@@ -113,7 +113,7 @@ def export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip, fsport
                     export_uri = fsprotocol.lower() + "://" + fsip + ":/" + fsdir + "/"
                     body['ExportURI'] = export_uri
                     if fsprotocol.lower() not in ["sftp", "tftp"]:
-                        error_message = "Target server only support sftp and tftp."
+                        error_message = "Target server only support sftp and tftp, http is not supported"
                         result = {"ret": False, "msg":error_message}
                         return result
 
@@ -287,7 +287,7 @@ import argparse
 def add_helpmessage(argget):
     argget.add_argument('--fsprotocol', type=str, choices = ["SFTP", "TFTP", "HTTP"], help='Specify the file server protocol. Support:["SFTP", "TFTP", "HTTP"]')
     argget.add_argument('--fsip', type=str, help='Specify the file server ip.')
-    argget.add_argument('--fsport', type=int, default=80, help='Specify the HTTP file server port.')
+    argget.add_argument('--fsport', type=int, default=80, help='Specify the HTTP file server port, default port is 80.')
     argget.add_argument('--fsusername', type=str, help='Specify the SFTP file server username.')
     argget.add_argument('--fspassword', type=str, help='Specify the SFTP file server password.')
     argget.add_argument('--fsdir', type=str, help='Specify the directory under which ffdc data will be saved on file server.')
