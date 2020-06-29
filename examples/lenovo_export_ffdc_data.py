@@ -113,7 +113,7 @@ def export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip, fsport
                     export_uri = fsprotocol.lower() + "://" + fsip + ":/" + fsdir + "/"
                     body['ExportURI'] = export_uri
                     if fsprotocol.lower() not in ["sftp", "tftp"]:
-                        error_message = "Please check the parameter ExportURI, the format of ExportURI must be 'sftp://...' or 'tftp://...'"
+                        error_message = "Target server only support sftp and tftp."
                         result = {"ret": False, "msg":error_message}
                         return result
 
