@@ -46,7 +46,7 @@ def export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip, fsport
     :type fsusername: string
     :params fspassword: Specify the SFTP file server password
     :type fspassword: string
-    :params fsdir: Specify the file server dir to the firmware upload
+    :params fsdir: Specify the file server dir to save data
     :type fsdir: string
     :returns: returns export ffdc data result when succeeded or error message when failed
     """
