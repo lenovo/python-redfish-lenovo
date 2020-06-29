@@ -162,10 +162,6 @@ def export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip, fsport
 
             # Check collect result via returned task uri
             print("Start downloading ffdc files and may need to wait a few minutes...")
-            # The system will create a task to let user know the transfer progress and returnURI
-            
-            task_uri = response_ffdc_data_uri.dict['@odata.id']
-            # Continue to get the task response until the task is completed
             while True:
                 response_task_uri = REDFISH_OBJ.get(task_uri, None)
                 if response_task_uri.status in [200, 202]:
