@@ -76,10 +76,11 @@ def get_secure_boot_status(ip, login_account, login_password, system_id):
         response_secure_boot_url = REDFISH_OBJ.get(secure_boot_url, None)
         if response_secure_boot_url.status == 200:
             secure = {}
-            secure_boot_enable = response_secure_boot_url.dict["SecureBootEnable"]
-            secure_boot_mode = response_secure_boot_url.dict["SecureBootMode"]
-            secure['SecureBootEnable'] = secure_boot_enable
-            secure['SecureBootMode'] = secure_boot_mode
+            for property in ["SecureBootEnable", "SecureBootMode"]:
+                if property in response_secure_boot_url.dict:
+                    secure[property] = response_secure_boot_url.dict[property]
+                else:
+                    secure[property] = None
             secure_details.append(secure)
         else:
             error_message = utils.get_extended_error(response_secure_boot_url)
