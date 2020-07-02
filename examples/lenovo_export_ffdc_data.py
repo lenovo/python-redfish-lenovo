@@ -135,8 +135,8 @@ def export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip, fsport
                     return result
                 task_uri = response_ffdc_data_uri.dict['@odata.id']
 
-            # Collect service data via /redfish/v1/Managers/Self/Oem/Lenovo/DownloadServiceData
-            elif 'Oem/Lenovo/BackupActionInfo' in str(response_manager_uri.dict):
+            # Collect service data via /redfish/v1/Managers/Self/Actions/Oem/Lenovo/DownloadServiceData
+            elif '#Manager.DownloadServiceData' in str(response_manager_uri.dict):
                 if fsprotocol.upper() != "HTTP":
                     error_message = "Target Server only support HTTP protocol, please use HTTP file server to download server data."
                     result = {"ret": False, "msg": error_message}
@@ -147,7 +147,7 @@ def export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip, fsport
                 body['folderPath'] = fsdir
                 export_uri = fsprotocol.lower() + "://" + fsip + ":" + str(fsport) + "/" + fsdir + "/"
                 
-                ffdc_data_uri = '/redfish/v1/Managers/Self/Oem/Lenovo/DownloadServiceData'
+                ffdc_data_uri = response_manager_uri.dict['Actions']['Oem']['#Manager.DownloadServiceData']['target']
                 time_start=time.time()
                 response_ffdc_data_uri = REDFISH_OBJ.post(ffdc_data_uri, body=body)
                 if response_ffdc_data_uri.status != 202:
