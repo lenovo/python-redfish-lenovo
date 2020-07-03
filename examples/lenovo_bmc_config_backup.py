@@ -157,7 +157,7 @@ def lenovo_bmc_config_backup(ip, login_account, login_password, backup_password,
         # Backup from Action Oem/Lenovo/Backup.start
         elif 'Oem/Lenovo/Backup.start' in str(response_url.dict):
             if httpip is None or httpdir is None:
-                error_message = "Target Server only support HTTP protocol, please use HTTP file server to download server data."
+                error_message = "Target Server only support HTTP protocol, please use HTTP file server to backup bmc config."
                 result = {"ret": False, "msg": error_message}
                 REDFISH_OBJ.logout()
                 return result
