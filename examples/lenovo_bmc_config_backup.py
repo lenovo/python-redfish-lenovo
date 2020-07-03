@@ -24,6 +24,7 @@ import redfish
 import json
 import lenovo_utils as utils
 import os
+import time
 
 # get file size
 def getDocSize(path):
@@ -33,7 +34,7 @@ def getDocSize(path):
     except Exception as err:
         sys.stderr.write(err)
 
-def lenovo_bmc_config_backup(ip, login_account, login_password,backup_password,backup_file):
+def lenovo_bmc_config_backup(ip, login_account, login_password, backup_password, backup_file, httpip, httpport, httpdir):
     """BMC configuration backup
         :params ip: BMC IP address
         :type ip: string
@@ -45,6 +46,12 @@ def lenovo_bmc_config_backup(ip, login_account, login_password,backup_password,b
         :type backup_password: string
         :params backup_file: backup file by user specified
         :type backup_file: string
+        :params httpip: Specify the file server ip
+        :type httpip: string
+        :params httpport: Specify the HTTP file server port
+        :type httpport: int
+        :params httpdir: Specify the file server dir to save
+        :type httpdir: string
         :returns: returns BMC configuration backup result when succeeded or error message when failed
         """
 
@@ -85,57 +92,10 @@ def lenovo_bmc_config_backup(ip, login_account, login_password,backup_password,b
         REDFISH_OBJ.logout()
         back_file.close()
         return result
+
+    # Get /redfish/v1/Managers resource
     response_manager_url = REDFISH_OBJ.get(manager_url, None)
-    bmc_time_detail = []
-    if response_manager_url.status == 200:
-        for request in response_manager_url.dict['Members']:
-            request_url = request['@odata.id']
-            response_url = REDFISH_OBJ.get(request_url, None)
-            if response_url.status == 200:
-                #get configuration url
-                oem_resource = response_url.dict['Oem']['Lenovo']
-                config_url = oem_resource['Configuration']['@odata.id']
-                response_config_url = REDFISH_OBJ.get(config_url, None)
-                if response_config_url.status == 200:
-                    #backup configuration
-                    backup_target_url = response_config_url.dict['Actions']['#LenovoConfigurationService.BackupConfiguration']['target']
-                    backup_body = {"Passphrase":backup_password}
-                    response_backup_url = REDFISH_OBJ.post(backup_target_url, body=backup_body)
-                    if response_backup_url.status == 200:
-                        json.dump(response_backup_url.dict["data"], back_file, separators=(',',':'))
-                        back_file.close()
-                        size = getDocSize(backup_file)
-                        if(size <= 255):
-                            result = {'ret': True,
-                                      'msg': "BMC configuration backup successfully, backup file is:" + backup_file}
-                        else:
-                            os.remove(backup_file)
-                            result = {'ret': False,
-                                      'msg': "Failed to back up the configuration because the size of configuration data is over 255KB."}
-                        REDFISH_OBJ.logout()
-                        return result
-                    else:
-                        error_message = utils.get_extended_error(response_backup_url)
-                        result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                            backup_target_url, response_backup_url.status, error_message)}
-                        REDFISH_OBJ.logout()
-                        back_file.close()
-                        return result
-                else:
-                    error_message = utils.get_extended_error(response_config_url)
-                    result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                        config_url, response_config_url.status, error_message)}
-                    REDFISH_OBJ.logout()
-                    back_file.close()
-                    return result
-            else:
-                error_message = utils.get_extended_error(response_url)
-                result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                    request_url, response_url.status, error_message)}
-                REDFISH_OBJ.logout()
-                back_file.close()
-                return result
-    else:
+    if response_manager_url.status != 200:
         error_message = utils.get_extended_error(response_manager_url)
         result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
             manager_url, response_manager_url.status, error_message)}
@@ -143,13 +103,132 @@ def lenovo_bmc_config_backup(ip, login_account, login_password,backup_password,b
         back_file.close()
         return result
 
+    for request in response_manager_url.dict['Members']:
+        # Get /redfish/v1/Managers/1 resource
+        request_url = request['@odata.id']
+        response_url = REDFISH_OBJ.get(request_url, None)
+        if response_url.status != 200:
+            error_message = utils.get_extended_error(response_url)
+            result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                request_url, response_url.status, error_message)}
+            REDFISH_OBJ.logout()
+            back_file.close()
+            return result
+
+        # Backup from Action #LenovoConfigurationService.BackupConfiguration
+        if 'Oem' in response_url.dict and 'Lenovo' in response_url.dict['Oem'] and 'Configuration' in response_url.dict['Oem']['Lenovo']:
+            #get configuration url
+            oem_resource = response_url.dict['Oem']['Lenovo']
+            config_url = oem_resource['Configuration']['@odata.id']
+            response_config_url = REDFISH_OBJ.get(config_url, None)
+            if response_config_url.status == 200:
+                #backup configuration
+                backup_target_url = response_config_url.dict['Actions']['#LenovoConfigurationService.BackupConfiguration']['target']
+                backup_body = {"Passphrase":backup_password}
+                response_backup_url = REDFISH_OBJ.post(backup_target_url, body=backup_body)
+                if response_backup_url.status == 200:
+                    json.dump(response_backup_url.dict["data"], back_file, separators=(',',':'))
+                    back_file.close()
+                    size = getDocSize(backup_file)
+                    if(size <= 255):
+                        result = {'ret': True,
+                                  'msg': "BMC configuration backup successfully, backup file is:" + backup_file}
+                    else:
+                        os.remove(backup_file)
+                        result = {'ret': False,
+                                  'msg': "Failed to back up the configuration because the size of configuration data is over 255KB."}
+                    REDFISH_OBJ.logout()
+                    return result
+                else:
+                    error_message = utils.get_extended_error(response_backup_url)
+                    result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                        backup_target_url, response_backup_url.status, error_message)}
+                    REDFISH_OBJ.logout()
+                    back_file.close()
+                    return result
+            else:
+                error_message = utils.get_extended_error(response_config_url)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                    config_url, response_config_url.status, error_message)}
+                REDFISH_OBJ.logout()
+                back_file.close()
+                return result
+
+        # Backup from Action Oem/Lenovo/Backup.start
+        elif 'Oem/Lenovo/Backup.start' in str(response_url.dict):
+            if httpip is None or httpdir is None:
+                error_message = "Target Server only support HTTP protocol, please use HTTP file server to backup bmc config."
+                result = {"ret": False, "msg": error_message}
+                REDFISH_OBJ.logout()
+                return result
+            body = {}
+            body['BackupType'] = 'SNMP, KVM, NetworkAndServices, IPMI, NTP, Authentication, SYSLOG'
+            body['password'] = backup_password
+            body['serverIP'] = httpip
+            body['serverPort'] = httpport
+            body['folderPath'] = httpdir
+            export_uri = 'http://' + httpip + ':' + str(httpport) + '/' + httpdir
+            
+            backup_uri = '/redfish/v1/Managers/Self/Actions/Oem/Lenovo/Backup.start'
+            time_start=time.time()
+            response_backup_uri = REDFISH_OBJ.post(backup_uri, body=body)
+            if response_backup_uri.status != 202:
+                error_message = utils.get_extended_error(response_backup_uri)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (backup_uri, response_backup_uri.status, error_message)}
+                REDFISH_OBJ.logout()
+                return result
+            task_uri = response_backup_uri.dict['@odata.id']
+
+            # Check task status
+            while True:
+                response_task_uri = REDFISH_OBJ.get(task_uri, None)
+                if response_task_uri.status in [200, 202]:
+                    task_state = response_task_uri.dict['TaskState']
+                    if task_state == "Completed":
+                        time_end = time.time()    
+                        print('time cost: %.2f' %(time_end-time_start)+'s')
+                        result = {'ret': True, 'msg':  "The backuped bmc config file is saved in %s " %export_uri}
+                        break
+                    elif task_state in ["Exception", "Killed"]:
+                        result = {"ret": False, "msg": "Task state is %s, The bmc config backup failed" %task_state}
+                        break
+                    else:
+                        flush()
+                else:
+                    error_message = utils.get_extended_error(response_task_uri)
+                    result = {'ret': False, 'msg': "Url '%s' response task uri Error code %s \nerror_message: %s" % (task_uri, response_task_uri.status, error_message)}
+                    break
+            
+            # Delete the task when the task state is completed
+            REDFISH_OBJ.delete(task_uri, None)
+            REDFISH_OBJ.logout()
+            return result
+
+        else:
+            result = {'ret': False, 'msg': "No resource found, not support bmc configuration backup."}
+            REDFISH_OBJ.logout()
+            return result
+
+
+def flush():
+    list = ['|', '\\', '-', '/']
+    for i in list:
+        sys.stdout.write(' ' * 100 + '\r')
+        sys.stdout.flush()
+        sys.stdout.write(i + '\r')
+        sys.stdout.flush()
+        time.sleep(0.1)
+
 
 def add_helpmessage(parser):
     help_str = "Enter a password that will be used to encrypt data in the file. "
     help_str += "Note that you will be asked for this password when you use the file to restore a configuration."
     help_str += "(Password is at least 9 characters)"
     parser.add_argument('--backuppasswd', type=str, required=True, help= help_str)
-    parser.add_argument('--backupfile', type=str,default = "./bmc_config_backup.json", help='Input the file name you want to save the configuration')
+    parser.add_argument('--backupfile', type=str,default = "./bmc_config_backup.json", help='Input the file name you want to save the configuration in local. Note: SR635/SR655 not support local backup, only support backup in http file server')
+    parser.add_argument('--httpip', type=str, help='Specify http file server ip for SR635/SR655.')
+    parser.add_argument('--httpport', type=int, default=80, help='Specify http file server port for SR635/SR655, default port is 80.')
+    parser.add_argument('--httpdir', type=str, help='Specify the directory on http file server for SR635/SR655.')
 
 
 def add_parameter():
@@ -161,6 +240,9 @@ def add_parameter():
     parameter_info = utils.parse_parameter(args)
     parameter_info["backuppasswd"] = args.backuppasswd
     parameter_info["backupfile"] = args.backupfile
+    parameter_info["httpip"] = args.httpip
+    parameter_info["httpport"] = args.httpport
+    parameter_info["httpdir"] = args.httpdir
     return parameter_info
 
 
@@ -173,8 +255,11 @@ if __name__ == '__main__':
     login_password = parameter_info["passwd"]
     backup_password = parameter_info["backuppasswd"]
     backup_file = parameter_info["backupfile"]
+    httpip = parameter_info["httpip"]
+    httpport = parameter_info["httpport"]
+    httpdir = parameter_info["httpdir"]
     #BMC configuration backup and check result
-    result = lenovo_bmc_config_backup(ip, login_account, login_password,backup_password,backup_file)
+    result = lenovo_bmc_config_backup(ip, login_account, login_password, backup_password, backup_file, httpip, httpport, httpdir)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
