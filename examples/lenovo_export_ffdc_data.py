@@ -28,7 +28,7 @@ import time
 import os
 
 
-def export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip, fsusername, fspassword, fsdir):
+def export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir):
     """Export ffdc data    
     :params ip: BMC IP address
     :type ip: string
@@ -36,16 +36,25 @@ def export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip, fsuser
     :type login_account: string
     :params login_password: BMC user password
     :type login_password: string
+    :params fsprotocol: Specify the file server protocol
+    :type fsprotocol: string
     :params fsip: Specify the file server ip
     :type fsip: string
-    :params fsusername: Specify the file server username
+    :params fsport: Specify the HTTP file server port
+    :type fsport: int
+    :params fsusername: Specify the SFTP file server username
     :type fsusername: string
-    :params fspassword: Specify the file server password
+    :params fspassword: Specify the SFTP file server password
     :type fspassword: string
-    :params fsdir: Specify the file server dir to the firmware upload
+    :params fsdir: Specify the file server dir to save data
     :type fsdir: string
     :returns: returns export ffdc data result when succeeded or error message when failed
     """
+
+    # Check parameter
+    if fsprotocol and (fsip is None or fsip == ''):
+        result = {'ret': False, 'msg': "fsip in needed for %s file server" %(fsprotocol)}
+        return result
 
     # Connect using the address, account name, and password
     login_host = "https://" + ip 
@@ -74,17 +83,22 @@ def export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip, fsuser
         for i in managers_list:
             manager_uri = i["@odata.id"]
             response_manager_uri =  REDFISH_OBJ.get(manager_uri, None)
-            if response_manager_uri.status == 200:
-                # Get servicedata uri via manager uri response resource
-                servicedata_uri = response_manager_uri.dict['Oem']['Lenovo']['ServiceData']['@odata.id']
-            else:
+            if response_manager_uri.status != 200:
                 error_message = utils.get_extended_error(response_manager_uri)
                 result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (manager_uri, response_manager_uri.status, error_message)}
                 return result
 
-            # Get servicedata resource
-            response_servicedata_uri = REDFISH_OBJ.get(servicedata_uri, None)
-            if response_servicedata_uri.status == 200:
+            # Collect service data via /redfish/v1/Managers/1/Oem/Lenovo/ServiceData
+            if 'Oem' in response_manager_uri.dict and 'Lenovo' in response_manager_uri.dict['Oem'] and 'ServiceData' in response_manager_uri.dict['Oem']['Lenovo']:
+                # Get servicedata uri via manager uri response resource
+                servicedata_uri = response_manager_uri.dict['Oem']['Lenovo']['ServiceData']['@odata.id']
+                # Get servicedata resource
+                response_servicedata_uri = REDFISH_OBJ.get(servicedata_uri, None)
+                if response_servicedata_uri.status != 200:
+                    error_message = utils.get_extended_error(response_servicedata_uri)
+                    result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (servicedata_uri, response_servicedata_uri.status, error_message)}
+                    return result
+
                 # Get export ffdc data uri via servicedaata uri response resource
                 ffdc_data_uri = response_servicedata_uri.dict['Actions']['#LenovoServiceData.ExportFFDCData']['target']
 
@@ -99,7 +113,7 @@ def export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip, fsuser
                     export_uri = fsprotocol.lower() + "://" + fsip + ":/" + fsdir + "/"
                     body['ExportURI'] = export_uri
                     if fsprotocol.lower() not in ["sftp", "tftp"]:
-                        error_message = "Please check the parameter ExportURI, the format of ExportURI must be 'sftp://...' or 'tftp://...'"
+                        error_message = "Target server only support sftp and tftp, http is not supported"
                         result = {"ret": False, "msg":error_message}
                         return result
 
@@ -115,57 +129,78 @@ def export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip, fsuser
                             body['Password'] = fspassword
                 time_start=time.time()
                 response_ffdc_data_uri = REDFISH_OBJ.post(ffdc_data_uri, body=body)
-                print("Start downloading ffdc files and may need to wait a few minutes...")
-                # The system will create a task to let user know the transfer progress and return a download URI
-                if response_ffdc_data_uri.status == 202:
-                    task_uri = response_ffdc_data_uri.dict['@odata.id']
-                    # Continue to get the task response until the task is completed
-                    while True:
-                        response_task_uri = REDFISH_OBJ.get(task_uri, None)
-                        if response_task_uri.status == 200:
-                            task_state = response_task_uri.dict['TaskState']
-                            if task_state == "Completed":
-                                # If the user does not specify export uri, the ffdc data file will be downloaded to the local
-                                if not fsprotocol and 'Oem' in response_task_uri.dict:
-                                    download_uri = response_task_uri.dict['Oem']['Lenovo']['FFDCForDownloading']['Path']
-                                    # Download FFDC data from download uri when the task completed
-                                    download_sign = download_ffdc(ip, login_account, login_password, download_uri)
-                                    if download_sign:
-                                        ffdc_file_name = os.getcwd() + os.sep + download_uri.split('/')[-1]
-                                        time_end = time.time()    
-                                        print('time cost: %.2f' %(time_end-time_start)+'s')
-                                        result = {'ret': True, 'msg':  "The FFDC data is saved as %s " %(ffdc_file_name)}
-                                    else:
-                                        result = {'ret': False, 'msg':  "The FFDC data download failed"}
-                                    break
-                                elif fsprotocol:
-                                    time_end = time.time()    
-                                    print('time cost: %.2f' %(time_end-time_start)+'s')
-                                    result = {'ret': True, 'msg':  "The FFDC data is saved as %s " %export_uri}
-                                    break
-                                else:
-                                    result = {'ret': False, 'msg':  "If the user wants to download to a remote server, you need to specify the server type."}
-                                    break
-                            elif task_state in ["Exception", "Killed"]:
-                                result = {"ret": False, "msg": "Task state is %s, The FFDC data download failed" %task_state}
-                                break
-                            else:
-                                flush()
-                        else:
-                            error_message = utils.get_extended_error(response_task_uri)
-                            result = {'ret': False, 'msg': "Url '%s' response task uri Error code %s \nerror_message: %s" % (task_uri, response_task_uri.status, error_message)}
-                            break
-
-                    # Delete the task when the task state is completed
-                    REDFISH_OBJ.delete(task_uri, None)
-                else:
+                if response_ffdc_data_uri.status != 202:
                     error_message = utils.get_extended_error(response_ffdc_data_uri)
                     result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (ffdc_data_uri, response_ffdc_data_uri.status, error_message)}
                     return result
+                task_uri = response_ffdc_data_uri.dict['@odata.id']
+
+            # Collect service data via /redfish/v1/Managers/Self/Actions/Oem/Lenovo/DownloadServiceData
+            elif '#Manager.DownloadServiceData' in str(response_manager_uri.dict):
+                if fsprotocol.upper() != "HTTP":
+                    error_message = "Target Server only support HTTP protocol, please use HTTP file server to download server data."
+                    result = {"ret": False, "msg": error_message}
+                    return result
+                body = {}
+                body['serverIP'] = fsip
+                body['serverPort'] = fsport
+                body['folderPath'] = fsdir
+                export_uri = fsprotocol.lower() + "://" + fsip + ":" + str(fsport) + "/" + fsdir + "/"
+                
+                ffdc_data_uri = response_manager_uri.dict['Actions']['Oem']['#Manager.DownloadServiceData']['target']
+                time_start=time.time()
+                response_ffdc_data_uri = REDFISH_OBJ.post(ffdc_data_uri, body=body)
+                if response_ffdc_data_uri.status != 202:
+                    error_message = utils.get_extended_error(response_ffdc_data_uri)
+                    result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (ffdc_data_uri, response_ffdc_data_uri.status, error_message)}
+                    return result
+                task_uri = response_ffdc_data_uri.dict['@odata.id']
+
             else:
-                error_message = utils.get_extended_error(response_servicedata_uri)
-                result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (servicedata_uri, response_servicedata_uri.status, error_message)}
+                result = {'ret': False, 'msg': "No resource found, not support service data downloading."}
                 return result
+
+            # Check collect result via returned task uri
+            print("Start downloading ffdc files and may need to wait a few minutes...")
+            while True:
+                response_task_uri = REDFISH_OBJ.get(task_uri, None)
+                if response_task_uri.status in [200, 202]:
+                    task_state = response_task_uri.dict['TaskState']
+                    if task_state == "Completed":
+                        # If the user does not specify export uri, the ffdc data file will be downloaded to the local
+                        if not fsprotocol and 'Oem' in response_task_uri.dict and 'Lenovo' in response_task_uri.dict['Oem']:
+                            download_uri = response_task_uri.dict['Oem']['Lenovo']['FFDCForDownloading']['Path']
+                            # Download FFDC data from download uri when the task completed
+                            download_sign = download_ffdc(ip, login_account, login_password, download_uri)
+                            if download_sign:
+                                ffdc_file_name = os.getcwd() + os.sep + download_uri.split('/')[-1]
+                                time_end = time.time()    
+                                print('time cost: %.2f' %(time_end-time_start)+'s')
+                                result = {'ret': True, 'msg':  "The FFDC data is saved as %s " %(ffdc_file_name)}
+                            else:
+                                result = {'ret': False, 'msg':  "The FFDC data download failed"}
+                            break
+                        elif fsprotocol:
+                            time_end = time.time()    
+                            print('time cost: %.2f' %(time_end-time_start)+'s')
+                            result = {'ret': True, 'msg':  "The FFDC data is saved in %s " %export_uri}
+                            break
+                        else:
+                            result = {'ret': False, 'msg':  "If the user wants to download to a remote server, you need to specify the server type."}
+                            break
+                    elif task_state in ["Exception", "Killed"]:
+                        result = {"ret": False, "msg": "Task state is %s, The FFDC data download failed" %task_state}
+                        break
+                    else:
+                        flush()
+                else: 
+                    error_message = utils.get_extended_error(response_task_uri)
+                    result = {'ret': False, 'msg': "Url '%s' response task uri Error code %s \nerror_message: %s" % (task_uri, response_task_uri.status, error_message)}
+                    break
+            
+            # Delete the task when the task state is completed
+            REDFISH_OBJ.delete(task_uri, None)
+
     except Exception as e:
         result = {'ret': False, 'msg': "error_message: %s" % (e)}
     finally:
@@ -246,10 +281,11 @@ def download_ffdc(ip, login_account, login_password, download_uri):
 
 import argparse
 def add_helpmessage(argget):
-    argget.add_argument('--fsprotocol', type=str, help='Specify the file server protocol. Support:["SFTP", "TFTP"]')
+    argget.add_argument('--fsprotocol', type=str, choices = ["SFTP", "TFTP", "HTTP"], help='Specify the file server protocol. Support:["SFTP", "TFTP", "HTTP"]')
     argget.add_argument('--fsip', type=str, help='Specify the file server ip.')
-    argget.add_argument('--fsusername', type=str, help='Specify the file server username.')
-    argget.add_argument('--fspassword', type=str, help='Specify the file server password.')
+    argget.add_argument('--fsport', type=int, default=80, help='Specify the HTTP file server port, default port is 80.')
+    argget.add_argument('--fsusername', type=str, help='Specify the SFTP file server username.')
+    argget.add_argument('--fspassword', type=str, help='Specify the SFTP file server password.')
     argget.add_argument('--fsdir', type=str, help='Specify the directory under which ffdc data will be saved on file server.')
 
 
@@ -280,6 +316,7 @@ def add_parameter():
     parameter_info = utils.parse_parameter(args)
     parameter_info['fsprotocol'] = args.fsprotocol
     parameter_info['fsip'] = args.fsip
+    parameter_info['fsport'] = args.fsport
     parameter_info['fsusername'] = args.fsusername
     parameter_info['fspassword'] = args.fspassword
     parameter_info['fsdir'] = args.fsdir
@@ -304,12 +341,13 @@ if __name__ == '__main__':
     # Get file data info from the parameters user specified
     fsprotocol = parameter_info['fsprotocol']
     fsip = parameter_info['fsip']
+    fsport = parameter_info['fsport']
     fsusername = parameter_info['fsusername']
     fspassword = parameter_info['fspassword']
     fsdir = parameter_info['fsdir']
 
     # export ffdc result and check result
-    result = export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip, fsusername, fspassword, fsdir)
+    result = export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
