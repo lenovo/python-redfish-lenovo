@@ -27,6 +27,9 @@ import redfish
 import json
 import update_firmware
 import lenovo_utils as utils
+import requests
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+from requests.auth import HTTPBasicAuth
 
 def lenovo_update_fw(ip, login_account, login_password, image, targets, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir):
     """ Lenovo update firmware
@@ -61,7 +64,7 @@ def lenovo_update_fw(ip, login_account, login_password, image, targets, fsprotoc
         result = {}
         REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
                                          password=login_password, default_prefix='/redfish/v1', cafile=utils.g_CAFILE)
-        REDFISH_OBJ.login(auth=utils.g_AUTH)
+        REDFISH_OBJ.login(auth="basic")
     except Exception as e:
         result = {'ret': False, 'msg': "Error_message: %s. Please check if username, password and IP are correct" % repr(e)}
         return result
@@ -80,40 +83,89 @@ def lenovo_update_fw(ip, login_account, login_password, image, targets, fsprotoc
         response_update_service_url = REDFISH_OBJ.get(update_service_url, None)
         if response_update_service_url.status == 200:
             # Check if BMC is 20A or before version of SR635/655. if yes, go through OEM way, else, call standard update way.
-            if "Oem" in response_update_service_url.dict['Actions'] and "MultipartHttpPushUri" not in response_update_service_url.dict:
-                if fsprotocol.upper() != "HTTP":
-                    result = {'ret': False, 'msg': "SR635/SR655 products only supports the HTTP protocol to update firmware."}
-                    return result
-                # for SR635/SR655 products, refresh the firmware with OEM action
-                Oem_dict = response_update_service_url.dict['Actions']['Oem']
-                if "#UpdateService.HPMUpdate" in Oem_dict and targets[0].upper() == "BMC":
-                    firmware_update_url = response_update_service_url.dict['Actions']['Oem']['#UpdateService.HPMUpdate']['target']
-                elif "#UpdateService.UEFIUpdate" in Oem_dict and targets[0].upper() == "UEFI":
-                    firmware_update_url = response_update_service_url.dict['Actions']['Oem']["#UpdateService.UEFIUpdate"]['target']
-                else:
+            if "Oem" in response_update_service_url.dict['Actions']:
+                # Check whether the firmware is BMC or UEFI
+                if targets[0].upper() not in ["BMC", "UEFI"]:
                     result = {'ret': False,
                               'msg': "SR635/SR655 products only supports specifying BMC or UEFI to refresh."}
                     return result
+                # Check if BMC is 20B version of SR635/655, if yes, use multipart Uri to update Firmware
+                if "MultipartHttpPushUri" in response_update_service_url.dict and fsprotocol.upper() == "HTTPPUSH":
+                    Multipart_Uri = login_host + response_update_service_url.dict["MultipartHttpPushUri"]
+                    BMC_Parameter = {"Targets": ["/redfish/v1/Managers/Self"]}
+                    if targets[0].upper() == "BMC":
+                        Oem_Parameter = {"FlashType": "HPMFwUpdate", "UploadSelector": "Default"}
+                    elif targets[0].upper() == "UEFI":
+                        Oem_Parameter = {"FlashType": "UEFIUpdate", "UploadSelector": "Default"}
+                    else:
+                        result = {'ret': False,
+                                  'msg': "SR635/SR655 products only supports specifying BMC or UEFI to refresh."}
+                        return result
+
+                    # Create a temporary file to write to the OEM value
+                    parameter_file = os.getcwd() + os.sep + "parameters.json"
+                    oem_parameter_file = os.getcwd() + os.sep + "oem_parameters.json"
+
+                    with open(parameter_file, 'w') as f:
+                        f.write(json.dumps(BMC_Parameter))
+                    with open(oem_parameter_file, 'w') as f:
+                        f.write(json.dumps(Oem_Parameter))
+
+                    F_parameter = open(parameter_file, 'rb')
+                    F_oparameter = open(oem_parameter_file, 'rb')
+                    # Specify the parameters required to update the firmware
+                    files = {'UpdateParameters': ("parameters.json", F_parameter, 'application/json'),
+                             'OemParameters': (
+                             "oem_parameters.json", F_oparameter, 'application/json'),
+                             'UpdateFile': (image, open(fsdir + os.sep + image, 'rb'), 'multipart/form-data')}
+
+                    # Send a post command through requests to update the firmware
+                    # Ignore SSL Certificates
+                    requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+                    # Set BMC access credential
+                    auth = HTTPBasicAuth(login_account, login_password)
+                    response = requests.post(Multipart_Uri, auth=auth, files=files, verify=False)
+                    response_code = response.status_code
+                    F_parameter.close()
+                    F_oparameter.close()
+                else:
+                    if fsprotocol.upper() != "HTTP":
+                        result = {'ret': False, 'msg': "SR635/SR655 products only supports the HTTP protocol to update firmware."}
+                        return result
+                    # for SR635/SR655 products, refresh the firmware with OEM action
+                    Oem_dict = response_update_service_url.dict['Actions']['Oem']
+                    if "#UpdateService.HPMUpdate" in Oem_dict and targets[0].upper() == "BMC":
+                        firmware_update_url = response_update_service_url.dict['Actions']['Oem']['#UpdateService.HPMUpdate']['target']
+                    elif "#UpdateService.UEFIUpdate" in Oem_dict and targets[0].upper() == "UEFI":
+                        firmware_update_url = response_update_service_url.dict['Actions']['Oem']["#UpdateService.UEFIUpdate"]['target']
+                    else:
+                        result = {'ret': False,
+                                  'msg': "Check whether the BMC is 20A version of SR635/655"}
+                        return result
+                    port = (lambda fsport: ":" + fsport if fsport else fsport)
+                    dir = (lambda fsdir: "/" + fsdir.strip("/") if fsdir else fsdir)
+                    Image_uri = fsprotocol.lower() + "://" + fsip + port(fsport) + dir(fsdir) + "/" + image
+                    body = {}
+                    body["ImageURI"] = Image_uri
+                    body["TransferProtocol"] = fsprotocol.upper()
+                    response = REDFISH_OBJ.post(firmware_update_url, body=body)
+                    response_code = response.status
             else:
                 result = update_firmware.update_fw(ip, login_account, login_password, image, targets, fsprotocol, fsip,
                                                    fsport, fsusername, fspassword, fsdir)
                 return result
 
-            port = (lambda fsport: ":" + fsport if fsport else fsport)
-            dir = (lambda fsdir: "/" + fsdir.strip("/") if fsdir else fsdir)
-            Image_uri = fsprotocol.lower() + "://" + fsip + port(fsport) + dir(fsdir) + "/" + image
-            body = {}
-            body["ImageURI"] = Image_uri
-            body["TransferProtocol"] = fsprotocol.upper()
-            response = REDFISH_OBJ.post(firmware_update_url, body=body)
-            if response.status in [200, 202, 204]:
+            if response_code in [200, 202, 204]:
                 # For BMC update, BMC will restart automatically, the session connection will be disconnected, user have to wait BMC to restart.
                 # For UEFI update, the script can monitor the update task via BMC. 
                 if targets[0].upper() == "BMC":
                     result = {'ret': True, 'msg': 'BMC refresh successful, wait five minutes for BMC to restart'}
                     return result
                 else:
-                    task_uri = update_service_url
+                    if fsprotocol.upper() == "HTTP":
+                        task_uri = update_service_url
+                    else:
+                        task_uri = response.headers['Location']
                     result = task_monitor(REDFISH_OBJ, task_uri)
                     # Delete task
                     REDFISH_OBJ.delete(task_uri, None)
@@ -139,6 +191,11 @@ def lenovo_update_fw(ip, login_account, login_password, image, targets, fsprotoc
     except Exception as e:
         result = {'ret': False, 'msg': "error_message: %s" % (e)}
     finally:
+        # Delete the temporary file if it exists
+        if os.path.exists(os.getcwd() + os.sep + "parameters.json"):
+            os.remove(os.getcwd() + os.sep + "parameters.json")
+        if os.path.exists(os.getcwd() + os.sep + "oem_parameters.json"):
+            os.remove(os.getcwd() + os.sep + "oem_parameters.json")
         # Logout of the current session
         REDFISH_OBJ.logout()
         return result
@@ -150,7 +207,7 @@ def task_monitor(REDFISH_OBJ, task_uri):
     print("Start to update the firmware, please wait a few minutes...")
     while True:
         response_task_uri = REDFISH_OBJ.get(task_uri, None)
-        if response_task_uri.status == 200:
+        if response_task_uri.status in [200, 202]:
             if "TaskState" in response_task_uri.dict:
                 task_state = response_task_uri.dict["TaskState"]
             elif "Oem" in response_task_uri.dict:
@@ -183,6 +240,7 @@ def add_helpmessage(argget):
     argget.add_argument('--fsusername', type=str, help='Specify the file server username.')
     argget.add_argument('--fspassword', type=str, help='Specify the file server password.')
     argget.add_argument('--fsdir', type=str, help='Specify the file server dir to the firmware upload.')
+
 
 import os
 import configparser
