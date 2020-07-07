@@ -124,6 +124,8 @@ def lenovo_update_fw(ip, login_account, login_password, image, targets, fsprotoc
                     requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
                     # Set BMC access credential
                     auth = HTTPBasicAuth(login_account, login_password)
+                    print("Start to upload the image, may take several minutes...\n")
+                    firmware_update_url = Multipart_Uri
                     response = requests.post(Multipart_Uri, auth=auth, files=files, verify=False)
                     response_code = response.status_code
                     F_parameter.close()
@@ -182,7 +184,7 @@ def lenovo_update_fw(ip, login_account, login_password, image, targets, fsprotoc
             else:
                 error_message = utils.get_extended_error(response)
                 result = {'ret': False, 'msg': "Url '%s' response Error code %s, \nError message: %s" % (
-                    firmware_update_url, response.status, error_message)}
+                    firmware_update_url, response_code, error_message)}
                 return result
         else:
             message = utils.get_extended_error(response_update_service_url)
