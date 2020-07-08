@@ -77,8 +77,13 @@ def lenovo_umount_virtual_media(ip, login_account, login_password, image, mountt
                     # Get the virtual media url from the manger response
                     virtual_media_url = response_manager_url.dict['VirtualMedia']['@odata.id']
                     # Get mount media iso url
-                    remotecontrol_url = response_manager_url.dict['Oem']['Lenovo']['RemoteControl']['@odata.id']
-                    remotemap_url = response_manager_url.dict['Oem']['Lenovo']['RemoteMap']['@odata.id']
+                    remotecontrol_url = ""
+                    remotemap_url = ""
+                    if "Oem" in response_manager_url.dict:
+                        Oem_dict = response_manager_url.dict['Oem']
+                        if "Lenovo" in Oem_dict:
+                            remotemap_url = Oem_dict['Lenovo']['RemoteMap']['@odata.id']
+                            remotecontrol_url = Oem_dict['Lenovo']['RemoteControl']['@odata.id']
                 else:
                     error_message = utils.get_extended_error(response_manager_url)
                     result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
@@ -98,6 +103,8 @@ def lenovo_umount_virtual_media(ip, login_account, login_password, image, mountt
                 # for 19A, XCC predefined 10 members, so call umount function for 19A. otherwise, call function for 18D.
                 if len(members_list) == 10:
                     result = umount_virtual_media(REDFISH_OBJ, members_list, image)
+                elif len(members_list) <= 4:
+                    result = umount_virtual_media_from_cd(REDFISH_OBJ, members_list, image)
                 else:
                     if mounttype == "Network":
                         result = umount_all_virtual_from_network(REDFISH_OBJ, remotemap_url)
@@ -113,6 +120,39 @@ def lenovo_umount_virtual_media(ip, login_account, login_password, image, mountt
         # Logout
         REDFISH_OBJ.logout()
         return result
+
+
+def umount_virtual_media_from_cd(REDFISH_OBJ, members_list, image):
+    """
+    This function uses the post method to umount virtual media, support AMD server.
+    """
+    # Get the mount virtual media list
+    for members in members_list:
+        members_url = members["@odata.id"]
+        response_members = REDFISH_OBJ.get(members_url, None)
+        if response_members.status == 200:
+            image_name = response_members.dict["ImageName"]
+            eject_media_url = response_members.dict["Actions"]["#VirtualMedia.EjectMedia"]["target"]
+        else:
+            error_message = utils.get_extended_error(response_members)
+            result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                members_url, response_members.status, error_message)}
+            return result
+        if image_name == image:
+            body = {}
+            response = REDFISH_OBJ.post(eject_media_url, body=body)
+            if response.status == 204:
+                result = {'ret': True, 'msg': "'%s' Umount successfully" % image}
+                return result
+            else:
+                error_message = utils.get_extended_error(response)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                    eject_media_url, response.status, error_message)}
+                return result
+        else:
+            continue
+    result = {"ret": False, "msg": "Please check the image name is correct and has been mounted."}
+    return result
 
 
 def umount_virtual_media(REDFISH_OBJ, members_list, image):

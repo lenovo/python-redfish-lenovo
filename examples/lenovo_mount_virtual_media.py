@@ -19,10 +19,11 @@
 # under the License.
 ###
 
-
+import traceback
 import sys
 import redfish
 import json
+import time
 import lenovo_utils as utils
 
 
@@ -97,8 +98,76 @@ def lenovo_mount_virtual_media(ip, login_account, login_password, image, mountty
                     # Get the virtual media url from the manger response
                     virtual_media_url = response_manager_url.dict['VirtualMedia']['@odata.id']
                     # Get mount media iso url
-                    remotemap_url = response_manager_url.dict['Oem']['Lenovo']['RemoteMap']['@odata.id']
-                    remotecontrol_url = response_manager_url.dict['Oem']['Lenovo']['RemoteControl']['@odata.id']
+                    remotemap_url = ""
+                    remotecontrol_url = ""
+                    if "Oem" in response_manager_url.dict:
+                        Oem_dict = response_manager_url.dict['Oem']
+                        if "Lenovo" in Oem_dict:
+                            remotemap_url = Oem_dict['Lenovo']['RemoteMap']['@odata.id']
+                            remotecontrol_url = Oem_dict['Lenovo']['RemoteControl']['@odata.id']
+                        elif "Ami" in Oem_dict:
+                            MediaStatus = Oem_dict['Ami']['VirtualMedia']['RMediaStatus']
+                            Enable_Media_url = response_manager_url.dict["Actions"]["Oem"]["#AMIVirtualMedia.EnableRMedia"]["target"]
+                            
+                            # Enable remote media support
+                            if MediaStatus != "Enabled":
+                                body = {"RMediaState": "Enable"}
+                                response_enable_url = REDFISH_OBJ.post(Enable_Media_url, body=body)
+                                if response_enable_url.status == 204:
+                                    time.sleep(10)
+                                    print("Enable remote media support")
+                                else:
+                                    error_message = utils.get_extended_error(response_enable_url)
+                                    result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                            Enable_Media_url, response_enable_url.status, error_message)}
+                                    return result
+                        else:
+                            result = {'ret': False, 'msg': "Please check whether the redfish version supports mount virtual media."}
+                            return result
+                    else:
+                        # Get Oem EnableRMedia url
+                        ActionsKeys = response_manager_url.dict["Actions"].keys()
+                        if "Oem" in ActionsKeys:
+                            Enable_Media_url = response_manager_url.dict["Actions"]["Oem"]["#VirtualMedia.EnableRMedia"]["target"]
+                            MediaStatus = response_manager_url.dict["Actions"]["Oem"]["#VirtualMedia.EnableRMedia"]["Status"]
+                            CdInstance_url = response_manager_url.dict["Actions"]["Oem"]["#VirtualMedia.ConfigureCDInstance"]["target"]
+                            CdInstance = response_manager_url.dict["Actions"]["Oem"]["#VirtualMedia.ConfigureCDInstance"]["CDInstances"]
+                        else:
+                            result = {'ret': False, 'msg': "Please check whether the redfish version supports mount virtual media."}
+                            return result
+                    
+                        # Enable remote media support
+                        if MediaStatus != "Enabled":
+                            body = {"RMediaState": "Enable"}
+                            response_enable_url = REDFISH_OBJ.post(Enable_Media_url, body=body)
+                            if response_enable_url.status == 204:
+                                time.sleep(10)
+                                print('Enable remote media support')
+                            else:
+                                error_message = utils.get_extended_error(response_enable_url)
+                                result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                        Enable_Media_url, response_enable_url.status, error_message)}
+                                return result
+                        
+                        # Set the CdInstace
+                        if CdInstance != 4:
+                            body = {"CDInstance": 4}
+                            response = REDFISH_OBJ.post(CdInstance_url, body=body)
+                            if response.status == 204:
+                                sys.stdout.write("The RMedia will be restart, wait a moment...")
+                                secs = 180
+                                while secs:
+                                    flush()
+                                    secs -= 1
+                            elif response.status == 400:
+                                result = {'ret': False, 'msg': "Stop all the active media redirections and Re-execute the script"}
+                                return result
+                            else:
+                                error_message = utils.get_extended_error(response)
+                                result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                                CdInstance_url, response.status, error_message)}
+                                return result
+                        
                 else:
                     error_message = utils.get_extended_error(response_manager_url)
                     result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
@@ -133,8 +202,15 @@ def lenovo_mount_virtual_media(ip, login_account, login_password, image, mountty
                             result = mount_virtual_media(REDFISH_OBJ, members_list, protocol, fsip, fsport, fsdir, image,writeprotocol, inserted)
                             return result
                         else:
-                            result = {"ret":False, "msg": "For remote mounts, only HTTP and NFS(no credential required) protocols are supported."}
+                            result = {"ret": False, "msg": "For remote mounts, only HTTP and NFS(no credential required) protocols are supported."}
                             return result
+                    elif len(members_list) == 4:
+                        if fsprotocol in ["NFS"]:
+                            result = mount_virtual_media_from_cd(REDFISH_OBJ, members_list, protocol, fsip, fsport, fsdir, image)
+                            return result
+                        else:
+                            result = {"ret": False, "msg": "For remote mounts, only NFS(no credential required) protocols are supported."}
+                            return result 
                     else:
                         result = mount_virtual_media_from_network(REDFISH_OBJ, remotemap_url, image, fsip, fsport, fsdir,
                                                                   fsprotocol, fsusername, fspassword, readonly, domain,
@@ -148,11 +224,64 @@ def lenovo_mount_virtual_media(ip, login_account, login_password, image, mountty
             result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
             account_managers_url, response_managers_url.status, error_message)}
     except Exception as e:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "error_message: %s" % (e)}
+        return result
     finally:
         # Logout
         REDFISH_OBJ.logout()
         return result
+
+
+def flush():
+    list = ['|', '\\', '-', '/']
+    for i in list:
+        sys.stdout.write(' ' * 100 + '\r')
+        sys.stdout.flush()
+        sys.stdout.write(i + '\r')
+        sys.stdout.flush()
+        time.sleep(0.1)
+
+
+def mount_virtual_media_from_cd(REDFISH_OBJ, members_list, protocol, fsip, fsport, fsdir, image):
+    """
+    This function user the post method to mount VM, only NFS protocols are supported.
+    This function can work on AMD server.
+    """
+    # Get the members url from the members list
+    if not image.endswith(".iso") and not image.endswith(".nrg"):
+        result = {'ret': False, 'msg': "Supported CD/DVD media file type: (*.iso), (*.nrg)."}
+        return result
+
+    for members in members_list:
+        members_url = members["@odata.id"]
+        # Get the mount image name from the members response resource
+        response_members = REDFISH_OBJ.get(members_url, None)
+        if response_members.status == 200:
+            image_name = response_members.dict["ImageName"]
+            InsertMedia_url = response_members.dict["Actions"]["#VirtualMedia.InsertMedia"]["target"]
+        else:
+            error_message = utils.get_extended_error(response_members)
+            result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                members_url, response_members.status, error_message)}
+            return result
+
+        if not image_name:
+            image_uri = protocol + "://" + fsip + fsport + fsdir + "/" + image
+            body = {"Image": image_uri, "TransferProtocolType": protocol.upper()}
+            response = REDFISH_OBJ.post(InsertMedia_url, body=body)
+            if response.status in [200, 204]:
+                result = {'ret': True, 'msg': "'%s' mount successfully" % image}
+                return result
+            else:
+                error_message = utils.get_extended_error(response)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                    InsertMedia_url, response.status, error_message)}
+                return result
+        else:
+            continue
+    result = {'ret': False, 'msg': "Up to 4 files can be concurrently mounted to the server by the BMC."}
+    return result
 
 
 def mount_virtual_media(REDFISH_OBJ, members_list, protocol, fsip, fsport, fsdir, image, writeprotocol, inserted):
