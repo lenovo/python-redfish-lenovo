@@ -83,8 +83,13 @@ def get_all_bios_attributes(ip, login_account, login_password, system_id, bios_g
                     response_pending_url = REDFISH_OBJ.get(pending_url, None)
                     if response_pending_url.status == 200:
                         # Get the pending url resource
-                        attribute = response_pending_url.dict['Attributes']
-                        attributes.append(attribute)
+                        pending_attribute = response_pending_url.dict['Attributes']
+                        current_attribute = response_bios_url.dict['Attributes']
+                        changed_attribute = {}
+                        for key in pending_attribute:
+                            if pending_attribute[key] != current_attribute[key]:
+                                changed_attribute[key] = pending_attribute[key]
+                        attributes.append(changed_attribute)
                     else:
                         error_message = utils.get_extended_error(response_pending_url)
                         result = {'ret': False, 'msg': "Url '%s' response error code %s \nerror_message: %s" % (
