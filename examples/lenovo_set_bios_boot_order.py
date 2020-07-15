@@ -63,44 +63,120 @@ def set_bios_boot_order(ip, login_account, login_password, system_id, bootorder)
         for i in range(len(system)):
             system_url = system[i]
             response_system_url = REDFISH_OBJ.get(system_url, None)
-            if response_system_url.status == 200:
-                # Get the BootSettings url
-                boot_settings_url = response_system_url.dict['Oem']['Lenovo']['BootSettings']['@odata.id']
-            else:
+            if response_system_url.status != 200:
                 error_message = utils.get_extended_error(response_system_url)
                 result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (system_url, response_system_url.status, error_message)}
                 return result
 
-            # Get the boot order settings url from boot settings resource
-            response_boot_settings = REDFISH_OBJ.get(boot_settings_url, None)
-            if response_boot_settings.status == 200:
-                boot_order_url = response_boot_settings.dict['Members'][0]['@odata.id']
-            else:
-                error_message = utils.get_extended_error(response_boot_settings)
-                result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
-                    boot_settings_url, response_boot_settings.status, error_message)}
-                return result
+            # Set boot order via Oem/Lenovo/BootSettings resource for ThinkSystem servers except SR635/SR655
+            if 'Lenovo' in str(response_system_url.dict) and 'BootSettings' in str(response_system_url.dict):
+                # Get the BootSettings url
+                boot_settings_url = response_system_url.dict['Oem']['Lenovo']['BootSettings']['@odata.id']
+                # Get the boot order settings url from boot settings resource
+                response_boot_settings = REDFISH_OBJ.get(boot_settings_url, None)
+                if response_boot_settings.status == 200:
+                    boot_order_url = response_boot_settings.dict['Members'][0]['@odata.id']
+                else:
+                    error_message = utils.get_extended_error(response_boot_settings)
+                    result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                        boot_settings_url, response_boot_settings.status, error_message)}
+                    return result
+    
+                # Get the boot order supported list
+                response_get_boot_order = REDFISH_OBJ.get(boot_order_url,None)
+                if response_get_boot_order.status == 200:
+                    boot_order_supported = response_get_boot_order.dict['BootOrderSupported']
+                    for boot in bootorder:
+                        if boot not in boot_order_supported:
+                            result = {'ret': False, 'msg': "Invalid bootorder %s. You can specify one or more boot order form list:%s" %(boot, boot_order_supported)}
+                            return result
 
-            # Get the boot order supported list
-            response_get_boot_order = REDFISH_OBJ.get(boot_order_url,None)
-            if response_get_boot_order.status == 200:
-                boot_order_supported = response_get_boot_order.dict['BootOrderSupported']
+                # Set the boot order next via patch request
+                body = {"BootOrderNext":bootorder}
+                response_boot_order = REDFISH_OBJ.patch(boot_order_url, body=body)
+                if response_boot_order.status == 200:
+                    boot_order_next = response_boot_order.dict["BootOrderNext"]
+                    result = {'ret': True, 'msg': "Modified Boot Order '%s' successfully. New boot order will take effect on the next startup."%(boot_order_next)}
+                    return result
+                else:
+                    error_message = utils.get_extended_error(response_boot_order)
+                    result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                        boot_order_url, response_boot_order.status, error_message)}
+                    return result
+
+            # Set boot order via Bios Q00999_Boot_Option_Priorities attribute resource for ThinkSystem SR635/SR655
+            if 'SR635' in str(response_system_url.dict) or 'SR655' in str(response_system_url.dict):
+                # Get /redfish/v1/Systems/Self/Bios resource
+                bios_url = response_system_url.dict['Bios']['@odata.id']
+                response_bios = REDFISH_OBJ.get(bios_url, None)
+                if response_bios.status != 200:
+                    error_message = utils.get_extended_error(response_bios)
+                    result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                        bios_url, response_bios.status, error_message)}
+                    return result
+
+                # Get current boot order setting from specified attribute
+                attribute_name = 'Q00999_Boot_Option_Priorities'
+                attribute_value = ''
+                if 'Q00999_Boot_Option_Priorities' in response_bios.dict['Attributes']:
+                    attribute_name = 'Q00999_Boot_Option_Priorities'
+                    attribute_value = response_bios.dict['Attributes'][attribute_name]
+                elif 'Q00999 Boot Option Priorities' in response_bios.dict['Attributes']:
+                    attribute_name = 'Q00999 Boot Option Priorities'
+                    attribute_value = response_bios.dict['Attributes'][attribute_name]
+                else:
+                    continue
+
+                # Get supported boot order list
+                boot_order_supported = list()
+                org_boot_order_struct_list = attribute_value.split(';')
+                for boot_order_struct in org_boot_order_struct_list:
+                    boot_order_name = boot_order_struct.split(',')[0]
+                    boot_order_supported.append(boot_order_name)
+
+                # Set payload body
+                body = {}
+                new_boot_order_struct_list = list()
                 for boot in bootorder:
+                    # If input bootorder is not supported, prompt error message
                     if boot not in boot_order_supported:
-                        result = {'ret': False, 'msg': "You can specify one or more boot order form list:%s" %boot_order_supported}
+                        result = {'ret': False, 'msg': "Invalid bootorder %s. You can specify one or more boot order form list:%s" %(boot, boot_order_supported)}
                         return result
+                    # Add enabled bootorder list
+                    for boot_order_struct in org_boot_order_struct_list:
+                        boot_order_name = boot_order_struct.split(',')[0]
+                        if boot == boot_order_name:
+                            newstruct = boot_order_struct.replace('false', 'true')
+                            if newstruct not in new_boot_order_struct_list:
+                                new_boot_order_struct_list.append(newstruct)
+                # Add disabled bootorder list
+                for boot_order_struct in org_boot_order_struct_list:
+                    boot_order_name = boot_order_struct.split(',')[0]
+                    if boot_order_name not in bootorder:
+                        newstruct = boot_order_struct.replace('true', 'false')
+                        if newstruct not in new_boot_order_struct_list:
+                            new_boot_order_struct_list.append(newstruct)
+                new_boot_order_struct_string = ''
+                for item in new_boot_order_struct_list:
+                    new_boot_order_struct_string = new_boot_order_struct_string + item + ';'
+                body = {"Attributes": {attribute_name: new_boot_order_struct_string}}
+                headers = {"If-Match": '*'}
 
-            # Set the boot order next via patch request
-            body = {"BootOrderNext":bootorder}
-            response_boot_order = REDFISH_OBJ.patch(boot_order_url, body=body)
-            if response_boot_order.status == 200:
-                boot_order_next = response_boot_order.dict["BootOrderNext"]
-                result = {'ret': True, 'msg': "Modified Boot Order '%s' successfully"%(boot_order_next)}
-            else:
-                error_message = utils.get_extended_error(response_boot_order)
-                result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
-                    boot_order_url, response_boot_order.status, error_message)}
-                return result
+                # Set the boot order via patch request
+                bios_settings_url = response_bios.dict['@Redfish.Settings']['SettingsObject']['@odata.id']
+                response_bios_settings = REDFISH_OBJ.patch(bios_settings_url, body=body, headers=headers)
+                if response_bios_settings.status in [200, 204]:
+                    result = {'ret': True, 'msg': "Modified Boot Order successfully. New boot order will take effect on the next startup."}
+                    return result
+                else:
+                    error_message = utils.get_extended_error(response_bios_settings)
+                    result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                        bios_settings_url, response_bios_settings.status, error_message)}
+                    return result
+
+        result = {'ret': False, 'msg': "No related resource found, fail to set bios boot order for target server."}
+        return result
+
     except Exception as e:
         result = {'ret':False, 'msg':"error_message:%s" %(e)}
     finally:
