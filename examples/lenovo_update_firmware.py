@@ -28,6 +28,7 @@ import json
 import update_firmware
 import lenovo_utils as utils
 import requests
+import time
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from requests.auth import HTTPBasicAuth
 
@@ -224,7 +225,7 @@ def task_monitor(REDFISH_OBJ, task_uri):
                 result = {'ret':True, 'msg': task_state}
                 return result
             else:
-                update_firmware.flush()
+                time.sleep(15)
         else:
             message = utils.get_extended_error(response_task_uri)
             result = {'ret': False, 'msg': "Url '%s' response Error code %s, \nError message :%s" % (task_uri, response_task_uri.status, message)}
