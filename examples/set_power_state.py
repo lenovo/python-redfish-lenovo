@@ -49,9 +49,10 @@ def set_reset_system(ip, login_account, login_password, system_id, reset_type):
                                              password=login_password, default_prefix='/redfish/v1', cafile=utils.g_CAFILE)
         # Login into the server and create a session
         REDFISH_OBJ.login(auth=utils.g_AUTH)
-    except:
-        sys.stdout.write("Please check the username, password, IP is correct\n")
-        sys.exit(1)
+    except Exception as e:
+        result = {'ret': False, 'msg': "Error_message: %s. Please check if username, password and IP are correct" % repr(e)}
+        return result
+
     try:
         # GET the ComputerSystem resource
         system = utils.get_system_url("/redfish/v1", system_id,  REDFISH_OBJ)
