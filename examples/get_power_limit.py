@@ -112,7 +112,10 @@ def get_power_limit(ip, login_account, login_password):
         result = {'ret': False, 'msg': 'exception msg %s' % e}
         return result
     finally:
-        REDFISH_OBJ.logout()
+        try:
+            REDFISH_OBJ.logout()
+        except:
+            pass
 
 
 if __name__ == '__main__':

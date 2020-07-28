@@ -123,7 +123,10 @@ def lenovo_ldap_certificate_add(ip, login_account, login_password, certfile):
             else:
                 result = {'ret': True,
                           'msg':"The certificate has been added successfully. You must restart BMC to activate it."}
-            REDFISH_OBJ.logout()
+            try:
+                REDFISH_OBJ.logout()
+            except:
+                pass
             return result
 
         # No LDAP certificate resource found
@@ -134,7 +137,10 @@ def lenovo_ldap_certificate_add(ip, login_account, login_password, certfile):
         result = {'ret': False, 'msg': 'exception msg %s' % e}
         return result
     finally:
-        REDFISH_OBJ.logout()
+        try:
+            REDFISH_OBJ.logout()
+        except:
+            pass
 
 
 def read_cert_file(der_cert):

@@ -180,6 +180,11 @@ def set_bmc_ipv4(ip, login_account, login_password, dhcp_enabled, static_ip, sta
         error_message = utils.get_extended_error(response_network_url)
         result = {'ret': False, 'msg': "Url '%s' response error code %s \nerror_message: %s" % (
                   target_ethernet_uri, response_network_url.status, error_message)}
+
+    try:
+        REDFISH_OBJ.logout()
+    except:
+        pass
     return result
 
 

@@ -133,7 +133,10 @@ def update_bmc_user_password(ip, login_account, login_password, username, new_pa
         result = {'ret':False, 'msg':"Error message %s" %e}
     finally:
         # Logout
-        REDFISH_OBJ.logout()
+        try:
+            REDFISH_OBJ.logout()
+        except:
+            pass
         return result
 
 

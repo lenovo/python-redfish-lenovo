@@ -95,7 +95,10 @@ def lenovo_get_bmc_user_ldap_policy(ip, login_account, login_password):
         result = {'ret': False, 'msg': 'exception msg %s' % e}
         return result
     finally:
-        REDFISH_OBJ.logout()
+        try:
+            REDFISH_OBJ.logout()
+        except:
+            pass
 
 
 if __name__ == '__main__':

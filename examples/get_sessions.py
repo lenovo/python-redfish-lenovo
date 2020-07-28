@@ -90,7 +90,10 @@ def get_sessions(ip, login_account, login_password):
     result['ret'] = True
     result['sessions_details'] = session_list
 
-    REDFISH_OBJ.logout()
+    try:
+        REDFISH_OBJ.logout()
+    except:
+        pass
     return result
 
 

@@ -131,7 +131,10 @@ def lenovo_get_bmc_external_ldap(ip, login_account, login_password):
         result = {'ret': False, 'msg': 'exception msg %s' % e}
         return result
     finally:
-        REDFISH_OBJ.logout()
+        try:
+            REDFISH_OBJ.logout()
+        except:
+            pass
 
 
 def map_oem2standard_property(oem_response_dict):

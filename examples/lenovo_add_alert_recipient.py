@@ -110,7 +110,10 @@ def lenovo_add_alert_recipient(ip, login_account, login_password, setting_dict):
         return result
     finally:
         # Logout of the current session
-        REDFISH_OBJ.logout()
+        try:
+            REDFISH_OBJ.logout()
+        except:
+            pass
 
 
 import argparse

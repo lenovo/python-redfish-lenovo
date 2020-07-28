@@ -210,7 +210,10 @@ def lenovo_set_serial_interfaces(ip, login_account, login_password, interfaceid,
                 result = {'ret': False, 'msg': "The specified Interface Id does not exist."}
     finally:
         # Logout of the current session
-        REDFISH_OBJ.logout()
+        try:
+            REDFISH_OBJ.logout()
+        except:
+            pass
         return result       
 
 

@@ -125,7 +125,10 @@ def get_system_log(ip, login_account, login_password, system_id, type):
     result['ret'] = True            
     result['entries'] = log_details
     # Logout of the current session
-    REDFISH_OBJ.logout()
+    try:
+        REDFISH_OBJ.logout()
+    except:
+        pass
     return result
 
 

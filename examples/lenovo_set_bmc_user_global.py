@@ -111,7 +111,10 @@ def lenovo_set_bmc_user_global(ip, login_account, login_password, setting_dict):
         result = {'ret':False, 'msg':"Error message %s" %e}
     finally:
         # Logout of the current session
-        REDFISH_OBJ.logout()
+        try:
+            REDFISH_OBJ.logout()
+        except:
+            pass
         return result
 
 

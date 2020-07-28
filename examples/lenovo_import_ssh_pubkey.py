@@ -155,7 +155,10 @@ def lenovo_import_ssh_pubkey(ip, login_account, login_password, user_name, pb_co
         result = {'ret': False, 'msg': "Error message %s" % e}
     finally:
         # Logout of the current session
-        REDFISH_OBJ.logout()
+        try:
+            REDFISH_OBJ.logout()
+        except:
+            pass
         return result
 
 def add_helpmessage(argget):

@@ -94,7 +94,10 @@ def get_secure_boot_status(ip, login_account, login_password, system_id):
         result['ret'] = True
         result['entries'] = secure_details
     # Logout of the current session
-    REDFISH_OBJ.logout()
+    try:
+        REDFISH_OBJ.logout()
+    except:
+        pass
     return result
 
 

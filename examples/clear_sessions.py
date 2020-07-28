@@ -106,7 +106,10 @@ def clear_sessions(ip, login_account, login_password, username):
 
     result = {'ret': True, 'msg': 'Clear sessions successfully.'}
 
-    REDFISH_OBJ.logout()
+    try:
+        REDFISH_OBJ.logout()
+    except:
+        pass
     return result
 
 

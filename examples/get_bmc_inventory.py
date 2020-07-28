@@ -157,7 +157,10 @@ def get_bmc_inventory(ip, login_account, login_password, system_id):
     result['ret'] = True
     result['entries'] = bmc_details
     # Logout of the current session
-    REDFISH_OBJ.logout()
+    try:
+        REDFISH_OBJ.logout()
+    except:
+        pass
     return result
 
 

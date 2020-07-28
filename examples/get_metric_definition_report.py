@@ -130,7 +130,10 @@ def get_metric_definition_report(ip, login_account, login_password):
     result['ret'] = True
     result['metric_inventory'] = metric_inventory
 
-    REDFISH_OBJ.logout()
+    try:
+        REDFISH_OBJ.logout()
+    except:
+        pass
     return result
 
 

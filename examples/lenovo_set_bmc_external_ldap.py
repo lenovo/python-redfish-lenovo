@@ -206,7 +206,10 @@ def lenovo_set_bmc_external_ldap(ip, login_account, login_password, ldapserver, 
         result = {'ret': False, 'msg': 'exception msg %s' % e}
         return result
     finally:
-        REDFISH_OBJ.logout()
+        try:
+            REDFISH_OBJ.logout()
+        except:
+            pass
 
 
 def check_parameter(ldapserver, client_name, client_pwd):

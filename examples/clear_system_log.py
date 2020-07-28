@@ -123,7 +123,10 @@ def clear_system_log(ip, login_account, login_password, system_id, type):
     except Exception as e:
         result = {'ret': False, 'msg': "error_message: %s" % (e)}
     finally:
-        REDFISH_OBJ.logout()
+        try:
+            REDFISH_OBJ.logout()
+        except:
+            pass
         return result
 
 import argparse

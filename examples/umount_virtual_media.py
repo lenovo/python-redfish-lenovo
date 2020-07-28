@@ -137,7 +137,10 @@ def umount_virtual_media(ip, login_account, login_password, image):
         result = {'ret': False, 'msg': "error_message: %s" % (e)}
     finally:
         # Logout
-        REDFISH_OBJ.logout()
+        try:
+            REDFISH_OBJ.logout()
+        except:
+            pass
         return result
 
 

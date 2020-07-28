@@ -140,7 +140,10 @@ def get_hostinterface(ip, login_account, login_password):
     result['ret'] = True
     result['hostinterfaces'] = hostinterfaces
 
-    REDFISH_OBJ.logout()
+    try:
+        REDFISH_OBJ.logout()
+    except:
+        pass
     return result
 
 

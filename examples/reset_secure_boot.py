@@ -98,7 +98,10 @@ def reset_secure_boot(ip, login_account, login_password, system_id, reset_keys_t
         result = {'ret': False, 'msg': "error message %s" % e}
     finally:
         # Logout of the current session
-        REDFISH_OBJ.logout()
+        try:
+            REDFISH_OBJ.logout()
+        except:
+            pass
         return result
 
 

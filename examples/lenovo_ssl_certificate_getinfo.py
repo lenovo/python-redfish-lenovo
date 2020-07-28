@@ -126,7 +126,10 @@ def lenovo_ssl_certificate_getinfo(ip, login_account, login_password):
         result = {'ret': False, 'msg': 'exception msg %s' % e}
         return result
     finally:
-        REDFISH_OBJ.logout()
+        try:
+            REDFISH_OBJ.logout()
+        except:
+            pass
 
 
 def add_parameter():

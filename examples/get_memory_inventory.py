@@ -124,7 +124,10 @@ def get_memory_inventory(ip, login_account, login_password, system_id, member_id
         result = {'ret': False, 'msg': "exception msg %s" % e}
         return result
     finally:
-        REDFISH_OBJ.logout()
+        try:
+            REDFISH_OBJ.logout()
+        except:
+            pass
 
 import argparse
 def add_parameter():
