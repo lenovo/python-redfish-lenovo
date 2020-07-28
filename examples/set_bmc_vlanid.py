@@ -26,7 +26,7 @@ import json
 import lenovo_utils as utils
 
 
-def set_manager_vlanid(ip, login_account, login_password, vlanid, vlanEnable):
+def set_bmc_vlanid(ip, login_account, login_password, vlanid, vlanEnable):
     """Set BMC vlan id    
     :params ip: BMC IP address
     :type ip: string
@@ -170,7 +170,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     # Set manager vlanid result and check result
-    result = set_manager_vlanid(ip, login_account, login_password, vlanid, vlanEnable)
+    result = set_bmc_vlanid(ip, login_account, login_password, vlanid, vlanEnable)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))

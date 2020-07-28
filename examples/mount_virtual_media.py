@@ -36,7 +36,7 @@ import json
 import lenovo_utils as utils
 
 
-def insert_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsport, image, fsdir, inserted, writeprotocol):
+def mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsport, image, fsdir, inserted, writeprotocol):
     """Mount an ISO or IMG image file from a file server to the host as a DVD or USB drive.
     :params ip: BMC IP address
     :type ip: string
@@ -240,9 +240,9 @@ if __name__ == '__main__':
         sys.exit(1)
 
     # Get mount media iso result and check result
-    result = insert_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsport, image, fsdir, inserted, writeprotocol)
+    result = mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsport, image, fsdir, inserted, writeprotocol)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
     else:
-        sys.stderr.write(result['msg'])
+        sys.stderr.write(result['msg'] + '\n')

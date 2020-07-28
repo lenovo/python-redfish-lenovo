@@ -28,7 +28,7 @@ import time
 import os
 
 
-def export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir):
+def lenovo_export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir):
     """Export ffdc data    
     :params ip: BMC IP address
     :type ip: string
@@ -347,7 +347,7 @@ if __name__ == '__main__':
     fsdir = parameter_info['fsdir']
 
     # export ffdc result and check result
-    result = export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir)
+    result = lenovo_export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))

@@ -82,7 +82,7 @@ def set_custom_role_privileges(REDFISH_OBJ,response_account_service_url,roleid,a
 
 
 
-def create_bmc_user(ip, login_account, login_password, username, password, authority):
+def lenovo_create_bmc_user(ip, login_account, login_password, username, password, authority):
     """create bmc user
     :params ip: BMC IP address
     :type ip: string
@@ -305,9 +305,9 @@ if __name__ == '__main__':
         sys.exit(1)
 
     # create bmc user result and check result
-    result = create_bmc_user(ip, login_account, login_password, username, password,authority)
+    result = lenovo_create_bmc_user(ip, login_account, login_password, username, password,authority)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
     else:
-        sys.stderr.write(result['msg'])
+        sys.stderr.write(result['msg'] + '\n')

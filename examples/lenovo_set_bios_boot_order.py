@@ -26,7 +26,7 @@ import redfish
 import lenovo_utils as utils
 
 
-def set_bios_boot_order(ip, login_account, login_password, system_id, bootorder):
+def lenovo_set_bios_boot_order(ip, login_account, login_password, system_id, bootorder):
     """set bios boot order
     :params ip: BMC IP address
     :type ip: string
@@ -218,9 +218,9 @@ if __name__ == '__main__':
         sys.exit(1)
 
     # Get set bios boot order result and check result
-    result = set_bios_boot_order(ip, login_account, login_password, system_id, bootorder)
+    result = lenovo_set_bios_boot_order(ip, login_account, login_password, system_id, bootorder)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
     else:
-        sys.stderr.write(result['msg'])
+        sys.stderr.write(result['msg'] + '\n')

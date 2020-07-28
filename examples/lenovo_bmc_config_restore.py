@@ -75,7 +75,7 @@ def check_whether_new_schema(odatatype, REDFISH_OBJ):
     return boolret
 
 
-def lenovo_config_restore(ip, login_account, login_password, backup_password, backup_file, httpip, httpport, httpdir):
+def lenovo_bmc_config_restore(ip, login_account, login_password, backup_password, backup_file, httpip, httpport, httpdir):
     """BMC configuration restore
         :params ip: BMC IP address
         :type ip: string
@@ -320,9 +320,9 @@ if __name__ == '__main__':
     httpport = parameter_info["httpport"]
     httpdir = parameter_info["httpdir"]
     # BMC configuration restore and check result
-    result = lenovo_config_restore(ip, login_account, login_password, backup_password, backup_file, httpip, httpport, httpdir)
+    result = lenovo_bmc_config_restore(ip, login_account, login_password, backup_password, backup_file, httpip, httpport, httpdir)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
     else:
-        sys.stderr.write(result['msg'])
+        sys.stderr.write(result['msg'] + '\n')

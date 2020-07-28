@@ -26,7 +26,7 @@ import json
 import lenovo_utils as utils
 
 
-def delete_bmc_user(ip, login_account, login_password, username):
+def lenovo_delete_bmc_user(ip, login_account, login_password, username):
     """Delete bmc user
     :params ip: BMC IP address
     :type ip: string
@@ -185,7 +185,7 @@ if __name__ == '__main__':
     username = parameter_info['username']
 
     # Get delete bmc user result and check result
-    result = delete_bmc_user(ip, login_account, login_password,username)
+    result = lenovo_delete_bmc_user(ip, login_account, login_password,username)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))

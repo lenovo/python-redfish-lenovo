@@ -32,7 +32,7 @@ import time
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from requests.auth import HTTPBasicAuth
 
-def lenovo_update_fw(ip, login_account, login_password, image, targets, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir):
+def lenovo_update_firmware(ip, login_account, login_password, image, targets, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir):
     """ Lenovo update firmware
         :params ip: BMC IP address
         :type ip: string
@@ -321,7 +321,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     # Update firmware result and check result
-    result = lenovo_update_fw(ip, login_account, login_password, image, targets, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir)
+    result = lenovo_update_firmware(ip, login_account, login_password, image, targets, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))

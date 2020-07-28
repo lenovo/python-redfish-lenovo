@@ -25,7 +25,7 @@ import redfish
 import lenovo_utils as utils
 
 
-def get_boot_mode(ip, login_account, login_password, system_id):
+def get_bios_bootmode(ip, login_account, login_password, system_id):
     """Get bios boot mode
     :params ip: BMC IP address
     :type ip: string
@@ -118,7 +118,7 @@ if __name__ == '__main__':
     system_id = parameter_info['sysid']
 
     # Get boot mode information and check result
-    result = get_boot_mode(ip, login_account, login_password, system_id)
+    result = get_bios_bootmode(ip, login_account, login_password, system_id)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))

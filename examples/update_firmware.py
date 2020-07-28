@@ -30,7 +30,7 @@ import time
 import lenovo_utils as utils
 
 
-def update_fw(ip, login_account, login_password, image, targets, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir):
+def update_firmware(ip, login_account, login_password, image, targets, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir):
     """Update firmware
     :params ip: BMC IP address
     :type ip: string
@@ -302,7 +302,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     # Update firmware result and check result
-    result = update_fw(ip, login_account, login_password, image, targets, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir)
+    result = update_firmware(ip, login_account, login_password, image, targets, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))

@@ -26,7 +26,7 @@ import json
 import lenovo_utils as utils
 
 
-def get_psu_info(ip, login_account, login_password, system_id):
+def get_psu_inventory(ip, login_account, login_password, system_id):
     """Get power supply unit inventory 
     :params ip: BMC IP address
     :type ip: string
@@ -122,7 +122,7 @@ if __name__ == '__main__':
     system_id = parameter_info['sysid']
     
     # Get power supply unit inventory and check result
-    result = get_psu_info(ip, login_account, login_password, system_id)
+    result = get_psu_inventory(ip, login_account, login_password, system_id)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['entry_details'], sort_keys=True, indent=2))

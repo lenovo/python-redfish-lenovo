@@ -27,7 +27,7 @@ import redfish
 import lenovo_utils as utils
 
 
-def get_cpu_info(ip, login_account, login_password, system_id):
+def get_cpu_inventory(ip, login_account, login_password, system_id):
     """Get cpu inventory    
     :params ip: BMC IP address
     :type ip: string
@@ -118,7 +118,7 @@ if __name__ == '__main__':
     system_id = parameter_info['sysid']
     
     # Get cpu inventory and check result
-    result = get_cpu_info(ip, login_account, login_password, system_id)
+    result = get_cpu_inventory(ip, login_account, login_password, system_id)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['entries'], sort_keys=True, indent=2))

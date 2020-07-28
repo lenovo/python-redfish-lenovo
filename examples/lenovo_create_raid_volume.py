@@ -26,7 +26,7 @@ import redfish
 import lenovo_utils as utils
 
 
-def create_raid_volume(ip, login_account, login_password, system_id, raidid, volume_name, raid_type, volume_capacity, read_policy, write_policy, io_policy, access_policy, drive_cache_policy):
+def lenovo_create_raid_volume(ip, login_account, login_password, system_id, raidid, volume_name, raid_type, volume_capacity, read_policy, write_policy, io_policy, access_policy, drive_cache_policy):
     """Create raid volume 
     :params ip: BMC IP address
     :type ip: string
@@ -262,11 +262,11 @@ if __name__ == '__main__':
     system_id = parameter_info['sysid']
     
     # create raid volume and check result
-    result = create_raid_volume(ip, login_account, login_password, system_id, parameter_info["raidid"], parameter_info["name"], parameter_info["raidtype"],
+    result = lenovo_create_raid_volume(ip, login_account, login_password, system_id, parameter_info["raidid"], parameter_info["name"], parameter_info["raidtype"],
                                 parameter_info["capacityMB"]*1024*1024, parameter_info["readpolicy"], parameter_info["writepolicy"], parameter_info["iopolicy"], 
                                 parameter_info["accesspolicy"], parameter_info["drivecachepolicy"])
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
     else:
-        sys.stderr.write(result['msg'])
+        sys.stderr.write(result['msg'] + '\n')

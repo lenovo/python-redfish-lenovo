@@ -26,7 +26,7 @@ import json
 import lenovo_utils as utils
 
 
-def enable_user(ip, login_account, login_password, username):
+def enable_bmc_user(ip, login_account, login_password, username):
     """enable user
     :params ip: BMC IP address
     :type ip: string
@@ -156,7 +156,7 @@ if __name__ == '__main__':
     username = parameter_info['username']
 
     # Get enable user result and check result
-    result = enable_user(ip, login_account, login_password, username)
+    result = enable_bmc_user(ip, login_account, login_password, username)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))

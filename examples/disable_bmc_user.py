@@ -26,7 +26,7 @@ import json
 import lenovo_utils as utils
 
 
-def disable_user(ip, login_account, login_password, username):
+def disable_bmc_user(ip, login_account, login_password, username):
     """Disable user   
     :params ip: BMC IP address
     :type ip: string
@@ -154,4 +154,4 @@ if __name__ == '__main__':
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
     else:
-        sys.stderr.write(result['msg'])
+        sys.stderr.write(result['msg'] + '\n')

@@ -26,7 +26,7 @@ import json
 import lenovo_utils as utils
 
 
-def set_manager_ntp(ip, login_account, login_password, ntp_server, ProtocolEnabled):
+def set_bmc_ntp(ip, login_account, login_password, ntp_server, ProtocolEnabled):
     """Set BMC ntp server
     :params ip: BMC IP address
     :type ip: string
@@ -155,9 +155,9 @@ if __name__ == '__main__':
         sys.exit(1)
 
     # Set manager ntp result and check result
-    result = set_manager_ntp(ip, login_account, login_password, ntp_server, ProtocolEnabled)
+    result = set_bmc_ntp(ip, login_account, login_password, ntp_server, ProtocolEnabled)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
     else:
-        sys.stderr.write(result['msg'])
+        sys.stderr.write(result['msg'] + '\n')

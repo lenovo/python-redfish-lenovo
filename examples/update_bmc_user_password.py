@@ -25,7 +25,7 @@ import redfish
 import json
 import lenovo_utils as utils
 
-def update_user_password(ip, login_account, login_password, username, new_password):
+def update_bmc_user_password(ip, login_account, login_password, username, new_password):
     """update user password    
     :params ip: BMC IP address
     :type ip: string
@@ -168,9 +168,9 @@ if __name__ == '__main__':
     new_password = parameter_info['new_passwd']
 
     # Update user password result and check result   
-    result = update_user_password(ip, login_account, login_password, username, new_password)
+    result = update_bmc_user_password(ip, login_account, login_password, username, new_password)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
     else:
-        sys.stderr.write(result['msg'])
+        sys.stderr.write(result['msg'] + '\n')

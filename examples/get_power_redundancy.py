@@ -1,6 +1,6 @@
 ###
 #
-# Lenovo Redfish examples - Get power redundant
+# Lenovo Redfish examples - Get power redundancy
 #
 # Copyright Notice:
 #
@@ -24,8 +24,8 @@ import redfish
 import json
 import lenovo_utils as utils
 
-def get_power_redundant(ip, login_account, login_password):
-    """Get power redundant
+def get_power_redundancy(ip, login_account, login_password):
+    """Get power redundancy
         :params ip: BMC IP address
         :type ip: string
         :params login_account: BMC user name
@@ -130,7 +130,7 @@ if __name__ == '__main__':
     login_password = parameter_info["passwd"]
 
     # Get power redundant and check result
-    result = get_power_redundant(ip, login_account, login_password)
+    result = get_power_redundancy(ip, login_account, login_password)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['entries'], sort_keys=True, indent=2))

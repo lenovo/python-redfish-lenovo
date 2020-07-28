@@ -26,7 +26,7 @@ import redfish
 import lenovo_utils as utils
 
 
-def get_network_info(ip, login_account, login_password, system_id):
+def get_nic_inventory(ip, login_account, login_password, system_id):
     """Get nic inventory    
     :params ip: BMC IP address
     :type ip: string
@@ -225,7 +225,7 @@ if __name__ == '__main__':
     system_id = parameter_info['sysid']
     
     # Get nic inventory and check result
-    result = get_network_info(ip, login_account, login_password, system_id)
+    result = get_nic_inventory(ip, login_account, login_password, system_id)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['entries'], sort_keys=True, indent=2))

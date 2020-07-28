@@ -25,7 +25,7 @@ import json
 import lenovo_utils as utils
 import traceback
 
-def set_service_port(ip, login_account, login_password, service, enabled, port):
+def set_networkprotocol(ip, login_account, login_password, service, enabled, port):
     """This feature provides abilities to enable or disable a BMC service and to change port numbers
         :params ip: BMC IP address
         :type ip: string
@@ -171,9 +171,9 @@ if __name__ == '__main__':
         sys.exit(1)
 
     # set service port and check result
-    result = set_service_port(ip, login_account, login_password,service, enabled, port)
+    result = set_networkprotocol(ip, login_account, login_password,service, enabled, port)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
     else:
-        sys.stderr.write(result['msg'])
+        sys.stderr.write(result['msg'] + '\n')

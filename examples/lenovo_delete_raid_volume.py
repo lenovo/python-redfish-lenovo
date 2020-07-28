@@ -26,7 +26,7 @@ import redfish
 import lenovo_utils as utils
 
 
-def delete_raid_volume(ip, login_account, login_password, system_id, raidid, volume_name):
+def lenovo_delete_raid_volume(ip, login_account, login_password, system_id, raidid, volume_name):
     """Delete raid volume 
     :params ip: BMC IP address
     :type ip: string
@@ -195,9 +195,9 @@ if __name__ == '__main__':
     system_id = parameter_info['sysid']
     
     # delete raid volume and check result
-    result = delete_raid_volume(ip, login_account, login_password, system_id, parameter_info["raidid"], parameter_info["name"])
+    result = lenovo_delete_raid_volume(ip, login_account, login_password, system_id, parameter_info["raidid"], parameter_info["name"])
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
     else:
-        sys.stderr.write(result['msg'])
+        sys.stderr.write(result['msg'] + '\n')

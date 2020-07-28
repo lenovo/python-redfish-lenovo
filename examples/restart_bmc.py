@@ -25,7 +25,7 @@ import redfish
 import json
 import lenovo_utils as utils
 
-def restart_manager(ip, login_account, login_password):
+def restart_bmc(ip, login_account, login_password):
     """Get restart manager result    
     :params ip: BMC IP address
     :type ip: string
@@ -128,9 +128,9 @@ if __name__ == '__main__':
     login_password = parameter_info["passwd"]
     
     # Get restart manager result and check result
-    result = restart_manager(ip, login_account, login_password)
+    result = restart_bmc(ip, login_account, login_password)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
     else:
-        sys.stderr.write(result['msg'])
+        sys.stderr.write(result['msg'] + '\n')

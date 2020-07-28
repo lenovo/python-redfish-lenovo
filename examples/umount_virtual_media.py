@@ -37,8 +37,8 @@ import json
 import lenovo_utils as utils
 
 
-def eject_virtual_media(ip, login_account, login_password, image):
-    """Mount an ISO or IMG image file from a file server to the host as a DVD or USB drive.
+def umount_virtual_media(ip, login_account, login_password, image):
+    """Unmount virtual media from system.
     :params ip: BMC IP address
     :type ip: string
     :params login_account: BMC user name
@@ -172,9 +172,9 @@ if __name__ == '__main__':
         sys.exit(1)
 
     # Get mount media iso result and check result
-    result = eject_virtual_media(ip, login_account, login_password, image)
+    result = umount_virtual_media(ip, login_account, login_password, image)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
     else:
-        sys.stderr.write(result['msg'])
+        sys.stderr.write(result['msg'] + '\n')

@@ -25,7 +25,7 @@ import redfish
 import json
 import lenovo_utils as utils
 
-def get_metric_inventory(ip, login_account, login_password):
+def get_metric_definition_report(ip, login_account, login_password):
     """Get metric inventory    
     :params ip: BMC IP address
     :type ip: string
@@ -152,7 +152,7 @@ if __name__ == '__main__':
     login_password = parameter_info["passwd"]
    
     # Get metric inventory and check result
-    result = get_metric_inventory(ip, login_account, login_password)
+    result = get_metric_definition_report(ip, login_account, login_password)
 
     if result['ret'] is True:
         del result['ret']

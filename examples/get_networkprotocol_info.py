@@ -26,7 +26,7 @@ import lenovo_utils as utils
 import traceback
 
 
-def get_service_port(ip, login_account, login_password):
+def get_networkprotocol_info(ip, login_account, login_password):
     """ Get network protocol information
         :params ip: BMC IP address
         :type ip: string
@@ -117,9 +117,9 @@ if __name__ == '__main__':
     login_password = parameter_info["passwd"]
 
     # Get network information and check result
-    result = get_service_port(ip, login_account, login_password)
+    result = get_networkprotocol_info(ip, login_account, login_password)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
     else:
-        sys.stderr.write(result['msg'])
+        sys.stderr.write(result['msg'] + '\n')

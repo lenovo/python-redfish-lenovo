@@ -27,7 +27,7 @@ import redfish
 import lenovo_utils as utils
 
 
-def get_ssh_pubkey(ip, login_account, login_password, user_name):
+def lenovo_get_ssh_pubkey(ip, login_account, login_password, user_name):
     """Get SSH pubkey    
     :params ip: BMC IP address
     :type ip: string
@@ -139,11 +139,11 @@ if __name__ == '__main__':
     user_name = parameter_info["username"]
 
     # Get SSH public key and check result
-    result = get_ssh_pubkey(ip, login_account, login_password, user_name)
+    result = lenovo_get_ssh_pubkey(ip, login_account, login_password, user_name)
 
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['entries'], sort_keys=True, indent=2))
     else:
-        sys.stderr.write(result['msg'])
+        sys.stderr.write(result['msg'] + '\n')
 

@@ -26,7 +26,7 @@ import redfish
 import lenovo_utils as utils
 
 
-def set_bmc_ip(ip, login_account, login_password, dhcp_enabled, static_ip, static_gateway, static_mask):
+def set_bmc_ipv4(ip, login_account, login_password, dhcp_enabled, static_ip, static_gateway, static_mask):
     """Set manager ip
     :params ip: BMC IP address
     :type ip: string
@@ -219,11 +219,11 @@ if __name__ == '__main__':
     login_password = parameter_info["passwd"]
 
     # set manager ip and check result
-    result = set_bmc_ip(ip, login_account, login_password, parameter_info["dhcpenabled"],
+    result = set_bmc_ipv4(ip, login_account, login_password, parameter_info["dhcpenabled"],
                             parameter_info["staticip"], parameter_info["staticgateway"], parameter_info["staticmask"])
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
     else:
-        sys.stderr.write(result['msg'])
+        sys.stderr.write(result['msg'] + '\n')
 

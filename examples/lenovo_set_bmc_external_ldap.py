@@ -26,7 +26,7 @@ import lenovo_utils as utils
 import traceback
 
 
-def set_ldap_info(ip, login_account, login_password, ldapserver, client_distinguished_name, client_password,
+def lenovo_set_bmc_external_ldap(ip, login_account, login_password, ldapserver, client_distinguished_name, client_password,
                            rootdn, uid_search_attribute, group_filter, group_search_attribute):
     """ Set manager LDAP information
         :params ip: BMC IP address
@@ -297,11 +297,11 @@ if __name__ == '__main__':
     group_search_attribute = parameter_info["group_search_attribute"]
 
     # Set ldap server and check result
-    result = set_ldap_info(ip, login_account, login_password, ldapserver, client_distinguished_name, client_password,
+    result = lenovo_set_bmc_external_ldap(ip, login_account, login_password, ldapserver, client_distinguished_name, client_password,
                            rootdn, uid_search_attribute, group_filter, group_search_attribute)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
     else:
-        sys.stderr.write(result['msg'])
+        sys.stderr.write(result['msg'] + '\n')
 

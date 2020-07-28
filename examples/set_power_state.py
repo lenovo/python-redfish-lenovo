@@ -26,7 +26,7 @@ import redfish
 import lenovo_utils as utils
 
 
-def set_reset_system(ip, login_account, login_password, system_id, reset_type):
+def set_power_state(ip, login_account, login_password, system_id, reset_type):
     """Reset system    
     :params ip: BMC IP address
     :type ip: string
@@ -125,9 +125,9 @@ if __name__ == '__main__':
         sys.exit(1)
 
     # Reset system result and check result
-    result = set_reset_system(ip, login_account, login_password,system_id, reset_type)
+    result = set_power_state(ip, login_account, login_password,system_id, reset_type)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
     else:
-        sys.stderr.write(result['msg'])
+        sys.stderr.write(result['msg'] + '\n')

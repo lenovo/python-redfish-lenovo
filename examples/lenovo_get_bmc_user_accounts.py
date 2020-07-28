@@ -28,7 +28,7 @@ import lenovo_utils as utils
 from collections import OrderedDict
 
 
-def get_bmc_user_accounts(ip, login_account, login_password):
+def lenovo_get_bmc_user_accounts(ip, login_account, login_password):
     """Get BMC user accounts    
     :params ip: BMC IP address
     :type ip: string
@@ -156,10 +156,10 @@ if __name__ == '__main__':
     login_password = parameter_info["passwd"]
     
     # Get BMC inventory and check result
-    result = get_bmc_user_accounts(ip, login_account, login_password)
+    result = lenovo_get_bmc_user_accounts(ip, login_account, login_password)
 
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['entries'],indent=2))
     else:
-        sys.stderr.write(result['msg'])
+        sys.stderr.write(result['msg'] + '\n')
