@@ -105,7 +105,10 @@ def lenovo_del_alert_recipient(ip, login_account, login_password, index_id):
         return result
     finally:
         # Logout of the current session
-        REDFISH_OBJ.logout()
+        try:
+            REDFISH_OBJ.logout()
+        except:
+            pass
 
 
 def add_parameter():

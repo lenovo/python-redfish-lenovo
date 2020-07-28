@@ -100,7 +100,10 @@ def lenovo_ldap_certificate_enable(ip, login_account, login_password):
             if enable_ldap:
                 result = {'ret': True,
                           'msg':"LDAP certificate security is already enabled."}
-                REDFISH_OBJ.logout()
+                try:
+                    REDFISH_OBJ.logout()
+                except:
+                    pass
                 return result
  
             # Create request body
@@ -117,7 +120,10 @@ def lenovo_ldap_certificate_enable(ip, login_account, login_password):
             else:
                 result = {'ret': True,
                           'msg':"LDAP certificate security is enabled. Note that in order to enable SSL, a valid SSL certificate must first be in place and at least one SSL client trusted certificate must be imported."}
-            REDFISH_OBJ.logout()
+            try:
+                REDFISH_OBJ.logout()
+            except:
+                pass
             return result
 
         # No LDAP certificate resource found
@@ -128,7 +134,10 @@ def lenovo_ldap_certificate_enable(ip, login_account, login_password):
         result = {'ret': False, 'msg': 'exception msg %s' % e}
         return result
     finally:
-        REDFISH_OBJ.logout()
+        try:
+            REDFISH_OBJ.logout()
+        except:
+            pass
 
 
 def add_parameter():

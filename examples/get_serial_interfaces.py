@@ -135,7 +135,10 @@ def get_serial_interfaces(ip, login_account, login_password, interfaceid):
         return result
     finally:
         # Logout of the current session
-        REDFISH_OBJ.logout()
+        try:
+            REDFISH_OBJ.logout()
+        except:
+            pass
 
 
 import argparse

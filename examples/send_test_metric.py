@@ -113,7 +113,10 @@ def send_test_metric(ip, login_account, login_password, reportname):
     response_send_metric = REDFISH_OBJ.post(summit_test_metric_uri,headers=headers,body=parameter)
     if response_send_metric.status == 200 or response_send_metric.status == 204:
         result = {"ret":True,"msg":"Send Test Metric successsfully, Metric data: " + str(parameter) }
-        REDFISH_OBJ.logout()
+        try:
+            REDFISH_OBJ.logout()
+        except:
+            pass
         return result
     else:
         error_message = utils.get_extended_error(response_send_metric)

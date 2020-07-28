@@ -129,7 +129,10 @@ def add_event_subscriptions(ip, login_account, login_password,destination,eventt
         result = {'ret': False, 'msg': "Exception msg %s" % e}
         return result
     finally:
-        REDFISH_OBJ.logout()
+        try:
+            REDFISH_OBJ.logout()
+        except:
+            pass
 
 def add_helpmessage(argget):
     argget.add_argument('--destination', type=str, help="The new subscription's destination url you want to set",required=True)

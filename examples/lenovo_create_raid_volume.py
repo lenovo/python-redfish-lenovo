@@ -192,7 +192,10 @@ def lenovo_create_raid_volume(ip, login_account, login_password, system_id, raid
             rt_link = login_host + "/" + response_create_volume.dict["@odata.id"]
             id = rt_link.split("/")[-1]
             result = {"ret":True,"msg":"Create volume successfully, volume id is " + id + ", volume 's link is:" + rt_link}
-            REDFISH_OBJ.logout()
+            try:
+                REDFISH_OBJ.logout()
+            except:
+                pass
             return result
         else:
             error_message = utils.get_extended_error(response_create_volume)

@@ -101,7 +101,10 @@ def get_bios_bootmode(ip, login_account, login_password, system_id):
         result = {'ret':False, 'msg':"error_message:%s" %(e)}
     finally:
         # Logout of the current session
-        REDFISH_OBJ.logout()
+        try:
+            REDFISH_OBJ.logout()
+        except:
+            pass
         return result
 
 

@@ -200,7 +200,10 @@ def lenovo_update_firmware(ip, login_account, login_password, image, targets, fs
         if os.path.exists(os.getcwd() + os.sep + "oem_parameters.json"):
             os.remove(os.getcwd() + os.sep + "oem_parameters.json")
         # Logout of the current session
-        REDFISH_OBJ.logout()
+        try:
+            REDFISH_OBJ.logout()
+        except:
+            pass
         return result
 
 

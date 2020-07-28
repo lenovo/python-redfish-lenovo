@@ -109,7 +109,10 @@ def lenovo_set_bmc_user_ldap_policy(ip, login_account, login_password, policy):
         result = {'ret': False, 'msg': 'exception msg %s' % e}
         return result
     finally:
-        REDFISH_OBJ.logout()
+        try:
+            REDFISH_OBJ.logout()
+        except:
+            pass
 
 
 def add_helpmessage(argget):

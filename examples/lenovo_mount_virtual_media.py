@@ -229,7 +229,10 @@ def lenovo_mount_virtual_media(ip, login_account, login_password, image, mountty
         return result
     finally:
         # Logout
-        REDFISH_OBJ.logout()
+        try:
+            REDFISH_OBJ.logout()
+        except:
+            pass
         return result
 
 

@@ -145,11 +145,17 @@ def lenovo_bmc_license_export(ip, login_account, login_password, license_file):
         else:
             result['ret'] = True
             result['msg'] = 'Export license keys successfully. ' + str(license_keys)
-        REDFISH_OBJ.logout()
+        try:
+            REDFISH_OBJ.logout()
+        except:
+            pass
         return result
 
     result = {'ret': False, 'msg': "Not support license via Redfish."}
-    REDFISH_OBJ.logout()
+    try:
+        REDFISH_OBJ.logout()
+    except:
+        pass
     return result
 
 

@@ -256,7 +256,10 @@ def lenovo_create_bmc_user(ip, login_account, login_password, username, password
         result = {'ret': False, 'msg': "exception msg %s" % e}
         return result
     finally:
-        REDFISH_OBJ.logout()
+        try:
+            REDFISH_OBJ.logout()
+        except:
+            pass
 
 
 import argparse

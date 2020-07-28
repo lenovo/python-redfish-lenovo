@@ -124,7 +124,10 @@ def get_bios_attribute_metadata(ip, login_account, login_password, system_id):
         break
 
     # Logout of the current session
-    REDFISH_OBJ.logout()
+    try:
+        REDFISH_OBJ.logout()
+    except:
+        pass
     return result
 
 

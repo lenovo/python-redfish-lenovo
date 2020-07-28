@@ -79,7 +79,10 @@ def lenovo_set_bmc_config_default(ip, login_account, login_password):
                     if response_reset_default_url.status == 200 or response_reset_default_url.status == 204:
                         result = {'ret': True,
                                   'msg': "Reset bmc configuration default successfully"}
-                        REDFISH_OBJ.logout()
+                        try:
+                            REDFISH_OBJ.logout()
+                        except:
+                            pass
                         return result
                     else:
                         error_message = utils.get_extended_error(response_reset_default_url)

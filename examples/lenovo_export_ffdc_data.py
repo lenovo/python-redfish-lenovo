@@ -204,7 +204,10 @@ def lenovo_export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip,
     except Exception as e:
         result = {'ret': False, 'msg': "error_message: %s" % (e)}
     finally:
-        REDFISH_OBJ.logout() 
+        try:
+            REDFISH_OBJ.logout()
+        except:
+            pass
         return result
 
 

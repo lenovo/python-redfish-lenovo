@@ -91,7 +91,10 @@ def set_bmc_timezone(ip, login_account, login_password, timezone):
         response_url = REDFISH_OBJ.patch(request_url, body=payload, headers=headers)
         if response_url.status in [200,204]:
             result = {'ret': True, 'msg': "Set BMC timezone successfully"}
-            REDFISH_OBJ.logout()
+            try:
+                REDFISH_OBJ.logout()
+            except:
+                pass
             return result
         else:
             error_message = utils.get_extended_error(response_url)

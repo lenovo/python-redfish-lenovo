@@ -136,11 +136,17 @@ def lenovo_bmc_license_delete(ip, login_account, login_password, key_id):
         else:
             result = {'ret': True,
                       'msg':"BMC license delete successfully"}
-        REDFISH_OBJ.logout()
+        try:
+            REDFISH_OBJ.logout()
+        except:
+            pass
         return result
 
     result = {'ret': False, 'msg': "No license resource found, not support."}
-    REDFISH_OBJ.logout()
+    try:
+        REDFISH_OBJ.logout()
+    except:
+        pass
     return result
 
 

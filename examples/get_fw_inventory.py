@@ -92,7 +92,10 @@ def get_fw_inventory(ip, login_account, login_password):
     result['ret'] = True
     result['fw_version_detail'] = fw_version
 
-    REDFISH_OBJ.logout()
+    try:
+        REDFISH_OBJ.logout()
+    except:
+        pass
     return result
 
 

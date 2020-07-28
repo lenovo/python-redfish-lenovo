@@ -109,7 +109,10 @@ def del_tasks(ip, login_account, login_password,option_command):
         result = {'ret': False, 'msg': "Exception msg %s" % repr(e)}
         return result
     finally:
-        REDFISH_OBJ.logout()
+        try:
+            REDFISH_OBJ.logout()
+        except:
+            pass
 
 def add_helpmessage(argget):
     group = argget.add_mutually_exclusive_group(required=True)

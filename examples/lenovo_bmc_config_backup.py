@@ -201,7 +201,10 @@ def lenovo_bmc_config_backup(ip, login_account, login_password, backup_password,
             
             # Delete the task when the task state is completed
             REDFISH_OBJ.delete(task_uri, None)
-            REDFISH_OBJ.logout()
+            try:
+                REDFISH_OBJ.logout()
+            except:
+                pass
             return result
 
         else:

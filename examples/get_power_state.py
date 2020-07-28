@@ -75,7 +75,10 @@ def get_power_state(ip, login_account, login_password, system_id):
     result['ret'] = True
     result['entries'] = power_details
     # Logout of the current session
-    REDFISH_OBJ.logout()
+    try:
+        REDFISH_OBJ.logout()
+    except:
+        pass
     return result
 
 

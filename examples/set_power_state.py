@@ -89,7 +89,10 @@ def set_power_state(ip, login_account, login_password, system_id, reset_type):
         result = {'ret': False, 'msg': "error_message: %s" % e}
     finally:
         # Logout of the current session
-        REDFISH_OBJ.logout()
+        try:
+            REDFISH_OBJ.logout()
+        except:
+            pass
         return result
 
 

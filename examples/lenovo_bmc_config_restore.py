@@ -278,7 +278,10 @@ def lenovo_bmc_config_restore(ip, login_account, login_password, backup_password
         result = {'ret': False, 'msg': "Exception msg %s" % e}
         return result
     finally:
-        REDFISH_OBJ.logout()
+        try:
+            REDFISH_OBJ.logout()
+        except:
+            pass
         if httpip is None and backup_file:
             back_file.close()
 

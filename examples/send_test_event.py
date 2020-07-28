@@ -154,7 +154,10 @@ def send_test_event(ip, login_account, login_password,eventid,message,severity):
         result = {'ret': False, 'msg': "Exception msg %s" % e}
         return result
     finally:
-        REDFISH_OBJ.logout()
+        try:
+            REDFISH_OBJ.logout()
+        except:
+            pass
 
 def add_helpmessage(argget):
     argget.add_argument('--eventid', type=str,default="40000001",help="The id of the event you want to set")

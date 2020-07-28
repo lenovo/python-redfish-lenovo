@@ -175,7 +175,10 @@ def lenovo_update_raid_volume(ip, login_account, login_password, system_id, raid
         response_update_volume = REDFISH_OBJ.patch(target_raid_volumes_url,body=parameter, headers=headers)
         if response_update_volume.status in [200, 204]:
             result = {"ret":True,"msg":"Update volume successfully"}
-            REDFISH_OBJ.logout()
+            try:
+                REDFISH_OBJ.logout()
+            except:
+                pass
             return result
         else:
             error_message = utils.get_extended_error(response_update_volume)

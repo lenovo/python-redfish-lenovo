@@ -125,11 +125,17 @@ def lenovo_bmc_license_getinfo(ip, login_account, login_password):
                 license_details.append(license_detail)
         result['ret'] = True
         result['entries'] = license_details
-        REDFISH_OBJ.logout()
+        try:
+            REDFISH_OBJ.logout()
+        except:
+            pass
         return result
 
     result = {'ret': False, 'msg': "Not support license via Redfish."}
-    REDFISH_OBJ.logout()
+    try:
+        REDFISH_OBJ.logout()
+    except:
+        pass
     return result
 
 

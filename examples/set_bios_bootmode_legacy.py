@@ -146,7 +146,10 @@ def set_bios_bootmode_legacy(ip, login_account, login_password, system_id):
                         pending_url, response_pending_url.status, error_message)}
 
                 # Logout of the current session
-                REDFISH_OBJ.logout()
+                try:
+                    REDFISH_OBJ.logout()
+                except:
+                    pass
                 return result
 
 

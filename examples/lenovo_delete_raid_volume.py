@@ -146,7 +146,10 @@ def lenovo_delete_raid_volume(ip, login_account, login_password, system_id, raid
         response_delete_volume = REDFISH_OBJ.delete(target_raid_volumes_url, None)
         if response_delete_volume.status in [200, 204]:
             result = {"ret":True,"msg":"Delete volume successfully"}
-            REDFISH_OBJ.logout()
+            try:
+                REDFISH_OBJ.logout()
+            except:
+                pass
             return result
         else:
             error_message = utils.get_extended_error(response_delete_volume)

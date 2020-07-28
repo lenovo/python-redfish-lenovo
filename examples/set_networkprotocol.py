@@ -128,7 +128,10 @@ def set_networkprotocol(ip, login_account, login_password, service, enabled, por
         result = {'ret': False, 'msg': 'exception msg %s' % e}
         return result
     finally:
-        REDFISH_OBJ.logout()
+        try:
+            REDFISH_OBJ.logout()
+        except:
+            pass
 
 
 def add_helpmessage(parser):

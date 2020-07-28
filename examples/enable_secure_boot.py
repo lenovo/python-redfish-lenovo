@@ -96,12 +96,17 @@ def enable_secure_boot(ip, login_account, login_password, system_id):
                 error_message = utils.get_extended_error(response_secureboot)
                 result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % ( 
                     secureboot_url, response_secureboot.status, error_message)}
-
-            REDFISH_OBJ.logout()
+            try:
+                REDFISH_OBJ.logout()
+            except:
+                pass
             return result
 
     result = {'ret': False, 'msg': "Not support SecureBoot"}
-    REDFISH_OBJ.logout()
+    try:
+        REDFISH_OBJ.logout()
+    except:
+        pass
     return result
 
 
