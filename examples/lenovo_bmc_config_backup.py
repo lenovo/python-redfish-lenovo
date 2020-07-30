@@ -154,9 +154,9 @@ def lenovo_bmc_config_backup(ip, login_account, login_password, backup_password,
                 back_file.close()
                 return result
 
-        # Backup from Action Oem/Lenovo/Backup.start
+        # Backup from Action Oem/Lenovo/Backup.start for SR635/SR655
         elif 'Oem/Lenovo/Backup.start' in str(response_url.dict):
-            if httpip is None or httpdir is None:
+            if httpip is None or httpip == '' or httpdir is None or httpdir == '':
                 error_message = "Target Server only support HTTP protocol, please use HTTP file server to backup bmc config."
                 result = {"ret": False, "msg": error_message}
                 REDFISH_OBJ.logout()
@@ -234,18 +234,45 @@ def add_helpmessage(parser):
     parser.add_argument('--httpdir', type=str, help='Specify the directory on http file server for SR635/SR655.')
 
 
+import configparser
 def add_parameter():
     """Add BMC configuration backup parameter"""
     parameter_info = {}
     argget = utils.create_common_parameter_list()
     add_helpmessage(argget)
     args = argget.parse_args()
+
+    # Get the configuration file name if the user specified
+    config_file = args.config
+
+    # Get the common parameter from the configuration files
+    config_ini_info = utils.read_config(config_file)
+
+    # Add FileServerCfg parameter to config_ini_info
+    cfg = configparser.ConfigParser()
+    if os.path.exists(config_file):
+        cfg.read(config_file)
+        config_ini_info["httpip"] = cfg.get('FileServerCfg', 'Httpip')
+        config_ini_info["httpport"] = cfg.get('FileServerCfg', 'Httpport')
+        config_ini_info["httpdir"] = cfg.get('FileServerCfg', 'Httpdir')
+
+    # Get the user specify parameter from the command line
     parameter_info = utils.parse_parameter(args)
     parameter_info["backuppasswd"] = args.backuppasswd
     parameter_info["backupfile"] = args.backupfile
     parameter_info["httpip"] = args.httpip
     parameter_info["httpport"] = args.httpport
     parameter_info["httpdir"] = args.httpdir
+
+    # The parameters in the configuration file are used when the user does not specify parameters
+    for key in parameter_info:
+        if not parameter_info[key]:
+            if key in config_ini_info:
+                parameter_info[key] = config_ini_info[key]
+    # Use the port specified in configuration file instead of default 80 port
+    if config_ini_info["httpport"] != '' and args.httpport == 80:
+        parameter_info["httpport"] = int(config_ini_info["httpport"])
+
     return parameter_info
 
 
