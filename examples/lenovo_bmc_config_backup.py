@@ -189,7 +189,7 @@ def lenovo_bmc_config_backup(ip, login_account, login_password, backup_password,
                         print('time cost: %.2f' %(time_end-time_start)+'s')
                         result = {'ret': True, 'msg':  "The backuped bmc config file is saved in %s " %export_uri}
                         break
-                    elif task_state in ["Exception", "Killed"]:
+                    elif task_state in ["Exception", "Killed", "Suspended", "Interrupted", "Cancelled"]:
                         result = {"ret": False, "msg": "Task state is %s, The bmc config backup failed" %task_state}
                         break
                     else:
