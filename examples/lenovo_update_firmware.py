@@ -125,7 +125,7 @@ def lenovo_update_firmware(ip, login_account, login_password, image, targets, fs
                     requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
                     # Set BMC access credential
                     auth = HTTPBasicAuth(login_account, login_password)
-                    print("Start to upload the image, may take several minutes...\n")
+                    print("Start to upload the image, may take about 3~10 minutes...\n")
                     firmware_update_url = Multipart_Uri
                     response = requests.post(Multipart_Uri, auth=auth, files=files, verify=False)
                     response_code = response.status_code
@@ -162,7 +162,7 @@ def lenovo_update_firmware(ip, login_account, login_password, image, targets, fs
                 # For BMC update, BMC will restart automatically, the session connection will be disconnected, user have to wait BMC to restart.
                 # For UEFI update, the script can monitor the update task via BMC. 
                 if targets[0].upper() == "BMC":
-                    result = {'ret': True, 'msg': 'BMC refresh successful, wait five minutes for BMC to restart'}
+                    result = {'ret': True, 'msg': 'BMC refresh successfully, wait about 5 minutes for BMC to restart.'}
                     return result
                 else:
                     if fsprotocol.upper() == "HTTP":
@@ -170,16 +170,16 @@ def lenovo_update_firmware(ip, login_account, login_password, image, targets, fs
                     else:
                         task_uri = response.headers['Location']
                     result = task_monitor(REDFISH_OBJ, task_uri)
-                    # Delete task
-                    REDFISH_OBJ.delete(task_uri, None)
+
                     if result["ret"] is True:
-                        task_state = result["msg"]
+                        task_state = result["task_state"]
                         if task_state in ["Completed", "Done"]:
                             result = {'ret': True, 'msg': "Update firmware successfully"}
-                            return result
                         else:
-                            result = {'ret': False, 'msg': "Failed to update firmware, task state is %s" % task_state}
-                            return result
+                            task_id = result["id"]
+                            result = {'ret': False, 'msg': "Failed to update firmware, task id is %s, task state is %s" % (task_id, task_state) }
+                        REDFISH_OBJ.delete(task_uri, None)
+                        return result
                     else:
                         return result
             else:
@@ -210,7 +210,8 @@ def lenovo_update_firmware(ip, login_account, login_password, image, targets, fs
 def task_monitor(REDFISH_OBJ, task_uri):
     """Monitor task status"""
     END_TASK_STATE = ["Cancelled", "Completed", "Exception", "Killed", "Interrupted", "Suspended", "Done", "Failed when Flashing Image."]
-    print("Start to update the firmware, please wait a few minutes...")
+    time_start=time.time()
+    print("Start to refresh the firmware, please wait about 3~10 minutes...")
     while True:
         response_task_uri = REDFISH_OBJ.get(task_uri, None)
         if response_task_uri.status in [200, 202]:
@@ -225,10 +226,15 @@ def task_monitor(REDFISH_OBJ, task_uri):
                 task_state = "Exception"
             # Monitor task status until the task terminates
             if task_state in END_TASK_STATE:
-                result = {'ret':True, 'msg': task_state}
+                result = {'ret':True, 'task_state': task_state, 'id': response_task_uri.dict['Id']}
                 return result
             else:
-                time.sleep(15)
+                time_now = time.time()
+                # wait for max 10 minutes to avoid endless loop.
+                if time_now - time_start > 600:
+                    result = {'ret': False, 'task_state': task_state, 'msg':  "It took too long time to update the firmware, over 10 minutes. Task id is %s ." % response_task_uri.dict['Id']}
+                    return result
+                time.sleep(10)
         else:
             message = utils.get_extended_error(response_task_uri)
             result = {'ret': False, 'msg': "Url '%s' response Error code %s, \nError message :%s" % (task_uri, response_task_uri.status, message)}
