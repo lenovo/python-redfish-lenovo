@@ -26,7 +26,7 @@ This project includes a set of sample Python scripts that utilize the Redfish AP
 ## Software requirements
 
 
-* Python-redfish-library need to be installed.
+* Python-redfish-library needs to be installed.
 
 ----------
 
