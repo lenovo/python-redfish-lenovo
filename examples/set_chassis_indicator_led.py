@@ -66,13 +66,17 @@ def set_chassis_indicator_led(ip, login_account, login_password, led_status):
             for i in range(response_chassis_url.dict['Members@odata.count']):
                 led_url = response_chassis_url.dict['Members'][i]['@odata.id']
 
-                # get etag to set If-Match precondition
+                # Get Chassis instance
                 response_led_url = REDFISH_OBJ.get(led_url, None)
                 if response_led_url.status != 200:
                     error_message = utils.get_extended_error(response_led_url)
                     result = {'ret': False, 'msg': "Url '%s' get failed. response Error code %s \nerror_message: %s" % (
                         led_url, response_led_url.status, error_message)}
                     return result
+                if response_chassis_url.dict['Members@odata.count'] > 1 and 'IndicatorLED' not in response_led_url.dict:
+                        continue
+
+                # get etag to set If-Match precondition
                 if "@odata.etag" in response_led_url.dict:
                     etag = response_led_url.dict['@odata.etag']
                 else:
