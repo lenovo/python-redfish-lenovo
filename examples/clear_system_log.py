@@ -82,6 +82,8 @@ def clear_system_log(ip, login_account, login_password, system_id, type):
             if "LogServices" in response_resource_x_url.dict:
                 log_services_url = response_resource_x_url.dict['LogServices']['@odata.id']
             else:
+                if resource_count > 1:
+                    continue
                 result = {'ret': False, 'msg': "There is no LogServices in %s" % resource_x_url}
                 return result
 

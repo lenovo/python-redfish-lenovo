@@ -107,7 +107,7 @@ def add_helpmessage(parser):
 
 
 def add_parameter():
-    """Add set chassis indicator led parameter"""
+    """Add parameter"""
     argget = utils.create_common_parameter_list()
     add_helpmessage(argget)
     args = argget.parse_args()

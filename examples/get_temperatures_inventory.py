@@ -69,7 +69,8 @@ def get_temperatures_inventory(ip, login_account, login_password):
                 response_url = REDFISH_OBJ.get(request_url, None)
                 if response_url.status == 200:
                     # if chassis is not normal skip it
-                    if len(response_chassis_url.dict['Members']) > 1 and "ComputerSystems" not in response_url.dict["Links"]:
+                    if len(response_chassis_url.dict['Members']) > 1 and ("Links" not in response_url.dict or
+                            "ComputerSystems" not in response_url.dict["Links"]):
                         continue
                     thermal_url = response_url.dict["Thermal"]['@odata.id']
                     response_thermal_url = REDFISH_OBJ.get(thermal_url, None)

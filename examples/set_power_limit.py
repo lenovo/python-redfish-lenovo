@@ -77,7 +77,8 @@ def set_power_limit(ip, login_account, login_password, isenable, power_limit):
                 response_url = REDFISH_OBJ.get(request_url, None)
                 if response_url.status == 200:
                     # if chassis is not normal skip it
-                    if len(response_chassis_url.dict['Members']) > 1 and "ComputerSystems" not in response_url.dict["Links"]:
+                    if len(response_chassis_url.dict['Members']) > 1 and ("Links" not in response_url.dict or
+                            "ComputerSystems" not in response_url.dict["Links"]):
                         continue
                     # if no Power property, skip it
                     if "Power" not in response_url.dict:

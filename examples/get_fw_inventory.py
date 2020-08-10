@@ -100,7 +100,7 @@ def get_fw_inventory(ip, login_account, login_password):
 
 
 def add_parameter():
-    """Add set chassis indicator led parameter"""
+    """Add parameter"""
     argget = utils.create_common_parameter_list()
     args = argget.parse_args()
     parameter_info = utils.parse_parameter(args)
