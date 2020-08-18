@@ -73,7 +73,7 @@ def lenovo_get_alert_recipients(ip, login_account, login_password):
         # Get alert recipients
         response_recipients_url = REDFISH_OBJ.get(recipients_url, None)
         if response_recipients_url.dict['Members@odata.count'] == 0:
-            result = {'ret': True, 'msg': "No recipients exist."}
+            result = {'ret': True, 'msg': "No recipients exist.", 'entries':[]}
             return result
         
         all_recipients = []
