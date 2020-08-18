@@ -68,7 +68,7 @@ def get_storage_inventory(ip, login_account, login_password, system_id):
                 storage_url = response_system_url.dict["SimpleStorage"]["@odata.id"]
             response_storage_url = REDFISH_OBJ.get(storage_url, None)
             if response_storage_url.status == 200:
-                storage_count = response_storage_url.dict["Members@odata.count"]
+                storage_count = len(response_storage_url.dict["Members"])
                 storage = 0
                 for nic in range(0, storage_count):
                     storage_x_url = response_storage_url.dict["Members"][nic]["@odata.id"]
