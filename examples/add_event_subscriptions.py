@@ -87,11 +87,17 @@ def add_event_subscriptions(ip, login_account, login_password,destination,eventt
                     # Construct hearders and body to do post
                     headers = {"Content-Type": "application/json"}
                     if EventService_Version >= 130:
-                        parameter = {
-                             "Destination":destination,
-                             "Context":context,
-                             "Protocol":"Redfish"
-                            }
+                        if "@Redfish.CollectionCapabilities" in response_subscriptions_url.dict:
+                            parameter = {
+                                 "Destination":destination,
+                                 "Protocol":"Redfish"
+                                }
+                        else:
+                            parameter = {
+                                 "Destination":destination,
+                                 "Context":context,
+                                 "Protocol":"Redfish"
+                                }
                     else:
                         parameter = {
                              "Destination":destination,
