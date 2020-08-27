@@ -103,6 +103,13 @@ def send_test_event(ip, login_account, login_password,eventid,message,severity):
                                    payload["Severity"] = severity
                                elif parameter["Name"] == "OriginOfCondition":
                                    payload["OriginOfCondition"] = event_url
+                elif EventService_Version >= 160:
+                    payload["EventId"] = eventid
+                    payload["EventTimestamp"] = timestamp
+                    payload["Message"] = message
+                    payload["MessageArgs"] = []
+                    payload["MessageId"] = "Created"
+                    payload["OriginOfCondition"] = event_url
                 elif EventService_Version >= 130:
                     payload["EventId"] = eventid
                     payload["EventTimestamp"] = timestamp
