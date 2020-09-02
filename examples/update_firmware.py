@@ -84,12 +84,25 @@ def update_firmware(ip, login_account, login_password, image, targets, fsprotoco
             # Update firmware via local payload
             if fsprotocol.lower() == "httppush":
                 headers = {"Content-Type":"application/octet-stream"}
+
                 firmware_update_url =  login_host + response_update_service_url.dict["HttpPushUri"]
                 if os.path.isdir(fsdir):
                     file_path = fsdir + os.sep + image
                 else:
                     result = {'ret': False, 'msg': "The path %s doesn't exist, please check the 'fsdir' is correct." %fsdir}
                     return result
+                body = {}
+                if targets:
+                    body["HttpPushUriTargets"] = targets
+                    response = REDFISH_OBJ.patch(update_service_url, body=body)
+                    if response.status == 200:
+                        targets = response.dict["HttpPushUriTargets"]
+                        print("HttpPushUriTargets is %s" %targets)
+                    else:
+                        message = utils.get_extended_error(response)
+                        result = {'ret': False, 'msg': "Url '%s' response Error code %s, \nError message :%s" % (
+                        firmware_update_url, response.status, message)}
+                        return result
 
                 files = {'data-binary':open(file_path,'rb')}
                 # Set BMC access credential
