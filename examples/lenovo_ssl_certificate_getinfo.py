@@ -59,6 +59,46 @@ def lenovo_ssl_certificate_getinfo(ip, login_account, login_password):
                 '/redfish/v1', response_base_url.status, error_message)}
             return result
 
+        # Use standard API /redfish/v1/CertificateService/CertificateLocations first
+        if 'CertificateService' in response_base_url.dict:
+            request_url = response_base_url.dict['CertificateService']['@odata.id']
+            response_url = REDFISH_OBJ.get(request_url, None)
+            if response_url.status != 200:
+                error_message = utils.get_extended_error(response_url)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                    request_url, response_url.status, error_message)}
+                return result
+            if 'CertificateLocations' in response_url.dict:
+                request_url = response_url.dict['CertificateLocations']['@odata.id']
+                response_url = REDFISH_OBJ.get(request_url, None)
+                if response_url.status != 200:
+                    error_message = utils.get_extended_error(response_url)
+                    result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                        request_url, response_url.status, error_message)}
+                    return result
+                ssl_cert_info = {}
+                if 'Links' in response_url.dict and 'Certificates' in response_url.dict['Links']:
+                    cert_collection = response_url.dict['Links']['Certificates']
+                    for certitem in cert_collection:
+                        cert_url = certitem['@odata.id']
+                        if 'HTTPS' not in cert_url:
+                            continue
+                        request_url = cert_url
+                        response_url = REDFISH_OBJ.get(request_url, None)
+                        if response_url.status != 200:
+                            error_message = utils.get_extended_error(response_url)
+                            result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                                request_url, response_url.status, error_message)}
+                            return result
+                        for property in ['ValidNotAfter', 'ValidNotBefore', 'KeyUsage', 'CertificateType',
+                                             'Subject', 'CertificateString', 'Issuer']:
+                            if property in response_url.dict:
+                                ssl_cert_info[property] = response_url.dict[property]
+                        break
+                result['ret'] = True
+                result['entries'] = ssl_cert_info
+                return result
+
         # Use Oem API /redfish/v1/Managers/1/Oem/Lenovo/Security
         managers_url = response_base_url.dict['Managers']['@odata.id']
         response_managers_url = REDFISH_OBJ.get(managers_url, None)
@@ -76,6 +116,7 @@ def lenovo_ssl_certificate_getinfo(ip, login_account, login_password):
                 result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
                     request_url, response_url.status, error_message)}
                 return result
+
             # Check /redfish/v1/Managers/1/Oem/Lenovo/Security existing
             if "Oem" not in response_url.dict:
                 continue
