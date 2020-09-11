@@ -173,9 +173,10 @@ def lenovo_create_raid_volume(ip, login_account, login_password, system_id, raid
         parameter = { 
              "Name":volume_name,
              "RAIDType":raid_type,
-             "CapacityBytes":volume_capacity,
              "Oem":{"Lenovo":{}}
             }
+        if volume_capacity > 0:
+            parameter["CapacityBytes"] = volume_capacity # if you want to use all space, no need to specify CapacityBytes
         if read_policy is not None:
             parameter["Oem"]["Lenovo"]["ReadPolicy"] = read_policy
         if write_policy is not None:
@@ -220,7 +221,7 @@ def add_helpmessage(argget):
     argget.add_argument('--raidtype', type=str, required=True, choices=["RAID0", "RAID1", "RAID5", "RAID6", "RAID10", "RAID50", "RAID60"],
                         help="virtual drive(VD)'s raid type")
     argget.add_argument('--capacityMB', type=int, required=True,
-                        help="virtual drive(VD)'s capacity Mega bytes")
+                        help="virtual drive(VD)'s capacity Mega bytes. If you want to use all space, please specify -1")
     argget.add_argument('--readpolicy', type=str, required=False, choices=["NoReadAhead", "ReadAhead"],
                         help="virtual drive(VD)'s read policy")
     argget.add_argument('--writepolicy', type=str, required=False, choices=["WriteThrough", "AlwaysWriteBack", "WriteBackWithBBU"],
@@ -265,8 +266,10 @@ if __name__ == '__main__':
     system_id = parameter_info['sysid']
     
     # create raid volume and check result
-    result = lenovo_create_raid_volume(ip, login_account, login_password, system_id, parameter_info["raidid"], parameter_info["name"], parameter_info["raidtype"],
-                                parameter_info["capacityMB"]*1024*1024, parameter_info["readpolicy"], parameter_info["writepolicy"], parameter_info["iopolicy"], 
+    result = lenovo_create_raid_volume(ip, login_account, login_password, system_id,
+                                parameter_info["raidid"], parameter_info["name"], parameter_info["raidtype"],
+                                parameter_info["capacityMB"]*1024*1024 if parameter_info["capacityMB"] > 0 else -1,
+                                parameter_info["readpolicy"], parameter_info["writepolicy"], parameter_info["iopolicy"],
                                 parameter_info["accesspolicy"], parameter_info["drivecachepolicy"])
     if result['ret'] is True:
         del result['ret']
