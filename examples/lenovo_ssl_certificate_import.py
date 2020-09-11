@@ -1,6 +1,6 @@
 ###
 #
-# Lenovo Redfish examples - import DER format ssl certificate that is signed via CA by CSR(certificate signing request)
+# Lenovo Redfish examples - import ssl certificate that is signed via CA by CSR(certificate signing request)
 #
 # Copyright Notice:
 #
@@ -66,6 +66,58 @@ def lenovo_ssl_certificate_import(ip, login_account, login_password, certfile):
                 '/redfish/v1', response_base_url.status, error_message)}
             return result
 
+        # Use standard API /redfish/v1/CertificateService/CertificateLocations first
+        if 'CertificateService' in response_base_url.dict:
+            request_url = response_base_url.dict['CertificateService']['@odata.id']
+            response_url = REDFISH_OBJ.get(request_url, None)
+            if response_url.status != 200:
+                error_message = utils.get_extended_error(response_url)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                    request_url, response_url.status, error_message)}
+                return result
+            if 'Actions' in response_url.dict and '#CertificateService.ReplaceCertificate' in response_url.dict['Actions']:
+                target_url = response_url.dict['Actions']['#CertificateService.ReplaceCertificate']['target']
+                # Set request body
+                request_body = {'CertificateType':'PEM'}
+                request_body['CertificateString'] = read_cert_file_pem(certfile)
+                if request_body['CertificateString'] is None:
+                    result = {'ret': False,
+                              'msg':"Target server required certificate format should be PEM. Please specify correct certificate file."}
+                    return result
+                # Get https certificate uri to set request body
+                https_cert_url = None
+                if 'CertificateLocations' in response_url.dict:
+                    request_url = response_url.dict['CertificateLocations']['@odata.id']
+                    response_url = REDFISH_OBJ.get(request_url, None)
+                    if response_url.status != 200:
+                        error_message = utils.get_extended_error(response_url)
+                        result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                            request_url, response_url.status, error_message)}
+                        return result
+                    if 'Links' in response_url.dict and 'Certificates' in response_url.dict['Links']:
+                        cert_collection = response_url.dict['Links']['Certificates']
+                        for certitem in cert_collection:
+                            cert_url = certitem['@odata.id']
+                            if 'HTTPS' not in cert_url:
+                                continue
+                            https_cert_url = cert_url
+                            break
+                if https_cert_url is None:
+                    https_cert_url = '/redfish/v1/Managers/1/NetworkProtocol/HTTPS/Certificates/1'
+                request_body['CertificateUri'] = {'@odata.id': https_cert_url}
+
+                # Perform action #CertificateService.ReplaceCertificate
+                response_url = REDFISH_OBJ.post(target_url, body=request_body)
+                if response_url.status not in [200, 201, 202, 204]:
+                    error_message = utils.get_extended_error(response_url)
+                    result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                        target_url, response_url.status, error_message)}
+                    return result
+
+                result = {'ret': True,
+                          'msg':"The SSL certificate has been imported successfully."}
+                return result
+
         # Use Oem API /redfish/v1/Managers/1/Oem/Lenovo/Security
         managers_url = response_base_url.dict['Managers']['@odata.id']
         response_managers_url = REDFISH_OBJ.get(managers_url, None)
@@ -99,7 +151,11 @@ def lenovo_ssl_certificate_import(ip, login_account, login_password, certfile):
 
             # Create request body for ImportCertificate
             request_body = {"Title": "ImportCertificate", "Target": target_url, "Service": "Server", "ImportCertificateType": "CSR"}
-            request_body["SignedCertificates"] = read_cert_file(certfile)
+            request_body["SignedCertificates"] = read_cert_file_der(certfile)
+            if read_cert_file_pem(certfile) is not None:
+                result = {'ret': False,
+                          'msg':"Target server required certificate format should be DER, not PEM. Please specify correct certificate file."}
+                return result
 
             # Perform post to ImportCertificate
             response_url = REDFISH_OBJ.post(target_url, body=request_body)
@@ -127,7 +183,18 @@ def lenovo_ssl_certificate_import(ip, login_account, login_password, certfile):
             pass
 
 
-def read_cert_file(der_cert):
+def read_cert_file_pem(cert):
+    try:
+        fhandle = open(cert, 'r')
+        filecontent = fhandle.read()
+    except:
+        filecontent = ''
+    finally:
+        fhandle.close()
+    return filecontent if '-----BEGIN CERTIFICATE-----' in filecontent else None
+
+
+def read_cert_file_der(der_cert):
     size = os.path.getsize(der_cert)
     fhandle = open(der_cert, 'rb')
     bytelist = list()
@@ -140,7 +207,7 @@ def read_cert_file(der_cert):
 
 
 def add_helpmessage(parser):
-    parser.add_argument('--certfile', type=str, required=True, help='An file that contains signed certificate in DER format. Note that the certificate being imported must have been created from the Certificate Signing Request most recently created.')
+    parser.add_argument('--certfile', type=str, required=True, help="An file that contains signed certificate in DER or PEM format depending on target server's requirement. Note that the certificate being imported must have been created from the Certificate Signing Request most recently created.")
  
 
 def add_parameter():

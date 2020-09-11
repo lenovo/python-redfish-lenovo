@@ -71,6 +71,58 @@ def lenovo_ssl_certificate_generate_csr(ip, login_account, login_password, forma
                 '/redfish/v1', response_base_url.status, error_message)}
             return result
 
+        # Use standard API /redfish/v1/CertificateService/CertificateLocations first
+        if 'CertificateService' in response_base_url.dict:
+            request_url = response_base_url.dict['CertificateService']['@odata.id']
+            response_url = REDFISH_OBJ.get(request_url, None)
+            if response_url.status != 200:
+                error_message = utils.get_extended_error(response_url)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                    request_url, response_url.status, error_message)}
+                return result
+            if 'Actions' in response_url.dict and '#CertificateService.GenerateCSR' in response_url.dict['Actions']:
+                target_url = response_url.dict['Actions']['#CertificateService.GenerateCSR']['target']
+                request_body = {'CertificateCollection':{'@odata.id':'/redfish/v1/Managers/1/NetworkProtocol/HTTPS/Certificates'}}
+                request_body['KeyUsage'] = ['DigitalSignature']
+                request_body['Country'] = Country
+                request_body['City'] = Locality
+                request_body['CommonName'] = HostName
+                request_body['State'] = StateOrProvince
+                request_body['Organization'] = Organization
+                ### Extended settings examples begin ###
+                ## If you want to set optional information, please use below properties to set.
+                #request_body["AlternativeNames"] = ["Alternative Name"]
+                #request_body["ChallengePassword"] = "ChallengePassword"
+                #request_body["ContactPerson"] = "Your contact person name"
+                #request_body["Email"] = "Email address"
+                #request_body["OrganizationalUnit"] = "Organizational Unit Name"
+                #request_body["Surname"] = "Surname"
+                #request_body["GivenName"] = "Given Name"
+                #request_body["Initials"] = "Initials"
+                #request_body["KeyCurveId"] = "KeyCurveId"
+                #request_body["KeyPairAlgorithm"] = "KeyPairAlgorithm"
+                #request_body["UnstructuredName"] = "UnstructuredName"
+                ### Extended settings examples end ###
+
+                # Perform action #CertificateService.GenerateCSR
+                response_url = REDFISH_OBJ.post(target_url, body=request_body)
+                if response_url.status not in [200, 201, 202, 204]:
+                    error_message = utils.get_extended_error(response_url)
+                    result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                        target_url, response_url.status, error_message)}
+                    return result
+                # Save received csr string
+                filename = 'generated_' + HostName + '_ssl_certificate' + '.csr'
+                if os.path.exists(filename):
+                    os.remove(filename)
+                if 'CSRString' in response_url.dict:
+                    with open(filename, 'w') as f:
+                        f.write(response_url.dict['CSRString'])
+
+                result = {'ret': True,
+                          'msg':"The CSR for SSL certificate has been generated successfully. Format is PEM. (%s)" %(filename)}
+                return result
+
         # Use Oem API /redfish/v1/Managers/1/Oem/Lenovo/Security
         managers_url = response_base_url.dict['Managers']['@odata.id']
         response_managers_url = REDFISH_OBJ.get(managers_url, None)
@@ -154,7 +206,7 @@ def lenovo_ssl_certificate_generate_csr(ip, login_account, login_password, forma
             fhandle.close()
 
             result = {'ret': True,
-                      'msg':"The CSR for SSL certificate has been generated successfully. (%s)" %(filename)}
+                      'msg':"The CSR for SSL certificate has been generated successfully. Format is %s. (%s)" %(format, filename)}
             return result
 
         # No SSL certificate resource found
