@@ -66,6 +66,34 @@ def lenovo_ldap_certificate_add(ip, login_account, login_password, certfile):
                 '/redfish/v1', response_base_url.status, error_message)}
             return result
 
+        # Use standard API /redfish/v1/AccountService/LDAP/Certificates first
+        request_url = '/redfish/v1/AccountService'
+        response_url = REDFISH_OBJ.get(request_url, None)
+        if response_url.status != 200:
+            error_message = utils.get_extended_error(response_url)
+            result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                request_url, response_url.status, error_message)}
+            return result
+        if '/redfish/v1/AccountService/LDAP/Certificates' in str(response_url.dict):
+            request_url = '/redfish/v1/AccountService/LDAP/Certificates'
+            request_body = {'CertificateType':'PEM'}
+            request_body['CertificateString'] = read_cert_file_pem(certfile)
+            if request_body['CertificateString'] is None:
+                result = {'ret': False,
+                          'msg':"Target server required certificate format should be PEM. Please specify correct certificate file."}
+                return result
+
+            # Perform post to add the certificate
+            response_url = REDFISH_OBJ.post(request_url, body=request_body)
+            if response_url.status not in [200, 201, 202, 204]:
+                error_message = utils.get_extended_error(response_url)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                    request_url, response_url.status, error_message)}
+            else:
+                result = {'ret': True,
+                          'msg':"The certificate has been added successfully."}
+            return result
+
         # Use Oem API /redfish/v1/Managers/1/Oem/Lenovo/Security
         managers_url = response_base_url.dict['Managers']['@odata.id']
         response_managers_url = REDFISH_OBJ.get(managers_url, None)
@@ -83,6 +111,7 @@ def lenovo_ldap_certificate_add(ip, login_account, login_password, certfile):
                 result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
                     request_url, response_url.status, error_message)}
                 return result
+
             # Check /redfish/v1/Managers/1/Oem/Lenovo/Security existing
             if "Oem" not in response_url.dict:
                 continue
@@ -112,7 +141,11 @@ def lenovo_ldap_certificate_add(ip, login_account, login_password, certfile):
             target_url = security_url + "/Actions/LenovoSecurityService.ImportCertificate"
             request_body = {"Title":"ImportCertificate", "Service":"LDAP_Server", "ImportCertificateType": "TrustedCertificate", "Index":index}
             request_body["Target"] = target_url
-            request_body["SignedCertificates"] = read_cert_file(certfile) 
+            request_body["SignedCertificates"] = read_cert_file_der(certfile)
+            if read_cert_file_pem(certfile) is not None:
+                result = {'ret': False,
+                          'msg':"Target server required certificate format should be DER, not PEM. Please specify correct certificate file."}
+                return result
 
             # Perform post to add the certificate
             response_url = REDFISH_OBJ.post(target_url, body=request_body)
@@ -122,11 +155,7 @@ def lenovo_ldap_certificate_add(ip, login_account, login_password, certfile):
                     target_url, response_url.status, error_message)}
             else:
                 result = {'ret': True,
-                          'msg':"The certificate has been added successfully. You must restart BMC to activate it."}
-            try:
-                REDFISH_OBJ.logout()
-            except:
-                pass
+                          'msg':"The certificate has been added successfully."}
             return result
 
         # No LDAP certificate resource found
@@ -143,7 +172,18 @@ def lenovo_ldap_certificate_add(ip, login_account, login_password, certfile):
             pass
 
 
-def read_cert_file(der_cert):
+def read_cert_file_pem(cert):
+    try:
+        fhandle = open(cert, 'r')
+        filecontent = fhandle.read()
+    except:
+        filecontent = ''
+    finally:
+        fhandle.close()
+    return filecontent if '-----BEGIN CERTIFICATE-----' in filecontent else None
+
+
+def read_cert_file_der(der_cert):
     size = os.path.getsize(der_cert)
     fhandle = open(der_cert, 'rb')
     bytelist = list()
@@ -156,7 +196,7 @@ def read_cert_file(der_cert):
 
 
 def add_helpmessage(parser):
-    parser.add_argument('--certfile', type=str, required=True, help='An file that contains the trusted certificate. Note: The certificate format should be DER, not PEM.')
+    parser.add_argument('--certfile', type=str, required=True, help="An file that contains the trusted certificate. Format should be DER or PEM depending on target server's requirement")
  
 
 def add_parameter():
