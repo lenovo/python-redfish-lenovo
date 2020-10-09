@@ -81,7 +81,7 @@ def lenovo_umount_virtual_media(ip, login_account, login_password, image, mountt
                     remotemap_url = ""
                     if "Oem" in response_manager_url.dict:
                         Oem_dict = response_manager_url.dict['Oem']
-                        if "Lenovo" in Oem_dict:
+                        if "Ami" not in Oem_dict and "Lenovo" in Oem_dict:
                             remotemap_url = Oem_dict['Lenovo']['RemoteMap']['@odata.id']
                             remotecontrol_url = Oem_dict['Lenovo']['RemoteControl']['@odata.id']
                 else:
