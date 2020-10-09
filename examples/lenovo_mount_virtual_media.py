@@ -102,10 +102,7 @@ def lenovo_mount_virtual_media(ip, login_account, login_password, image, mountty
                     remotecontrol_url = ""
                     if "Oem" in response_manager_url.dict:
                         Oem_dict = response_manager_url.dict['Oem']
-                        if "Lenovo" in Oem_dict:
-                            remotemap_url = Oem_dict['Lenovo']['RemoteMap']['@odata.id']
-                            remotecontrol_url = Oem_dict['Lenovo']['RemoteControl']['@odata.id']
-                        elif "Ami" in Oem_dict:
+                        if "Ami" in Oem_dict:
                             MediaStatus = Oem_dict['Ami']['VirtualMedia']['RMediaStatus']
                             Enable_Media_url = response_manager_url.dict["Actions"]["Oem"]["#AMIVirtualMedia.EnableRMedia"]["target"]
                             
@@ -119,8 +116,11 @@ def lenovo_mount_virtual_media(ip, login_account, login_password, image, mountty
                                 else:
                                     error_message = utils.get_extended_error(response_enable_url)
                                     result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
-                            Enable_Media_url, response_enable_url.status, error_message)}
+                                              Enable_Media_url, response_enable_url.status, error_message)}
                                     return result
+                        elif "Lenovo" in Oem_dict:
+                            remotemap_url = Oem_dict['Lenovo']['RemoteMap']['@odata.id']
+                            remotecontrol_url = Oem_dict['Lenovo']['RemoteControl']['@odata.id']
                         else:
                             result = {'ret': False, 'msg': "Please check whether the redfish version supports mount virtual media."}
                             return result
