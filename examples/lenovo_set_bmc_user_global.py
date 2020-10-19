@@ -38,6 +38,12 @@ def lenovo_set_bmc_user_global(ip, login_account, login_password, setting_dict):
     :returns: returns succeeded message or error message when failed
     """
     result = {}
+    # Check input parameter first
+    if "AccountLockoutDuration" in setting_dict:
+        if setting_dict["AccountLockoutDuration"] == 0:
+            result = {'ret': False, 'msg': "The input value for LockDuration must not be 0"}
+            return result
+
     # Connect using the BMC address, account name, and password
     # Create a REDFISH object
     login_host = "https://" + ip
@@ -66,19 +72,9 @@ def lenovo_set_bmc_user_global(ip, login_account, login_password, setting_dict):
             result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (account_service_url, response_account_service_url.status, error_message)}
             return result
 
-        # Get global setting from AccoutService resource response
         global_setting = {}
-        global_setting['AccountLockoutThreshold'] = response_account_service_url.dict['AccountLockoutThreshold']
-        global_setting['AccountLockoutDuration'] = response_account_service_url.dict['AccountLockoutDuration']
         global_setting['Oem'] = {}
         global_setting['Oem']['Lenovo'] = {}
-        for item_name in ["PasswordChangeOnNextLogin", "AuthenticationMethod",
-                          "MinimumPasswordChangeIntervalHours", "PasswordExpirationPeriodDays",
-                          "PasswordChangeOnFirstAccess", "MinimumPasswordReuseCycle",
-                          "PasswordLength", "WebInactivitySessionTimeout", "PasswordExpirationWarningPeriod"]:
-            if 'Oem' in response_account_service_url.dict and 'Lenovo' in response_account_service_url.dict['Oem']:
-                if item_name in response_account_service_url.dict['Oem']['Lenovo']:
-                    global_setting['Oem']['Lenovo'][item_name] = response_account_service_url.dict['Oem']['Lenovo'][item_name]
 
         # Use user setting to update global_setting dict
         if "AccountLockoutThreshold" in setting_dict:
@@ -129,7 +125,7 @@ def add_helpmessage(argget):
     argget.add_argument('--MinimumPasswordReuseCycle', type=int, help='The minimum number of times that a user must enter a unique password when changing the password before the user can start to reuse passwords. A higher number enhances security. If set to 0, passwords may be reused immediately.')
     argget.add_argument('--MinimumPasswordChangeInterval', type=int, help='Minimum amount of time, in hours, that must elapse before a user may change a password again after it has been changed once. The value specified for this setting cannot exceed the value specified for the password expiration period. A small value allows users to more quickly use old passwords. If set to 0, passwords may be changed immediately.')
     argget.add_argument('--LockThreshold', type=int, help='The maximum number of times that a user can attempt to log in with an incorrect password before the user account is locked out. The number specified for the lockout period after maximum login failures determines how long the user account is locked out. Accounts that are locked cannot be used to gain access to the system even if a valid password is provided. If set to 0, accounts are never locked. The failed login counter is reset to zero after a successful login.')
-    argget.add_argument('--LockDuration', type=int, help='Minimum amount of time, in minutes, that must pass before a user that was locked out can attempt to log back in again. If set to 0, the account remains locked until an administrator explicitly unlocks it. A setting of 0 can make your system more exposed to serious denial of service attacks, where deliberate failed login attempts can leave accounts permanently locked.')
+    argget.add_argument('--LockDuration', type=int, help='Minimum amount of time, in minutes, that must pass before a user that was locked out can attempt to log back in again.')
 
 
 def add_parameter():
@@ -157,7 +153,7 @@ def add_parameter():
     if args.LockThreshold is not None:
         globalsetting_dict["AccountLockoutThreshold"] = int(args.LockThreshold)
     if args.LockDuration is not None:
-        globalsetting_dict["AccountLockoutDuration"] = int(args.LockDuration)
+        globalsetting_dict["AccountLockoutDuration"] = int(args.LockDuration)*60 # convert minute value to second value in redfish API
 
     parameter_info["globalsetting_dict"] = globalsetting_dict
     return parameter_info
