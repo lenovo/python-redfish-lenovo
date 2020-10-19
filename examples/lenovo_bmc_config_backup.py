@@ -124,7 +124,10 @@ def lenovo_bmc_config_backup(ip, login_account, login_password, backup_password,
             if response_config_url.status == 200:
                 #backup configuration
                 backup_target_url = response_config_url.dict['Actions']['#LenovoConfigurationService.BackupConfiguration']['target']
-                backup_body = {"Passphrase":backup_password}
+                if "EncryptScope" in str(response_config_url.dict['Actions']):
+                    backup_body = {"Passphrase":backup_password, "EncryptScope":"WholeFile"}
+                else:
+                    backup_body = {"Passphrase":backup_password}
                 response_backup_url = REDFISH_OBJ.post(backup_target_url, body=backup_body)
                 if response_backup_url.status == 200:
                     json.dump(response_backup_url.dict["data"], back_file, separators=(',',':'))
@@ -228,7 +231,7 @@ def add_helpmessage(parser):
     help_str += "Note that you will be asked for this password when you use the file to restore a configuration."
     help_str += "(Password is at least 9 characters)"
     parser.add_argument('--backuppasswd', type=str, required=True, help= help_str)
-    parser.add_argument('--backupfile', type=str,default = "./bmc_config_backup.json", help='Input the file name you want to save the configuration in local. Note: SR635/SR655 not support local backup, only support backup in http file server')
+    parser.add_argument('--backupfile', type=str,default = "./bmc_config_backup.bak", help='Input the file name you want to save the configuration in local. Note: SR635/SR655 not support local backup, only support backup in http file server')
     parser.add_argument('--httpip', type=str, help='Specify http file server ip for SR635/SR655.')
     parser.add_argument('--httpport', type=int, default=80, help='Specify http file server port for SR635/SR655, default port is 80.')
     parser.add_argument('--httpdir', type=str, help='Specify the directory on http file server for SR635/SR655.')
