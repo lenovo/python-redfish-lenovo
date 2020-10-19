@@ -102,7 +102,7 @@ def lenovo_bmc_config_restore(ip, login_account, login_password, backup_password
         result = {'ret': False, 'msg': "Password at least 9 characters needed"}
         return result
 
-    if httpip is None and backup_file:
+    if (httpip is None or httpip == '') and backup_file:
         try:
             back_file = open(backup_file, 'r')
         except:
@@ -173,12 +173,11 @@ def lenovo_bmc_config_restore(ip, login_account, login_password, backup_password
             # Check whether action is supported or not
             if 'Oem/Lenovo/Configuration' not in str(response_url.dict) and '#Manager.Restore' not in str(response_url.dict):
                 result = {'ret': False, 'msg': "Not support bmc configuration restore."}
-                print(response_url.dict)
                 return result
 
             # Restore via action Oem/Lenovo/Configuration
             if 'Oem/Lenovo/Configuration' in str(response_url.dict):
-                if httpip is not None or httpdir is not None:
+                if (httpip is not None and httpip != '') or (httpdir is not None and httpdir != ''):
                     error_message = "Target Server do not support bmc config backup/restore via HTTP file server, please use local config file to restore."
                     result = {"ret": False, "msg": error_message}
                     return result
@@ -197,9 +196,7 @@ def lenovo_bmc_config_restore(ip, login_account, login_password, backup_password
                 try:
                     list_data = json.load(back_file)
                 except:
-                    result = {'ret': False,
-                              'msg': "load file error,Please check your input file"}
-                    return result
+                    list_data = back_file.read()
                 if len(list_data) == 0:
                     result = {'ret': False,
                               'msg': "list_data is empty"}
@@ -282,7 +279,7 @@ def lenovo_bmc_config_restore(ip, login_account, login_password, backup_password
             REDFISH_OBJ.logout()
         except:
             pass
-        if httpip is None and backup_file:
+        if (httpip is None or httpip == '') and backup_file:
             back_file.close()
 
 
