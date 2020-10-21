@@ -255,9 +255,18 @@ def add_parameter():
     cfg = configparser.ConfigParser()
     if os.path.exists(config_file):
         cfg.read(config_file)
-        config_ini_info["httpip"] = cfg.get('FileServerCfg', 'Httpip')
-        config_ini_info["httpport"] = cfg.get('FileServerCfg', 'Httpport')
-        config_ini_info["httpdir"] = cfg.get('FileServerCfg', 'Httpdir')
+        try:
+            config_ini_info["httpip"] = cfg.get('FileServerCfg', 'Httpip')
+        except:
+            config_ini_info["httpip"] = ''
+        try:
+            config_ini_info["httpport"] = cfg.get('FileServerCfg', 'Httpport')
+        except:
+            config_ini_info["httpport"] = ''
+        try:
+            config_ini_info["httpdir"] = cfg.get('FileServerCfg', 'Httpdir')
+        except:
+            config_ini_info["httpdir"] = ''
 
     # Get the user specify parameter from the command line
     parameter_info = utils.parse_parameter(args)
@@ -273,7 +282,7 @@ def add_parameter():
             if key in config_ini_info:
                 parameter_info[key] = config_ini_info[key]
     # Use the port specified in configuration file instead of default 80 port
-    if config_ini_info["httpport"] != '' and args.httpport == 80:
+    if "httpport" in config_ini_info and config_ini_info["httpport"] != '' and args.httpport == 80:
         parameter_info["httpport"] = int(config_ini_info["httpport"])
 
     return parameter_info
