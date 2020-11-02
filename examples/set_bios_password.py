@@ -96,7 +96,7 @@ def set_bios_password(ip, login_account, login_password, system_id, bios_passwor
                     bios_registry_response = REDFISH_OBJ.get(bios_registry_url, None)
                     if bios_registry_response.status == 200:
                         bios_registry_json_url = bios_registry_response.dict["Location"][0]["Uri"]
-                bios_attribute_list = None
+                bios_attribute_list = []
                 if bios_registry_json_url != "":
                     bios_registry_json_response = REDFISH_OBJ.get(bios_registry_json_url, None)
                     if bios_registry_json_response.status == 200:
