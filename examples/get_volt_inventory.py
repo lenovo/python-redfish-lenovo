@@ -72,6 +72,8 @@ def get_volt_inventory(ip, login_account, login_password):
                     if len(response_chassis_url.dict['Members']) > 1 and ("Links" not in response_url.dict or
                             "ComputerSystems" not in response_url.dict["Links"]):
                         continue
+                    if 'Power' not in response_url.dict:
+                        continue
                     power_url = response_url.dict['Power']['@odata.id']
                     response_power_url = REDFISH_OBJ.get(power_url, None)
                     if response_power_url.status == 200:

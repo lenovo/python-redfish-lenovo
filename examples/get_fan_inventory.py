@@ -72,6 +72,8 @@ def get_fan_inventory(ip, login_account, login_password):
                     if len(response_chassis_url.dict['Members']) > 1 and ("Links" not in response_url.dict or
                             "ComputerSystems" not in response_url.dict["Links"]):
                         continue
+                    if "Thermal" not in response_url.dict:
+                        continue
                     thermal_url = response_url.dict['Thermal']['@odata.id']
                     response_thermal_url = REDFISH_OBJ.get(thermal_url, None)
                     if response_thermal_url.status == 200:
