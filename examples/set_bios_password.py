@@ -145,6 +145,9 @@ def set_bios_password(ip, login_account, login_password, system_id, bios_passwor
                 response_change_password = REDFISH_OBJ.post(change_password_url, body=requestbody)
                 if response_change_password.status in [200, 204]:
                     result = {'ret': True, 'msg': 'Setting BIOS password successfully'}
+                    # Note: For SR635 and SR655 servers, if new password not meet BIOS password policy requirement,
+                    #       redfish API may fail to identify errors and return success. In this case,
+                    #       new BIOS password is not set in server, you should use original BIOS password.
                 else:
                     error_message = utils.get_extended_error(response_change_password)
                     result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
