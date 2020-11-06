@@ -145,9 +145,7 @@ def lenovo_sklm_certificate_import(ip, login_account, login_password, certtype, 
                                 continue
                             sklm_cert_url = cert_url
                             break
-                flag_create = False
                 if sklm_cert_url is None: # create certificate if no existing certificate found
-                    flag_create = True
                     if certtype == 'client':
                         sklm_cert_url = '/redfish/v1/Managers/1/Oem/Lenovo/SecureKeyLifecycleService/ClientCertificate'
                     else:
