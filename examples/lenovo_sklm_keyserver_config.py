@@ -34,7 +34,7 @@ import lenovo_utils as utils
 
 
 def lenovo_sklm_keyserver_config(ip, login_account, login_password, kmprotocol, kmhostname, kmport, kmgroup):
-    """ Get SKLM key server info
+    """ Configure SKLM key server info
         :params ip: BMC IP address
         :type ip: string
         :params login_account: BMC user name
@@ -49,7 +49,7 @@ def lenovo_sklm_keyserver_config(ip, login_account, login_password, kmprotocol, 
         :type kmport: list
         :params kmgroup: sklm device group name
         :type kmgroup: string
-        :returns: returns key server info when succeeded or error message when failed
+        :returns: returns successful result when succeeded or error message when failed
         """
 
     result = {}
