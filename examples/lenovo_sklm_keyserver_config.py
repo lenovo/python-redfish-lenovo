@@ -33,7 +33,7 @@ import json
 import lenovo_utils as utils
 
 
-def lenovo_sklm_keyserver_config(ip, login_account, login_password, kmip, kmport, kmgroup):
+def lenovo_sklm_keyserver_config(ip, login_account, login_password, kmprotocol, kmhostname, kmport, kmgroup):
     """ Get SKLM key server info
         :params ip: BMC IP address
         :type ip: string
@@ -41,8 +41,10 @@ def lenovo_sklm_keyserver_config(ip, login_account, login_password, kmip, kmport
         :type login_account: string
         :params login_password: BMC user password
         :type login_password: string
-        :params kmip: sklm key server ip/hostname list
-        :type kmip: list
+        :params kmprotocol: sklm key management protocol
+        :type kmprotocol: string
+        :params kmhostname: sklm key server ip/hostname list
+        :type kmhostname: list
         :params kmport: sklm key server port list
         :type kmport: list
         :params kmgroup: sklm device group name
@@ -53,7 +55,7 @@ def lenovo_sklm_keyserver_config(ip, login_account, login_password, kmip, kmport
     result = {}
 
     # Check parameter
-    if len(kmip) > 4:
+    if len(kmhostname) > 4:
         result = {'ret': False, 'msg': "User can only specify up to 4 key servers."}
         return result
     if kmgroup is not None and kmgroup != '' and len(kmgroup) > 16:
@@ -116,12 +118,12 @@ def lenovo_sklm_keyserver_config(ip, login_account, login_password, kmip, kmport
     requestbody = {'KeyRepoServers':[]}
     for index in range(4):
         keyserver = {}
-        keyserver['HostName'] = kmip[index] if len(kmip)>index else ''
+        keyserver['HostName'] = kmhostname[index] if len(kmhostname)>index else ''
         keyserver['Port'] = kmport[index] if len(kmport)>index else 5696
         requestbody['KeyRepoServers'].append(keyserver)
     if kmgroup is not None and kmgroup != '':
         requestbody['DeviceGroup'] = kmgroup
-    requestbody['Protocol'] = 'KMIP'  #Value for Protocol can be SKLM or KMIP
+    requestbody['Protocol'] = kmprotocol  #Value for Protocol can be SKLM or KMIP
     headers = {'If-Match': '*'}
     request_url = sklm_url
     response_url = REDFISH_OBJ.patch(request_url, body=requestbody, headers=headers)
@@ -138,7 +140,9 @@ def lenovo_sklm_keyserver_config(ip, login_account, login_password, kmip, kmport
 
 
 def add_helpmessage(parser):
-    parser.add_argument('--kmip', nargs="*", type=str, required=True,
+    parser.add_argument('--kmprotocol', type=str, default="KMIP", required=False, choices=["KMIP", "SKLM"],
+                         help='Specify the key management protocol. Support:["KMIP", "SKLM"]')
+    parser.add_argument('--kmhostname', nargs="*", type=str, required=True,
                          help='Key management server hostname or IP address. Up to 4 servers are supported.')
     parser.add_argument('--kmport', nargs="*", type=int, default=[5696,5696,5696], required=False,
                          help='The corresponding port for key management server. Default port is 5696.')
@@ -153,7 +157,8 @@ def add_parameter():
     add_helpmessage(argget)
     args = argget.parse_args()
     parameter_info = utils.parse_parameter(args)
-    parameter_info["kmip"] = args.kmip
+    parameter_info["kmprotocol"] = args.kmprotocol
+    parameter_info["kmhostname"] = args.kmhostname
     parameter_info["kmport"] = args.kmport
     parameter_info["kmgroup"] = args.kmgroup
     return parameter_info
@@ -165,12 +170,13 @@ if __name__ == '__main__':
     ip = parameter_info['ip']
     login_account = parameter_info["user"]
     login_password = parameter_info["passwd"]
-    kmip = parameter_info["kmip"]
+    kmprotocol = parameter_info["kmprotocol"]
+    kmhostname = parameter_info["kmhostname"]
     kmport = parameter_info["kmport"]
     kmgroup = parameter_info["kmgroup"]
 
     # Configure SKLM key server info and check result
-    result = lenovo_sklm_keyserver_config(ip, login_account, login_password, kmip, kmport, kmgroup)
+    result = lenovo_sklm_keyserver_config(ip, login_account, login_password, kmprotocol, kmhostname, kmport, kmgroup)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
