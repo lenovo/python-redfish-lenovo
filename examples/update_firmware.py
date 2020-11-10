@@ -82,7 +82,7 @@ def update_firmware(ip, login_account, login_password, image, targets, fsprotoco
         response_update_service_url = REDFISH_OBJ.get(update_service_url, None)
         if response_update_service_url.status == 200:
             # Update firmware via local payload
-            if fsprotocol.lower() == "httppush":
+            if fsprotocol.lower() == "httppush" and 'MultipartHttpPushUri' not in response_update_service_url.dict.keys():
                 headers = {"Content-Type":"application/octet-stream"}
 
                 firmware_update_url =  login_host + response_update_service_url.dict["HttpPushUri"]
@@ -116,6 +116,44 @@ def update_firmware(ip, login_account, login_password, image, targets, fsprotoco
                     requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
                     firmware_update_response = requests.post(firmware_update_url, headers=headers, auth=auth, files=files, verify=False)
                 response_code = firmware_update_response.status_code
+            
+            elif fsprotocol.lower() == 'httppush' and 'MultipartHttpPushUri' in response_update_service_url.dict.keys():
+                firmware_update_url = login_host + response_update_service_url.dict['MultipartHttpPushUri']
+                if os.path.isdir(fsdir):
+                    file_path = fsdir + os.sep +image
+                else:
+                    result = {'ret':False,'msg':"The path %s doesn't exist, please check the 'fsdir' is correct." %fsdir}
+                    return result
+
+                multipart_target = ""
+                if targets:
+                    if "BMC-Backup" not in targets[0]:
+                        result = {'ret':False,"msg":"If firmware update target is backup image of BMC, please specify targets as BMC-Backup, otherwise targets parameter is needless."}
+                        return result
+                    multipart_target = login_host + "/redfish/v1/UpdateService/FirmwareInventory/BMC-Backup"
+                    print("MultipartHttpPushUriTargets is %s" % multipart_target)
+
+                BMC_parameters = {'MultipartHttpPushUriTargets': multipart_target}
+                parameter_file = os.getcwd() + os.sep + 'multipart_parameters.json'
+                with open(parameter_file, 'w') as f:
+                    f.write(json.dumps(BMC_parameters))
+                F_parameter = open(parameter_file, 'rb')
+                F_image = open(file_path, 'rb')
+
+                files = {
+                    'UpdateParameters':('multipart_parameters.json',F_parameter ,'application/json'),
+                    'UpdateFile':(image,F_image,'application/octet-stream')
+                }
+                auth = HTTPBasicAuth(login_account,login_password)
+
+                if utils.g_CAFILE is not None and utils.g_CAFILE != "":
+                    firmware_update_response = requests.post(firmware_update_url,auth=auth,files=files,verify=utils.g_CAFILE)
+                else:
+                    requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+                    firmware_update_response = requests.post(firmware_update_url,auth=auth,files=files,verify=False)
+                response_code = firmware_update_response.status_code
+                F_parameter.close()
+                F_image.close()
             else:
                 firmware_update_url = response_update_service_url.dict['Actions']['#UpdateService.SimpleUpdate']['target']
                 # Update firmware via file server
