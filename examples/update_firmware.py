@@ -144,11 +144,14 @@ def update_firmware(ip, login_account, login_password, image, targets, fsprotoco
                     'UpdateParameters':('multipart_parameters.json',F_parameter ,'application/json'),
                     'UpdateFile':(image,F_image,'application/octet-stream')
                 }
+                # Set BMC access credential
                 auth = HTTPBasicAuth(login_account,login_password)
 
+                # Get the sessions uri from the session server response
                 if utils.g_CAFILE is not None and utils.g_CAFILE != "":
                     firmware_update_response = requests.post(firmware_update_url,auth=auth,files=files,verify=utils.g_CAFILE)
                 else:
+                    # Ignore SSL Certificates
                     requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
                     firmware_update_response = requests.post(firmware_update_url,auth=auth,files=files,verify=False)
                 response_code = firmware_update_response.status_code
