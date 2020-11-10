@@ -1,13 +1,13 @@
 ###
 #
-# Lenovo Redfish examples - configure SKLM key server
-# SecureKeyLifecycleManager feature uses centralized SKLM server to provide keys that unlock storage hardware.
+# Lenovo Redfish examples - configure ExternalKeyLifecycleManager(EKLM) key server
+# SecureKeyLifecycleManager feature uses centralized EKLM server to provide keys that unlock storage hardware.
 # To use this feature, below steps are needed:
 #  - Ensure required license has been imported in BMC(XCC)
-#  - Configure SKLM Server(s) in BMC(XCC)
-#  - Install/import SKLM server certificate in BMC(XCC) which can be downloaded from SKLM server
-#  - Generate SKLM client certificate CSR in BMC(XCC)
-#  - Sign the CSR with the CA certificate in SKLM server
+#  - Configure EKLM Server(s) in BMC(XCC)
+#  - Install/import EKLM server certificate in BMC(XCC) which can be downloaded from EKLM server
+#  - Generate EKLM client certificate CSR in BMC(XCC)
+#  - Sign the CSR with the CA certificate in EKLM server
 #  - Import the signed client certificate in BMC(XCC)
 #
 # Copyright Notice:
@@ -33,21 +33,21 @@ import json
 import lenovo_utils as utils
 
 
-def lenovo_sklm_keyserver_config(ip, login_account, login_password, kmprotocol, kmhostname, kmport, kmgroup):
-    """ Configure SKLM key server info
+def lenovo_eklm_keyserver_config(ip, login_account, login_password, kmprotocol, kmhostname, kmport, kmgroup):
+    """ Configure EKLM key server info
         :params ip: BMC IP address
         :type ip: string
         :params login_account: BMC user name
         :type login_account: string
         :params login_password: BMC user password
         :type login_password: string
-        :params kmprotocol: sklm key management protocol
+        :params kmprotocol: eklm key management protocol
         :type kmprotocol: string
-        :params kmhostname: sklm key server ip/hostname list
+        :params kmhostname: eklm key server ip/hostname list
         :type kmhostname: list
-        :params kmport: sklm key server port list
+        :params kmport: eklm key server port list
         :type kmport: list
-        :params kmgroup: sklm device group name
+        :params kmgroup: eklm device group name
         :type kmgroup: string
         :returns: returns successful result when succeeded or error message when failed
         """
@@ -94,7 +94,7 @@ def lenovo_sklm_keyserver_config(ip, login_account, login_password, kmprotocol, 
         return result
 
     # Access /redfish/v1/Managers/1 to get SecureKeyLifecycleService url
-    sklm_url = None
+    eklm_url = None
     for request in response_managers_url.dict['Members']:
         request_url = request['@odata.id']
         response_url = REDFISH_OBJ.get(request_url, None)
@@ -105,12 +105,12 @@ def lenovo_sklm_keyserver_config(ip, login_account, login_password, kmprotocol, 
             REDFISH_OBJ.logout()
             return result
         if 'SecureKeyLifecycleService' in str(response_url.dict):
-            sklm_url = response_url.dict['Oem']['Lenovo']['SecureKeyLifecycleService']['@odata.id']
+            eklm_url = response_url.dict['Oem']['Lenovo']['SecureKeyLifecycleService']['@odata.id']
             break
 
-    # Return here when SKLM feature is not supported
-    if sklm_url is None:
-        result = {'ret': False, 'msg': 'SecureKeyLifecycleManager(SKLM) is not supported.'}
+    # Return here when EKLM feature is not supported
+    if eklm_url is None:
+        result = {'ret': False, 'msg': 'ExternalKeyLifecycleManager(EKLM) is not supported.'}
         REDFISH_OBJ.logout()
         return result
 
@@ -125,10 +125,10 @@ def lenovo_sklm_keyserver_config(ip, login_account, login_password, kmprotocol, 
         requestbody['DeviceGroup'] = kmgroup
     requestbody['Protocol'] = kmprotocol  #Value for Protocol can be SKLM or KMIP
     headers = {'If-Match': '*'}
-    request_url = sklm_url
+    request_url = eklm_url
     response_url = REDFISH_OBJ.patch(request_url, body=requestbody, headers=headers)
     if response_url.status in [200, 204]:
-        result = {'ret': True, 'msg': "Configure SKLM key server successfully"}
+        result = {'ret': True, 'msg': "Configure EKLM key server successfully"}
         REDFISH_OBJ.logout()
         return result
     else:
@@ -175,8 +175,8 @@ if __name__ == '__main__':
     kmport = parameter_info["kmport"]
     kmgroup = parameter_info["kmgroup"]
 
-    # Configure SKLM key server info and check result
-    result = lenovo_sklm_keyserver_config(ip, login_account, login_password, kmprotocol, kmhostname, kmport, kmgroup)
+    # Configure EKLM key server info and check result
+    result = lenovo_eklm_keyserver_config(ip, login_account, login_password, kmprotocol, kmhostname, kmport, kmgroup)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
