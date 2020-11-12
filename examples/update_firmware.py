@@ -49,6 +49,7 @@ def update_firmware(ip, login_account, login_password, image, targets, fsprotoco
     :params fsport: User specified file server port
     :type fsport: string
     :params fsusername: User specified file server username
+    B
     :type fsusername: string
     :params fspassword: User specified file server password
     :type fspassword: string
@@ -57,7 +58,7 @@ def update_firmware(ip, login_account, login_password, image, targets, fsprotoco
     :returns: returns firmware updating result
     """
     # Connect using the address, account name, and password
-    login_host = "https://" + ip 
+    login_host = "https://" + ip
     try:
         # Create a REDFISH object
         result = {}
@@ -116,7 +117,6 @@ def update_firmware(ip, login_account, login_password, image, targets, fsprotoco
                     requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
                     firmware_update_response = requests.post(firmware_update_url, headers=headers, auth=auth, files=files, verify=False)
                 response_code = firmware_update_response.status_code
-            
             elif fsprotocol.lower() == 'httppush' and 'MultipartHttpPushUri' in response_update_service_url.dict.keys():
                 firmware_update_url = login_host + response_update_service_url.dict['MultipartHttpPushUri']
                 if os.path.isdir(fsdir):
@@ -125,24 +125,20 @@ def update_firmware(ip, login_account, login_password, image, targets, fsprotoco
                     result = {'ret':False,'msg':"The path %s doesn't exist, please check the 'fsdir' is correct." %fsdir}
                     return result
 
-                multipart_target = ""
+                F_image = open(file_path, 'rb')
                 if targets:
                     if "BMC-Backup" not in targets[0]:
                         result = {'ret':False,"msg":"If firmware update target is backup image of BMC, please specify targets as BMC-Backup, otherwise targets parameter is needless."}
                         return result
                     multipart_target = login_host + "/redfish/v1/UpdateService/FirmwareInventory/BMC-Backup"
-                    print("MultipartHttpPushUriTargets is %s" % multipart_target)
-
-                BMC_parameters = {'MultipartHttpPushUriTargets': multipart_target}
-                parameter_file = os.getcwd() + os.sep + 'multipart_parameters.json'
-                with open(parameter_file, 'w') as f:
-                    f.write(json.dumps(BMC_parameters))
-                F_parameter = open(parameter_file, 'rb')
-                F_image = open(file_path, 'rb')
-
+                    BMC_parameters = {'Targets': [multipart_target]}
+                    print("MultipartHttpPushUriTargets is %s" % [multipart_target])
+                else:
+                    multipart_target = ''
+                    BMC_parameters = {'Targets': []}
                 files = {
-                    'UpdateParameters':('multipart_parameters.json',F_parameter ,'application/json'),
-                    'UpdateFile':(image,F_image,'application/octet-stream')
+                    'UpdateParameters': (multipart_target, json.dumps(BMC_parameters), 'application/json'),
+                    'UpdateFile': (image, F_image, 'application/octet-stream')
                 }
                 # Set BMC access credential
                 auth = HTTPBasicAuth(login_account,login_password)
@@ -155,7 +151,6 @@ def update_firmware(ip, login_account, login_password, image, targets, fsprotoco
                     requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
                     firmware_update_response = requests.post(firmware_update_url,auth=auth,files=files,verify=False)
                 response_code = firmware_update_response.status_code
-                F_parameter.close()
                 F_image.close()
             else:
                 firmware_update_url = response_update_service_url.dict['Actions']['#UpdateService.SimpleUpdate']['target']
