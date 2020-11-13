@@ -49,7 +49,6 @@ def update_firmware(ip, login_account, login_password, image, targets, fsprotoco
     :params fsport: User specified file server port
     :type fsport: string
     :params fsusername: User specified file server username
-    B
     :type fsusername: string
     :params fspassword: User specified file server password
     :type fspassword: string
