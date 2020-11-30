@@ -73,8 +73,6 @@ def lenovo_set_bmc_user_global(ip, login_account, login_password, setting_dict):
             return result
 
         global_setting = {}
-        global_setting['Oem'] = {}
-        global_setting['Oem']['Lenovo'] = {}
 
         # Use user setting to update global_setting dict
         if "AccountLockoutThreshold" in setting_dict:
@@ -86,6 +84,9 @@ def lenovo_set_bmc_user_global(ip, login_account, login_password, setting_dict):
                           "PasswordChangeOnFirstAccess", "MinimumPasswordReuseCycle",
                           "PasswordLength", "WebInactivitySessionTimeout", "PasswordExpirationWarningPeriod"]:
             if item_name in setting_dict:
+                if 'Oem' not in global_setting:
+                    global_setting['Oem'] = {}
+                    global_setting['Oem']['Lenovo'] = {}
                 global_setting['Oem']['Lenovo'][item_name] = setting_dict[item_name]
 
         # Perform patch to change setting
