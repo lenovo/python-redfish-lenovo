@@ -59,7 +59,7 @@ def lenovo_update_firmware(ip, login_account, login_password, image, targets, fs
         :returns: returns firmware updating result
     """
     # Connect using the address, account name, and password
-    login_host = "https://" + ip 
+    login_host = "https://" + ip
     try:
         # Create a REDFISH object
         result = {}
@@ -91,8 +91,11 @@ def lenovo_update_firmware(ip, login_account, login_password, image, targets, fs
                               'msg': "SR635/SR655 products only supports specifying BMC or UEFI to refresh."}
                     return result
                 # Check if BMC is 20B version of SR635/655, if yes, use multipart Uri to update Firmware
-                if "MultipartHttpPushUri" in response_update_service_url.dict and fsprotocol.upper() == "HTTPPUSH":
-                    Multipart_Uri = login_host + response_update_service_url.dict["MultipartHttpPushUri"]
+                if ("MultipartHttpPushUri" in response_update_service_url.dict['Oem']['AMIUpdateService'] or "MultipartHttpPushUri" in response_update_service_url.dict) and fsprotocol.upper() == "HTTPPUSH":
+                    if "MultipartHttpPushUri" in response_update_service_url.dict['Oem']['AMIUpdateService']:
+                        Multipart_Uri = login_host + response_update_service_url.dict['Oem']['AMIUpdateService']["MultipartHttpPushUri"]
+                    elif "MultipartHttpPushUri" in response_update_service_url.dict:
+                        Multipart_Uri = login_host + response_update_service_url.dict["MultipartHttpPushUri"]
                     BMC_Parameter = {"Targets": ["/redfish/v1/Managers/Self"]}
                     if targets[0].upper() == "BMC":
                         Oem_Parameter = {"FlashType": "HPMFwUpdate", "UploadSelector": "Default"}
@@ -107,18 +110,12 @@ def lenovo_update_firmware(ip, login_account, login_password, image, targets, fs
                     parameter_file = os.getcwd() + os.sep + "parameters.json"
                     oem_parameter_file = os.getcwd() + os.sep + "oem_parameters.json"
 
-                    with open(parameter_file, 'w') as f:
-                        f.write(json.dumps(BMC_Parameter))
-                    with open(oem_parameter_file, 'w') as f:
-                        f.write(json.dumps(Oem_Parameter))
-
-                    F_parameter = open(parameter_file, 'rb')
-                    F_oparameter = open(oem_parameter_file, 'rb')
+                    F_image = open(fsdir + os.sep + image, 'rb')
                     # Specify the parameters required to update the firmware
-                    files = {'UpdateParameters': ("parameters.json", F_parameter, 'application/json'),
+                    files = {'UpdateParameters': ("parameters.json", json.dumps(BMC_Parameter), 'application/json'),
                              'OemParameters': (
-                             "oem_parameters.json", F_oparameter, 'application/json'),
-                             'UpdateFile': (image, open(fsdir + os.sep + image, 'rb'), 'multipart/form-data')}
+                                 "oem_parameters.json", json.dumps(Oem_Parameter), 'application/json'),
+                             'UpdateFile': (image, F_image, 'multipart/form-data')}
 
                     # Send a post command through requests to update the firmware
                     # Ignore SSL Certificates
@@ -129,8 +126,7 @@ def lenovo_update_firmware(ip, login_account, login_password, image, targets, fs
                     firmware_update_url = Multipart_Uri
                     response = requests.post(Multipart_Uri, auth=auth, files=files, verify=False)
                     response_code = response.status_code
-                    F_parameter.close()
-                    F_oparameter.close()
+                    F_image.close()
                 else:
                     if fsprotocol.upper() != "HTTP":
                         result = {'ret': False, 'msg': "SR635/SR655 products only supports the HTTP protocol to update firmware."}
@@ -160,7 +156,7 @@ def lenovo_update_firmware(ip, login_account, login_password, image, targets, fs
 
             if response_code in [200, 202, 204]:
                 # For BMC update, BMC will restart automatically, the session connection will be disconnected, user have to wait BMC to restart.
-                # For UEFI update, the script can monitor the update task via BMC. 
+                # For UEFI update, the script can monitor the update task via BMC.
                 if targets[0].upper() == "BMC":
                     result = {'ret': True, 'msg': 'BMC refresh successfully, wait about 5 minutes for BMC to restart.'}
                     return result
