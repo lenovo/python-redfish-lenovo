@@ -95,6 +95,7 @@ def lenovo_create_raid_volume(ip, login_account, login_password, system_id, raid
         if response_storage_url.status != 200:
             result = {'ret': False, 'msg': "response storage url Error code %s" % response_storage_url.status}
             REDFISH_OBJ.logout()
+            return result
 
         storage_count = response_storage_url.dict["Members@odata.count"]
         if storage_count == 0:
