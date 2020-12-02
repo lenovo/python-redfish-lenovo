@@ -90,11 +90,21 @@ def lenovo_update_firmware(ip, login_account, login_password, image, targets, fs
                     result = {'ret': False,
                               'msg': "SR635/SR655 products only supports specifying BMC or UEFI to refresh."}
                     return result
-                # Check if BMC is 20B version of SR635/655, if yes, use multipart Uri to update Firmware
-                if ("MultipartHttpPushUri" in response_update_service_url.dict['Oem']['AMIUpdateService'] or "MultipartHttpPushUri" in response_update_service_url.dict) and fsprotocol.upper() == "HTTPPUSH":
-                    if "MultipartHttpPushUri" in response_update_service_url.dict['Oem']['AMIUpdateService']:
+
+                # Check if multiparthttppushuri exists in response_update_service_url.dict['Oem']['AMIUpdateService'] / response_update_service_url.dict
+                multiparthttppushuri_exist = False
+                multiparthttppushuri_oem_exist = False
+                if 'Oem' in response_update_service_url.dict:
+                    if 'AMIUpdateService' in response_update_service_url.dict['Oem']:
+                        if "MultipartHttpPushUri" in response_update_service_url.dict['Oem']['AMIUpdateService']:
+                            multiparthttppushuri_oem_exist = True
+                if "MultipartHttpPushUri" in response_update_service_url.dict:
+                    multiparthttppushuri_exist = True
+                # if yes, use multipart Uri to update Firmware
+                if (multiparthttppushuri_oem_exist is True or multiparthttppushuri_exist is True) and fsprotocol.upper() == "HTTPPUSH":
+                    if multiparthttppushuri_oem_exist is True:
                         Multipart_Uri = login_host + response_update_service_url.dict['Oem']['AMIUpdateService']["MultipartHttpPushUri"]
-                    elif "MultipartHttpPushUri" in response_update_service_url.dict:
+                    elif multiparthttppushuri_exist is True:
                         Multipart_Uri = login_host + response_update_service_url.dict["MultipartHttpPushUri"]
                     BMC_Parameter = {"Targets": ["/redfish/v1/Managers/Self"]}
                     if targets[0].upper() == "BMC":
@@ -105,10 +115,6 @@ def lenovo_update_firmware(ip, login_account, login_password, image, targets, fs
                         result = {'ret': False,
                                   'msg': "SR635/SR655 products only supports specifying BMC or UEFI to refresh."}
                         return result
-
-                    # Create a temporary file to write to the OEM value
-                    parameter_file = os.getcwd() + os.sep + "parameters.json"
-                    oem_parameter_file = os.getcwd() + os.sep + "oem_parameters.json"
 
                     F_image = open(fsdir + os.sep + image, 'rb')
                     # Specify the parameters required to update the firmware
@@ -150,7 +156,7 @@ def lenovo_update_firmware(ip, login_account, login_password, image, targets, fs
                     response = REDFISH_OBJ.post(firmware_update_url, body=body)
                     response_code = response.status
             else:
-                result = update_firmware.update_fw(ip, login_account, login_password, image, targets, fsprotocol, fsip,
+                result = update_firmware.update_firmware(ip, login_account, login_password, image, targets, fsprotocol, fsip,
                                                    fsport, fsusername, fspassword, fsdir)
                 return result
 
