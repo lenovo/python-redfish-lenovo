@@ -106,6 +106,8 @@ def get_system_log(ip, login_account, login_password, system_id, type):
                 result = {'ret': False, 'msg': "response members url Error code %s" % response_log_url.status}
                 REDFISH_OBJ.logout()
                 return result
+            if 'Entries' not in response_log_url.dict:
+                continue
             entries_url = response_log_url.dict['Entries']['@odata.id']
             response_entries_url = REDFISH_OBJ.get(entries_url, None)
             if response_entries_url.status != 200:
