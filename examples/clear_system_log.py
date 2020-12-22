@@ -98,6 +98,10 @@ def clear_system_log(ip, login_account, login_password, system_id, type):
             for member in members:
                 log_url = member['@odata.id']
                 response_log_url = REDFISH_OBJ.get(log_url, None)
+                if response_log_url.status != 200:
+                    error_message = utils.get_extended_error(response_log_url)
+                    result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (log_url, response_log_url.status,error_message)}
+                    return result
                 if "Actions" in response_log_url.dict:
                     if "#LogService.ClearLog" in response_log_url.dict["Actions"]:
                         # Get the clear system log url
