@@ -110,7 +110,7 @@ def lenovo_mount_virtual_media(ip, login_account, login_password, image, mountty
                             if MediaStatus != "Enabled":
                                 body = {"RMediaState": "Enable"}
                                 response_enable_url = REDFISH_OBJ.post(Enable_Media_url, body=body)
-                                if response_enable_url.status == 204:
+                                if response_enable_url.status in [200, 204]:
                                     time.sleep(10)
                                     print("Enable remote media support")
                                 else:
@@ -140,7 +140,7 @@ def lenovo_mount_virtual_media(ip, login_account, login_password, image, mountty
                         if MediaStatus != "Enabled":
                             body = {"RMediaState": "Enable"}
                             response_enable_url = REDFISH_OBJ.post(Enable_Media_url, body=body)
-                            if response_enable_url.status == 204:
+                            if response_enable_url.status in [200, 204]:
                                 time.sleep(10)
                                 print('Enable remote media support')
                             else:
@@ -153,7 +153,7 @@ def lenovo_mount_virtual_media(ip, login_account, login_password, image, mountty
                         if CdInstance != 4:
                             body = {"CDInstance": 4}
                             response = REDFISH_OBJ.post(CdInstance_url, body=body)
-                            if response.status == 204:
+                            if response.status in [200, 204]:
                                 sys.stdout.write("The RMedia will be restart, wait a moment...")
                                 secs = 180
                                 while secs:
