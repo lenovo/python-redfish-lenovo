@@ -201,14 +201,14 @@ def lenovo_mount_virtual_media(ip, login_account, login_password, image, mountty
                     # for 19A, XCC predefined 10 members, so call mount function for 19A. otherwise, call function for 18D.
                     if len(members_list) == 10:
                         if fsprotocol in ["NFS", "HTTP"]:
-                            result = mount_virtual_media(REDFISH_OBJ, members_list, protocol, fsip, fsport, fsdir, image,writeprotocol, inserted)
+                            result = mount_virtual_media(REDFISH_OBJ, members_list, protocol, fsip, fsport, fsdir, image, writeprotocol, inserted)
                             return result
                         else:
                             result = {"ret": False, "msg": "For remote mounts, only HTTP and NFS(no credential required) protocols are supported."}
                             return result
                     elif len(members_list) == 4:
                         if fsprotocol in ["NFS", "CIFS"]:
-                            result = mount_virtual_media_from_cd(REDFISH_OBJ, members_list, protocol, fsip, fsport, fsdir, image,fsusername,fspassword)
+                            result = mount_virtual_media_from_cd(REDFISH_OBJ, members_list, protocol, fsip, fsport, fsdir, image, fsusername, fspassword)
                             return result
                         else:
                             result = {"ret": False, "msg": "For remote mounts, only NFS(no credential required) and CIFS protocols are supported."}
@@ -248,7 +248,7 @@ def flush():
         time.sleep(0.1)
 
 
-def mount_virtual_media_from_cd(REDFISH_OBJ, members_list, protocol, fsip, fsport, fsdir, image,fsusername,fspassword):
+def mount_virtual_media_from_cd(REDFISH_OBJ, members_list, protocol, fsip, fsport, fsdir, image, fsusername=None, fspassword=None):
     """
     This function user the post method to mount VM, only NFS protocols are supported.
     This function can work on AMD server.
@@ -276,7 +276,7 @@ def mount_virtual_media_from_cd(REDFISH_OBJ, members_list, protocol, fsip, fspor
             if protocol == 'nfs':
                 body = {"Image": image_uri, "TransferProtocolType": protocol.upper()}
             else:
-                body = {"Image": image_uri, "TransferProtocolType": protocol.upper(),"UserName":fsusername,"Password":fspassword}
+                body = {"Image": image_uri, "TransferProtocolType": protocol.upper(), "UserName": fsusername, "Password": fspassword}
             response = REDFISH_OBJ.post(InsertMedia_url, body=body)
             if response.status in [200, 204]:
                 result = {'ret': True, 'msg': "'%s' mount successfully" % image}
@@ -446,8 +446,9 @@ def add_helpmessage(argget):
     argget.add_argument('--image', type=str, required=True, help='Mount virtual media name')
     argget.add_argument('--mounttype', type=str, default="Network", choices=["Network", "RDOC"], help="Types of mount virtual media.")
 
-    argget.add_argument('--fsprotocol', type=str, nargs='?',choices=["Samba","NFS","CIFS","HTTP","SFTP","FTP"],
-                        help='Specifies the protocol prefix for uploading image or ISO. XCC support all (["Samba","NFS","HTTP","SFTP","FTP"]) but CIFS, AMD 1P only support: ["NFS","CIFS"].')
+    argget.add_argument('--fsprotocol', type=str, nargs='?',choices=["Samba", "NFS", "CIFS", "HTTP", "SFTP", "FTP"],
+                        help='Specifies the protocol prefix for uploading image or ISO. '
+                             'For SR635 / SR655 products, only support: ["NFS", "CIFS"], for other products, support:["Samba", "NFS", "HTTP", "SFTP", "FTP"]. ')
     argget.add_argument('--fsip', type=str, nargs='?', help='Specify the file server ip')
     argget.add_argument('--fsport', type=str, default='', help='Specify the file server port')
     argget.add_argument('--fsusername', type=str, nargs='?',
