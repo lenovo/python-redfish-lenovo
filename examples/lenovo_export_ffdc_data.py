@@ -138,7 +138,7 @@ def lenovo_export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip,
             # Collect service data via /redfish/v1/Managers/Self/Actions/Oem/Lenovo/DownloadServiceData
             elif '#Manager.DownloadServiceData' in str(response_manager_uri.dict):
                 subverstrs = response_manager_uri.dict['FirmwareVersion'].split('.')
-                if subverstrs[0] >= '2' and subverstrs[1] >= '89':
+                if subverstrs[0] > '2' or (subverstrs[0] == '2' and subverstrs[1] >= '89'):
                     if fsprotocol.upper() != "SFTP":
                         error_message = "Target Server only support SFTP protocol, please use SFTP file server to download server data."
                         result = {"ret": False, "msg": error_message}
