@@ -20,6 +20,13 @@ Installing
 
     `pip install configparser`
 
+    As configparser only support python3 from 5.0.0, if you are using python2.7, please specify version 4.0.2 while installing
+    `pip install configparser==4.0.2`
+
+* To install requests:
+
+    `pip install requests`
+
 Requirements
 ----------
 
