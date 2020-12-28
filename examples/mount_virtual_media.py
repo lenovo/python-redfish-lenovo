@@ -98,7 +98,7 @@ def mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsp
                     return result
 
                 # Get the mount virtual media list
-				# For the latest XCC Firmware(version is 2.5 and above), there are 10 predefined members
+                # For the latest XCC Firmware(version is 2.5 and above), there are 10 predefined members
                 response_virtual_media = REDFISH_OBJ.get(virtual_media_url, None)
                 if response_virtual_media.status == 200:
                     members_list = response_virtual_media.dict["Members"]
@@ -165,8 +165,8 @@ def mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsp
 
 
 def add_helpmessage(argget):
-    argget.add_argument('--fsprotocol', type=str, nargs='?', choices=["NFS", "HTTP"],
-                        help='Specifies the protocol prefix for uploading image or ISO. Support: ["NFS","HTTP"]')
+    argget.add_argument('--fsprotocol', type=str, nargs='?', choices=["NFS", "HTTP", "HTTPS"],
+                        help='Specifies the protocol prefix for uploading image or ISO. Support: ["NFS","HTTP","HTTPS"]')
     argget.add_argument('--fsip', type=str, help='Specify the file server ip')
     argget.add_argument('--fsdir', type=str, help='File path of the image')
     argget.add_argument('--fsport', type=str, default='', help='Specify the file server port')
