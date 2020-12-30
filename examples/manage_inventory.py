@@ -109,8 +109,8 @@ def subcmd_getinventories_main(args, parameter_info, subcmdlist):
 def subcmd_getsystem_main(args, parameter_info):
     """call sub script to perform the getsystem sub command"""
     
-    from get_system_inventory import get_system_info
-    result = get_system_info(parameter_info['ip'], parameter_info['user'], parameter_info['passwd'], parameter_info['sysid'])
+    from get_system_inventory import get_system_inventory
+    result = get_system_inventory(parameter_info['ip'], parameter_info['user'], parameter_info['passwd'], parameter_info['sysid'])
     
     if result['ret'] is True:
         del result['ret']
@@ -122,8 +122,8 @@ def subcmd_getsystem_main(args, parameter_info):
 def subcmd_getcpu_main(args, parameter_info):
     """call sub script to perform the getcpu sub command"""
     
-    from get_cpu_inventory import get_cpu_info
-    result = get_cpu_info(parameter_info['ip'], parameter_info['user'], parameter_info['passwd'], parameter_info['sysid'])
+    from get_cpu_inventory import get_cpu_inventory
+    result = get_cpu_inventory(parameter_info['ip'], parameter_info['user'], parameter_info['passwd'], parameter_info['sysid'])
     
     if result['ret'] is True:
         del result['ret']
@@ -148,8 +148,8 @@ def subcmd_getmemory_main(args, parameter_info):
 def subcmd_getstorage_main(args, parameter_info):
     """call sub script to perform the getstorage sub command"""
     
-    from get_storage_inventory import get_storage_info
-    result = get_storage_info(parameter_info['ip'], parameter_info['user'], parameter_info['passwd'], parameter_info['sysid'])
+    from get_storage_inventory import get_storage_inventory
+    result = get_storage_inventory(parameter_info['ip'], parameter_info['user'], parameter_info['passwd'], parameter_info['sysid'])
     
     if result['ret'] is True:
         del result['ret']
@@ -161,8 +161,8 @@ def subcmd_getstorage_main(args, parameter_info):
 def subcmd_getnic_main(args, parameter_info):
     """call sub script to perform the getnic sub command"""
     
-    from get_nic_inventory import get_network_info
-    result = get_network_info(parameter_info['ip'], parameter_info['user'], parameter_info['passwd'], parameter_info['sysid'])
+    from get_nic_inventory import get_nic_inventory
+    result = get_nic_inventory(parameter_info['ip'], parameter_info['user'], parameter_info['passwd'], parameter_info['sysid'])
     
     if result['ret'] is True:
         del result['ret']
@@ -174,8 +174,8 @@ def subcmd_getnic_main(args, parameter_info):
 def subcmd_getpsu_main(args, parameter_info):
     """call sub script to perform the getpsu sub command"""
     
-    from get_psu_inventory import get_psu_info
-    result = get_psu_info(parameter_info['ip'], parameter_info['user'], parameter_info['passwd'], parameter_info['sysid'])
+    from get_psu_inventory import get_psu_inventory
+    result = get_psu_inventory(parameter_info['ip'], parameter_info['user'], parameter_info['passwd'], parameter_info['sysid'])
     
     if result['ret'] is True:
         del result['ret']
@@ -187,8 +187,8 @@ def subcmd_getpsu_main(args, parameter_info):
 def subcmd_getbmc_main(args, parameter_info):
     """call sub script to perform the getbmc sub command"""
     
-    from get_bmc_inventory import get_bmc_info
-    result = get_bmc_info(parameter_info['ip'], parameter_info['user'], parameter_info['passwd'], parameter_info['sysid'])
+    from get_bmc_inventory import get_bmc_inventory
+    result = get_bmc_inventory(parameter_info['ip'], parameter_info['user'], parameter_info['passwd'], parameter_info['sysid'])
     
     if result['ret'] is True:
         del result['ret']
