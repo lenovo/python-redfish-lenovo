@@ -106,7 +106,19 @@ def lenovo_mount_virtual_media(ip, login_account, login_password, image, mountty
                             # SR635/SR655  Enable VirtualMedia
                             MediaStatus = Oem_dict['Ami']['VirtualMedia']['RMediaStatus']
                             Enable_Media_url = response_manager_url.dict["Actions"]["Oem"]["#AMIVirtualMedia.EnableRMedia"]["target"]
-                            
+
+                            # Check the CIFS is supported for SR635 / SR655 products
+                            if fsprotocol.upper() == 'CIFS':
+                                meidaAction_url = virtual_media_url + '/' + 'CD1' + '/' + 'InsertMediaActionInfo'
+                                respones_mediaAction_url = REDFISH_OBJ.get(meidaAction_url, None)
+                                for parameter in respones_mediaAction_url.dict['Parameters']:
+                                    if parameter['Name'] == 'TransferProtocolType':
+                                        support_type = parameter['AllowableValues']
+                                        if fsprotocol.upper() not in support_type:
+                                            result = {'ret': False,
+                                                      'msg': "SR635/SR655 products only supports the NFS protocol to mount virtual media."}
+                                            return result
+
                             # Enable remote media support
                             if MediaStatus != "Enabled":
                                 body = {"RMediaState": "Enable"}
