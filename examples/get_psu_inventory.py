@@ -93,9 +93,15 @@ def get_psu_inventory(ip, login_account, login_password, system_id):
                 entry = {}
                 for property in ['Name', 'SerialNumber', 'PowerOutputWatts', 'EfficiencyPercent', 'LineInputVoltage', 
                     'PartNumber', 'FirmwareVersion', 'PowerCapacityWatts', 'PowerInputWatts', 'Model',
-                    'PowerSupplyType', 'Status', 'Manufacturer']:
+                    'PowerSupplyType', 'Status', 'Manufacturer', 'HotPluggable', 'LastPowerOutputWatts',
+                    'InputRanges', 'LineInputVoltageType', 'Location']:
                     if property in PowerSupplies:
                         entry[property] = PowerSupplies[property]
+                if 'Oem' in PowerSupplies and 'Lenovo' in PowerSupplies['Oem']:
+                    entry['Oem'] = {'Lenovo':{}}
+                    for oemprop in ['FruPartNumber', 'ManufactureDate', 'ManufacturerName']:
+                        if oemprop in PowerSupplies['Oem']['Lenovo']:
+                            entry['Oem']['Lenovo'][oemprop] = PowerSupplies['Oem']['Lenovo'][oemprop]
                 psu_details.append(entry)
         else:
             result = {'ret': False, 'msg': "response power url Error code %s" % response_power_url.status}
