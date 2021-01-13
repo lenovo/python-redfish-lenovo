@@ -72,13 +72,14 @@ def enable_secure_boot(ip, login_account, login_password, system_id):
             # Toggle Remote Physical Presence Asset if Oem/Lenovo/TPMSettings/AssertRPP exist
             if 'Oem' in response_system_url.dict and 'Lenovo' in response_system_url.dict['Oem']:
                 if 'TPMSettings' in response_system_url.dict['Oem']['Lenovo'] and 'AssertRPP' in response_system_url.dict['Oem']['Lenovo']['TPMSettings']:
-                    parameter = {"Oem": {"Lenovo": {"TPMSettings": {"AssertRPP": True}}}}
-                    headers = {"If-Match": response_system_url.dict['@odata.etag']}
-                    response_patch = REDFISH_OBJ.patch(system_url, body=parameter, headers=headers)
-                    if response_patch.status not in [200,204]:
-                        error_message = utils.get_extended_error(response_patch)
-                        result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % ( 
-                            system_url, response_patch.status, error_message)}
+                    if response_system_url.dict['Oem']['Lenovo']['TPMSettings']['AssertRPP'] != True:
+                        parameter = {"Oem": {"Lenovo": {"TPMSettings": {"AssertRPP": True}}}}
+                        headers = {"If-Match": response_system_url.dict['@odata.etag']}
+                        response_patch = REDFISH_OBJ.patch(system_url, body=parameter, headers=headers)
+                        if response_patch.status not in [200,204]:
+                            error_message = utils.get_extended_error(response_patch)
+                            result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % ( 
+                                system_url, response_patch.status, error_message)}
 
             # Get the SecureBoot resource url
             secureboot_url = response_system_url.dict['SecureBoot']['@odata.id']
