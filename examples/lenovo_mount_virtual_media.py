@@ -103,9 +103,22 @@ def lenovo_mount_virtual_media(ip, login_account, login_password, image, mountty
                     if "Oem" in response_manager_url.dict:
                         Oem_dict = response_manager_url.dict['Oem']
                         if "Ami" in Oem_dict:
+                            # SR635/SR655  Enable VirtualMedia
                             MediaStatus = Oem_dict['Ami']['VirtualMedia']['RMediaStatus']
                             Enable_Media_url = response_manager_url.dict["Actions"]["Oem"]["#AMIVirtualMedia.EnableRMedia"]["target"]
-                            
+
+                            # Check the CIFS is supported for SR635 / SR655 products
+                            if fsprotocol.upper() == 'CIFS':
+                                meidaAction_url = virtual_media_url + '/' + 'CD1' + '/' + 'InsertMediaActionInfo'
+                                respones_mediaAction_url = REDFISH_OBJ.get(meidaAction_url, None)
+                                for parameter in respones_mediaAction_url.dict['Parameters']:
+                                    if parameter['Name'] == 'TransferProtocolType':
+                                        support_type = parameter['AllowableValues']
+                                        if fsprotocol.upper() not in support_type:
+                                            result = {'ret': False,
+                                                      'msg': "SR635/SR655 products only supports the NFS protocol to mount virtual media."}
+                                            return result
+
                             # Enable remote media support
                             if MediaStatus != "Enabled":
                                 body = {"RMediaState": "Enable"}
@@ -119,6 +132,7 @@ def lenovo_mount_virtual_media(ip, login_account, login_password, image, mountty
                                               Enable_Media_url, response_enable_url.status, error_message)}
                                     return result
                         elif "Lenovo" in Oem_dict:
+                            # XCC Mount VirtualMedia
                             remotemap_url = Oem_dict['Lenovo']['RemoteMap']['@odata.id']
                             remotecontrol_url = Oem_dict['Lenovo']['RemoteControl']['@odata.id']
                         else:
@@ -199,17 +213,17 @@ def lenovo_mount_virtual_media(ip, login_account, login_password, image, mountty
                     # for 19A, XCC predefined 10 members, so call mount function for 19A. otherwise, call function for 18D.
                     if len(members_list) == 10:
                         if fsprotocol in ["NFS", "HTTP"]:
-                            result = mount_virtual_media(REDFISH_OBJ, members_list, protocol, fsip, fsport, fsdir, image,writeprotocol, inserted)
+                            result = mount_virtual_media(REDFISH_OBJ, members_list, protocol, fsip, fsport, fsdir, image, writeprotocol, inserted)
                             return result
                         else:
                             result = {"ret": False, "msg": "For remote mounts, only HTTP and NFS(no credential required) protocols are supported."}
                             return result
                     elif len(members_list) == 4:
-                        if fsprotocol in ["NFS"]:
-                            result = mount_virtual_media_from_cd(REDFISH_OBJ, members_list, protocol, fsip, fsport, fsdir, image)
+                        if fsprotocol in ["NFS", "CIFS"]:
+                            result = mount_virtual_media_from_cd(REDFISH_OBJ, members_list, protocol, fsip, fsport, fsdir, image, fsusername, fspassword)
                             return result
                         else:
-                            result = {"ret": False, "msg": "For remote mounts, only NFS(no credential required) protocols are supported."}
+                            result = {"ret": False, "msg": "For remote mounts, only NFS(no credential required) and CIFS protocols are supported."}
                             return result 
                     else:
                         result = mount_virtual_media_from_network(REDFISH_OBJ, remotemap_url, image, fsip, fsport, fsdir,
@@ -246,7 +260,7 @@ def flush():
         time.sleep(0.1)
 
 
-def mount_virtual_media_from_cd(REDFISH_OBJ, members_list, protocol, fsip, fsport, fsdir, image):
+def mount_virtual_media_from_cd(REDFISH_OBJ, members_list, protocol, fsip, fsport, fsdir, image, fsusername=None, fspassword=None):
     """
     This function user the post method to mount VM, only NFS protocols are supported.
     This function can work on AMD server.
@@ -271,7 +285,10 @@ def mount_virtual_media_from_cd(REDFISH_OBJ, members_list, protocol, fsip, fspor
 
         if not image_name:
             image_uri = protocol + "://" + fsip + fsport + fsdir + "/" + image
-            body = {"Image": image_uri, "TransferProtocolType": protocol.upper()}
+            if protocol == 'nfs':
+                body = {"Image": image_uri, "TransferProtocolType": protocol.upper()}
+            else:
+                body = {"Image": image_uri, "TransferProtocolType": protocol.upper(), "UserName": fsusername, "Password": fspassword}
             response = REDFISH_OBJ.post(InsertMedia_url, body=body)
             if response.status in [200, 204]:
                 result = {'ret': True, 'msg': "'%s' mount successfully" % image}
@@ -441,14 +458,15 @@ def add_helpmessage(argget):
     argget.add_argument('--image', type=str, required=True, help='Mount virtual media name')
     argget.add_argument('--mounttype', type=str, default="Network", choices=["Network", "RDOC"], help="Types of mount virtual media.")
 
-    argget.add_argument('--fsprotocol', type=str, nargs='?',choices=["Samba","NFS","HTTP","SFTP","FTP"],
-                        help='Specifies the protocol prefix for uploading image or ISO. Support: ["Samba","NFS","HTTP","SFTP","FTP"]')
+    argget.add_argument('--fsprotocol', type=str, nargs='?',choices=["Samba", "NFS", "CIFS", "HTTP", "SFTP", "FTP"],
+                        help='Specifies the protocol prefix for uploading image or ISO. '
+                             'For SR635 / SR655 products, only support: ["NFS", "CIFS"], for other products, support:["Samba", "NFS", "HTTP", "SFTP", "FTP"]. ')
     argget.add_argument('--fsip', type=str, nargs='?', help='Specify the file server ip')
     argget.add_argument('--fsport', type=str, default='', help='Specify the file server port')
     argget.add_argument('--fsusername', type=str, nargs='?',
-                        help='Username to access the file path, available for Samba, NFS, HTTP, SFTP/FTP')
+                        help='Username to access the file path, available for Samba, CIFS, HTTP, SFTP/FTP')
     argget.add_argument('--fspassword', type=str, nargs='?',
-                        help='Password to access the file path, password should be encrypted after object creation, available for Samba, NFS, HTTP, SFTP/FTP')
+                        help='Password to access the file path, password should be encrypted after object creation, available for Samba, CIFS, HTTP, SFTP/FTP')
     argget.add_argument('--fsdir', type=str, nargs='?', help='File path of the image')
 
     argget.add_argument('--readonly', type=int, nargs='?', default=1, choices=[0, 1],
