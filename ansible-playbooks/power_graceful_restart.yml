@@ -1,0 +1,16 @@
+---
+- hosts: myhosts
+  connection: local
+  name: Manage System Power - Greaceful restart
+  gather_facts: False
+
+  tasks:
+
+  - name: Restart system power gracefully
+    redfish_command:
+      category: Systems
+      command: PowerReboot
+      baseuri: "{{ baseuri }}"
+      username: "{{ username }}"
+      password: "{{ password }}"
+      timeout: 20
