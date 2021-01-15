@@ -152,7 +152,7 @@ if __name__ == '__main__':
     username = parameter_info['username']
 
     # Get disable user result and check result
-    result = disable_user(ip, login_account, login_password, username)
+    result = disable_bmc_user(ip, login_account, login_password, username)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
