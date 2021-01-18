@@ -29,7 +29,8 @@
       username: "{{ username }}"
       password: "{{ password }}"
       timeout: 20
-  
+    register: bios_attribute
+ 
   - name: Reboot system to apply new BIOS settings
     redfish_command:
       category: Systems
