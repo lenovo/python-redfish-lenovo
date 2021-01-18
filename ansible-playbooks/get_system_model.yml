@@ -1,0 +1,18 @@
+---
+  - name: Set default system_model
+    set_fact: system_model=""
+    when: system_model is undefined
+
+  - name: Getting system inventory
+    redfish_facts:
+      category: Systems
+      command: GetSystemInventory
+      baseuri: "{{ baseuri }}"
+      username: "{{ username }}"
+      password: "{{ password }}"
+      timeout: 20
+    register: result
+
+  - name: Get Model from system inventory
+    set_fact:
+      system_model: "{{ result.ansible_facts.redfish_facts.system.entries[0][1].Model }}"

@@ -1,0 +1,42 @@
+---
+- hosts: myhosts
+  connection: local
+  name: Enable PXE in NICs
+  gather_facts: False
+
+  vars:
+  - attribute_name: NetworkStackSettings_IPv4PXESupport
+  - attribute_value: Enable
+
+  tasks:
+
+  - name: Get system model
+    include_tasks: get_system_model.yml
+
+  - name: update attribute_name and attribute_value for SR635/SR655
+    set_fact:
+      attribute_name: Q00181_Ipv4_PXE_Support
+      attribute_value: Enabled
+    when: system_model == "ThinkSystem SR635" or system_model == "ThinkSystem SR655"
+
+  - name: Set {{ attribute_name }} to {{ attribute_value }}
+    redfish_config:
+      category: Systems
+      command: SetBiosAttributes
+      bios_attribute_name: "{{ attribute_name }}"
+      bios_attribute_value: "{{ attribute_value }}"
+      baseuri: "{{ baseuri }}"
+      username: "{{ username }}"
+      password: "{{ password }}"
+      timeout: 20
+    register: bios_attribute
+
+  - name: Reboot system to apply new BIOS settings
+    redfish_command:
+      category: Systems
+      command: PowerReboot
+      baseuri: "{{ baseuri }}"
+      username: "{{ username }}"
+      password: "{{ password }}"
+      timeout: 20
+    when: bios_attribute.changed

@@ -13,7 +13,7 @@
     include_tasks: create_output_file.yml
 
   - name: Get Boot Override information
-    redfish_info:
+    redfish_facts:
       category: Systems
       command: GetBootOverride
       baseuri: "{{ baseuri }}"
