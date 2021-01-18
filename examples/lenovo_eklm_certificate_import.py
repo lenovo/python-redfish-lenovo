@@ -50,9 +50,9 @@ def lenovo_eklm_certificate_import(ip, login_account, login_password, certtype, 
 
     result = {}
 
-    # check file existing
-    if not os.path.exists(certfile):
-        result = {'ret': False, 'msg': "Specified file %s does not exist. Please check your certificate file path." % (certfile)}
+    # check file existing and readable
+    if not os.access(certfile, os.R_OK):
+        result = {'ret': False, 'msg': "Specified file %s does not exist or can't be accessed. Please check your certificate file path." % (certfile)}
         return result
 
     # Create a REDFISH object
@@ -181,13 +181,15 @@ def lenovo_eklm_certificate_import(ip, login_account, login_password, certtype, 
 
 
 def read_cert_file_pem(cert):
+    fhandle = None
     try:
         fhandle = open(cert, 'r')
         filecontent = fhandle.read()
     except:
         filecontent = ''
     finally:
-        fhandle.close()
+        if fhandle:
+            fhandle.close()
     return filecontent if '-----BEGIN CERTIFICATE-----' in filecontent else None
 
 
