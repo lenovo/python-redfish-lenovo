@@ -4,7 +4,7 @@
 #
 # Copyright Notice:
 #
-# Copyright 2020 Lenovo Corporation
+# Copyright 2021 Lenovo Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
 # not use this file except in compliance with the License. You may obtain
@@ -66,6 +66,7 @@ def lenovo_ldap_certificate_add(ip, login_account, login_password, certfile):
                 '/redfish/v1', response_base_url.status, error_message)}
             return result
 
+        flag_SR635_SR655 = False
         # Use standard API /redfish/v1/AccountService/LDAP/Certificates first
         request_url = '/redfish/v1/AccountService'
         response_url = REDFISH_OBJ.get(request_url, None)
@@ -82,6 +83,31 @@ def lenovo_ldap_certificate_add(ip, login_account, login_password, certfile):
                 result = {'ret': False,
                           'msg':"Target server required certificate format should be PEM. Please specify correct certificate file."}
                 return result
+
+            # Perform post to add the certificate
+            response_url = REDFISH_OBJ.post(request_url, body=request_body)
+            if response_url.status not in [200, 201, 202, 204]:
+                error_message = utils.get_extended_error(response_url)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                    request_url, response_url.status, error_message)}
+            else:
+                result = {'ret': True,
+                          'msg':"The certificate has been added successfully."}
+            return result
+        elif "Oem" in response_url.dict and "Ami" in response_url.dict["Oem"]:
+            flag_SR635_SR655 = True
+
+        # Add(import) certificate for SR635/SR655 using standard API with some oem properties
+        if flag_SR635_SR655:
+            request_url = '/redfish/v1/Managers/Self/RemoteAccountService/LDAP/Certificates'
+            request_body = {}
+            request_body['CertificateString'] = read_cert_file_pem(certfile)
+            if request_body['CertificateString'] is None:
+                result = {'ret': False,
+                          'msg':"Target server required certificate format should be PEM. Please specify correct certificate file."}
+                return result
+            request_body['CertificateType'] = 'PEM'
+            request_body['Oem'] = {'Ami': {'CACert': True}}
 
             # Perform post to add the certificate
             response_url = REDFISH_OBJ.post(request_url, body=request_body)
