@@ -196,11 +196,6 @@ def lenovo_update_firmware(ip, login_account, login_password, image, targets, fs
     except Exception as e:
         result = {'ret': False, 'msg': "error_message: %s" % (e)}
     finally:
-        # Delete the temporary file if it exists
-        if os.path.exists(os.getcwd() + os.sep + "parameters.json"):
-            os.remove(os.getcwd() + os.sep + "parameters.json")
-        if os.path.exists(os.getcwd() + os.sep + "oem_parameters.json"):
-            os.remove(os.getcwd() + os.sep + "oem_parameters.json")
         # Logout of the current session
         try:
             REDFISH_OBJ.logout()
