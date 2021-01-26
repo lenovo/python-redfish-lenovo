@@ -154,7 +154,7 @@ def lenovo_update_firmware(ip, login_account, login_password, image, targets, fs
                     response = REDFISH_OBJ.post(firmware_update_url, body=body)
                     response_code = response.status
             else:
-                result = update_firmware.update_fw(ip, login_account, login_password, image, targets, fsprotocol, fsip,
+                result = update_firmware.update_firmware(ip, login_account, login_password, image, targets, fsprotocol, fsip,
                                                    fsport, fsusername, fspassword, fsdir)
                 return result
 
