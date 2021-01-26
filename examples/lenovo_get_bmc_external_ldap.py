@@ -22,7 +22,7 @@
 import sys
 import redfish
 import json
-import lenovo_utils as utils
+from . import lenovo_utils as utils
 
 
 def lenovo_get_bmc_external_ldap(ip, login_account, login_password):

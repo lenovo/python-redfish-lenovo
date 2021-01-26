@@ -23,7 +23,7 @@
 import sys
 import redfish
 import json
-import lenovo_utils as utils
+from . import lenovo_utils as utils
 
 def get_metric_definition_report(ip, login_account, login_password):
     """Get metric inventory    

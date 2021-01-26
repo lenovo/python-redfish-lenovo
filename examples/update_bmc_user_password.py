@@ -23,7 +23,7 @@
 import sys
 import redfish
 import json
-import lenovo_utils as utils
+from . import lenovo_utils as utils
 
 def update_bmc_user_password(ip, login_account, login_password, username, new_password):
     """update user password    

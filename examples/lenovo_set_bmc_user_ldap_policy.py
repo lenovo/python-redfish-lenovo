@@ -22,7 +22,7 @@
 import sys
 import redfish
 import json
-import lenovo_utils as utils
+from . import lenovo_utils as utils
 import traceback
 
 def lenovo_set_bmc_user_ldap_policy(ip, login_account, login_password, policy):

@@ -27,7 +27,7 @@ from requests.auth import HTTPBasicAuth
 import redfish
 import json
 import time
-import lenovo_utils as utils
+from . import lenovo_utils as utils
 
 
 def update_firmware(ip, login_account, login_password, image, targets, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir):

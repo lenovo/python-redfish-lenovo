@@ -23,7 +23,7 @@
 import sys, os
 import redfish
 import json
-import lenovo_utils as utils
+from . import lenovo_utils as utils
 
 
 def create_parameter(supported_subcmd_list):

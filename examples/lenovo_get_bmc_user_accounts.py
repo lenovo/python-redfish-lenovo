@@ -24,7 +24,7 @@ import sys
 import logging
 import json
 import redfish
-import lenovo_utils as utils
+from . import lenovo_utils as utils
 from collections import OrderedDict
 
 

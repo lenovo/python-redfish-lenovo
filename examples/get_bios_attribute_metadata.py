@@ -24,7 +24,7 @@
 import sys, os
 import json
 import redfish
-import lenovo_utils as utils
+from . import lenovo_utils as utils
 
 
 def get_bios_attribute_metadata(ip, login_account, login_password, system_id):

@@ -23,7 +23,7 @@
 import sys
 import redfish
 import json
-import lenovo_utils as utils
+from . import lenovo_utils as utils
 
 def lenovo_add_alert_recipient(ip, login_account, login_password, setting_dict):
     """update bmc user global settings 

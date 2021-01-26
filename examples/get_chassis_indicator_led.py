@@ -22,7 +22,7 @@
 import redfish
 import sys
 import json
-import lenovo_utils as utils
+from . import lenovo_utils as utils
 
 
 def get_chassis_indicator_led(ip, login_account, login_password):

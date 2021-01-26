@@ -24,7 +24,7 @@ import sys
 import redfish
 import json
 import time
-import lenovo_utils as utils
+from . import lenovo_utils as utils
 
 
 def lenovo_mount_virtual_media(ip, login_account, login_password, image, mounttype, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir, readonly, domain, options, inserted, writeprotocol):

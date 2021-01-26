@@ -24,7 +24,7 @@ import sys
 import redfish
 import json
 import time
-import lenovo_utils as utils
+from . import lenovo_utils as utils
 
 
 def get_system_log(ip, login_account, login_password, system_id, type):

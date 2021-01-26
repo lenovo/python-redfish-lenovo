@@ -22,7 +22,7 @@
 import sys
 import redfish
 import json
-import lenovo_utils as utils
+from . import lenovo_utils as utils
 import datetime
 
 def send_test_event(ip, login_account, login_password,eventid,message,severity):

@@ -22,7 +22,7 @@
 import sys
 import redfish
 import json
-import lenovo_utils as utils
+from . import lenovo_utils as utils
 
 def get_event_subscriptions(ip, login_account, login_password):
     """Get event subscriptions

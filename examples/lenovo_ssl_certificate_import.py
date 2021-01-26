@@ -22,7 +22,7 @@
 import sys, os, struct
 import redfish
 import json
-import lenovo_utils as utils
+from . import lenovo_utils as utils
 
 
 def lenovo_ssl_certificate_import(ip, login_account, login_password, certfile):

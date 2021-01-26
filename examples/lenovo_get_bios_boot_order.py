@@ -23,7 +23,7 @@
 import sys
 import json
 import redfish
-import lenovo_utils as utils
+from . import lenovo_utils as utils
 
 
 def lenovo_get_bios_boot_order(ip, login_account, login_password, system_id):

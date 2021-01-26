@@ -30,7 +30,7 @@
 import sys, os
 import redfish
 import json
-import lenovo_utils as utils
+from . import lenovo_utils as utils
 
 
 def lenovo_eklm_keyserver_config(ip, login_account, login_password, kmprotocol, kmhostname, kmport, kmgroup):

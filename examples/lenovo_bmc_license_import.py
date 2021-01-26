@@ -21,7 +21,7 @@
 
 import sys, os, json, struct
 import redfish
-import lenovo_utils as utils
+from . import lenovo_utils as utils
 
 
 def lenovo_bmc_license_import(ip, login_account, login_password, license_file):

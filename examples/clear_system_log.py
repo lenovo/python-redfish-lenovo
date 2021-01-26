@@ -23,7 +23,7 @@
 import sys
 import redfish
 import json
-import lenovo_utils as utils
+from . import lenovo_utils as utils
 
 
 def clear_system_log(ip, login_account, login_password, system_id, type):

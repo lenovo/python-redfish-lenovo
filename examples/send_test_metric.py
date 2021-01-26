@@ -24,7 +24,7 @@ import sys
 import redfish
 import json
 import datetime
-import lenovo_utils as utils
+from . import lenovo_utils as utils
 
 def send_test_metric(ip, login_account, login_password, reportname):
     """Send Test Metric

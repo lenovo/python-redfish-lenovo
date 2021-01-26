@@ -26,7 +26,7 @@ import sys
 import redfish
 import json
 import update_firmware
-import lenovo_utils as utils
+from . import lenovo_utils as utils
 import requests
 import time
 from requests.packages.urllib3.exceptions import InsecureRequestWarning

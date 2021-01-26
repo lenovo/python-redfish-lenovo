@@ -23,7 +23,7 @@
 import sys
 import json
 import redfish
-import lenovo_utils as utils
+from . import lenovo_utils as utils
 
 
 def set_bmc_ipv4(ip, login_account, login_password, dhcp_enabled, static_ip, static_gateway, static_mask):

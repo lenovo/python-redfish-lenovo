@@ -21,7 +21,7 @@
 
 import sys, os, json
 import redfish
-import lenovo_utils as utils
+from . import lenovo_utils as utils
 
 
 def lenovo_bmc_license_delete(ip, login_account, login_password, key_id):

@@ -22,7 +22,7 @@
 import sys
 import redfish
 import json
-import lenovo_utils as utils
+from . import lenovo_utils as utils
 
 def del_tasks(ip, login_account, login_password,option_command):
     """Delete all tasks or the task specified

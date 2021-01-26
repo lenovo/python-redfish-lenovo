@@ -23,7 +23,7 @@
 import sys
 import redfish
 import json
-import lenovo_utils as utils
+from . import lenovo_utils as utils
 
 #set user privileges
 def set_custom_role_privileges(REDFISH_OBJ,response_account_service_url,roleid,authority):

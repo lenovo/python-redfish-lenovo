@@ -24,7 +24,7 @@ import sys
 import json
 import redfish
 from redfish import redfish_logger
-import lenovo_utils as utils
+from . import lenovo_utils as utils
 
 
 def get_server_boot_once(ip, login_account, login_password, system_id):

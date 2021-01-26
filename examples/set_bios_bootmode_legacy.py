@@ -22,7 +22,7 @@
 
 import json, sys
 import redfish
-import lenovo_utils as utils
+from . import lenovo_utils as utils
 
 
 def set_bios_bootmode_legacy(ip, login_account, login_password, system_id):

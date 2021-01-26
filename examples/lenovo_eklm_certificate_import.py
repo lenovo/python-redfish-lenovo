@@ -30,7 +30,7 @@
 import sys, os
 import redfish
 import json
-import lenovo_utils as utils
+from . import lenovo_utils as utils
 
 
 def lenovo_eklm_certificate_import(ip, login_account, login_password, certtype, certfile):

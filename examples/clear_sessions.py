@@ -24,7 +24,7 @@ import sys
 import redfish
 import json
 import string
-import lenovo_utils as utils
+from . import lenovo_utils as utils
 
 def clear_sessions(ip, login_account, login_password, username):
     """Get BMC inventory    

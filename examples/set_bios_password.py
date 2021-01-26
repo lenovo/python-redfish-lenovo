@@ -24,7 +24,7 @@
 import sys
 import json
 import redfish
-import lenovo_utils as utils
+from . import lenovo_utils as utils
 
 
 def set_bios_password(ip, login_account, login_password, system_id, bios_password_name, bios_password, oldbiospass):

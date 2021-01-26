@@ -23,7 +23,7 @@
 import sys
 import json
 import redfish
-import lenovo_utils as utils
+from . import lenovo_utils as utils
 
 
 def get_serial_interfaces(ip, login_account, login_password, interfaceid):

@@ -23,7 +23,7 @@
 import sys
 import json
 import redfish
-import lenovo_utils as utils
+from . import lenovo_utils as utils
 
 
 def lenovo_create_raid_volume(ip, login_account, login_password, system_id, raidid, volume_name, raid_type, volume_capacity, read_policy, write_policy, io_policy, access_policy, drive_cache_policy):

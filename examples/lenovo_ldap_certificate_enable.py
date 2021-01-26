@@ -22,7 +22,7 @@
 import sys, os
 import redfish
 import json
-import lenovo_utils as utils
+from . import lenovo_utils as utils
 
 
 def lenovo_ldap_certificate_enable(ip, login_account, login_password):

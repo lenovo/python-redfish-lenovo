@@ -24,7 +24,7 @@
 import sys
 import json
 import redfish
-import lenovo_utils as utils
+from . import lenovo_utils as utils
 
 
 def set_bios_attribute(ip, login_account, login_password, system_id, attribute_name, attribute_value):
