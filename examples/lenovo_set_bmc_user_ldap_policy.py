@@ -4,7 +4,7 @@
 #
 # Copyright Notice:
 #
-# Copyright 2020 Lenovo Corporation
+# Copyright 2021 Lenovo Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
 # not use this file except in compliance with the License. You may obtain
@@ -91,6 +91,12 @@ def lenovo_set_bmc_user_ldap_policy(ip, login_account, login_password, policy):
 
         # No related resource found
         if request_body is None:
+            # For ThinkSystem SR635/SR655
+            if "Oem" in response_accounts_url.dict and response_accounts_url.dict["Oem"] and "Ami" in response_accounts_url.dict["Oem"]:
+                result = {'ret': False, 'msg': 'Both local user and ldap can be supported. But policy setting is not supported.'}
+                return result
+
+
             result = {'ret': False, 'msg': 'Only local user is supported'}
             return result
 

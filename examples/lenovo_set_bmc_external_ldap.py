@@ -4,7 +4,7 @@
 #
 # Copyright Notice:
 #
-# Copyright 2020 Lenovo Corporation
+# Copyright 2021 Lenovo Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
 # not use this file except in compliance with the License. You may obtain
@@ -89,10 +89,47 @@ def lenovo_set_bmc_external_ldap(ip, login_account, login_password, ldapserver, 
                 result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % ( 
                     accounts_url, response_accounts_url.status, error_message)}
                 return result
+
+            # Set for SR635/SR655 using standard API with some oem properties
+            if "Oem" in response_accounts_url.dict and "Ami" in response_accounts_url.dict["Oem"]:
+                try:
+                    encryption_type = response_accounts_url.dict['LDAP']['Authentication']['Oem']['Ami']['EncryptionType']
+                except:
+                    encryption_type = "NoEncryption"
+                # Build request body for set ldap server
+                body = {'ServiceEnabled': True} # Enable the LDAP service for user to use
+                if client_distinguished_name is not None:
+                    body['Authentication'] = {'Username': client_distinguished_name, 'Password': client_password, 'Oem': {'Ami': {}}}
+                    body['Authentication']['Oem']['Ami'] = {'BindingMethod': 'PreConfiguredCredential', 'EncryptionType': encryption_type, 'CommonNameType': 'IPAddress'}
+                else:
+                    body['Authentication'] = {'Oem': {'Ami': {'BindingMethod': 'LoginCredential', 'EncryptionType': encryption_type, 'CommonNameType': 'IPAddress'}}}
+                body['LDAPService'] = {'SearchSettings': {}}
+                body['LDAPService']['SearchSettings']['BaseDistinguishedNames'] = [rootdn]
+                body['LDAPService']['SearchSettings']['GroupsAttribute'] = uid_search_attribute
+                body['ServiceAddresses'] = list()
+                (serverlist, portlist) = parse_ldapserver(ldapserver)
+                for i in range(len(serverlist)):
+                    server_info = "%s:%s" %(serverlist[i], portlist[i])
+                    body['ServiceAddresses'].append(server_info)
  
+                # Patch the new LDAP setting
+                ldap_client_uri = accounts_url
+                request_body = {'LDAP': body}
+                headers = {"If-Match": "*"}
+                response_ldap_client = REDFISH_OBJ.patch(ldap_client_uri, body=request_body, headers=headers)
+                if response_ldap_client.status in [200, 204]:
+                    result =  {"ret": True, "msg":"Ldap server was successfully configured"}
+                    return result
+                else:
+                    error_message = utils.get_extended_error(response_ldap_client)
+                    result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                        ldap_client_uri, response_ldap_client.status, error_message)}
+                    return result
+
+            # Set for servers except SR635/SR655
             if "LDAP" in response_accounts_url.dict and response_accounts_url.dict["LDAP"] and "LDAPService" in response_accounts_url.dict["LDAP"]:
                 # Build request body for set ldap server
-                body = {}
+                body = {'ServiceEnabled': True} # Enable the LDAP service for user to use
                 if client_distinguished_name is not None:
                     body['Authentication'] = {'AuthenticationType': 'UsernameAndPassword', 'Username': client_distinguished_name, 'Password': client_password}
                 body['LDAPService'] = {'SearchSettings': {}}
@@ -109,8 +146,9 @@ def lenovo_set_bmc_external_ldap(ip, login_account, login_password, ldapserver, 
                 # Patch the new LDAP setting
                 ldap_client_uri = accounts_url
                 request_body = {'LDAP': body}
-                response_ldap_client = REDFISH_OBJ.patch(ldap_client_uri, body=request_body)
-                if response_ldap_client.status == 200:
+                headers = {"If-Match": "*"}
+                response_ldap_client = REDFISH_OBJ.patch(ldap_client_uri, body=request_body, headers=headers)
+                if response_ldap_client.status in [200, 204]:
                     result =  {"ret": True, "msg":"Ldap server was successfully configured"}
                     return result
                 else:
@@ -188,7 +226,7 @@ def lenovo_set_bmc_external_ldap(ip, login_account, login_password, ldapserver, 
                     # Patch the new LDAP setting
                     request_body = body
                     response_ldap_client = REDFISH_OBJ.patch(ldap_client_uri, body=request_body)
-                    if response_ldap_client.status == 200:
+                    if response_ldap_client.status in [200, 204]:
                         result =  {"ret": True, "msg":"Ldap server was successfully configured"}
                         return result
                     else:
@@ -258,11 +296,11 @@ def add_helpmessage(argget):
                         help='This search request must specify the attribute name used to represent user IDs on that server.'
                              'On Active Directory servers, this attribute name is usually sAMAccountName.'
                              'On Novell eDirectory and OpenLDAP servers, it is usually uid. '
-                             'Default is uid.')
+                             'Default is uid. Allowable values for ThinkSystem SR635/SR655 should be cn or uid.')
     argget.add_argument('--search_group_filter', type=str,
-                        help='This field is used for group authentication, limited to 511 characters, and consists of one or more group names.')
+                        help='This field is used for group authentication, limited to 511 characters, and consists of one or more group names. This parameter is not for ThinkSystem SR635/SR655.')
     argget.add_argument('--search_group_attribute', type=str, default="memberof",
-                        help='This field is used by the search algorithm to find group membership infomation for a specific user. Default is memberof.')
+                        help='This field is used by the search algorithm to find group membership infomation for a specific user. Default is memberof. This parameter is not for ThinkSystem SR635/SR655.')
 
 
 def add_parameter():
