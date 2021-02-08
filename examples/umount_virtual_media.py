@@ -105,15 +105,32 @@ def umount_virtual_media(ip, login_account, login_password, image):
                 # Get the mount virtual media list
                 for members in members_list:
                     members_url = members["@odata.id"]
-                    if not members_url.split('/')[-1].startswith("Remote"):
-                        response_members = REDFISH_OBJ.get(members_url, None)
-                        if response_members.status == 200:
-                            image_name = response_members.dict["ImageName"]
+                    response_members = REDFISH_OBJ.get(members_url, None)
+                    if response_members.status == 200:
+                        image_name = response_members.dict["ImageName"]
+                    else:
+                        error_message = utils.get_extended_error(response_members)
+                        result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                            members_url, response_members.status, error_message)}
+                        return result
+                    # Umount virtual media via action
+                    if "#VirtualMedia.EjectMedia" in response_members.dict["Actions"]:
+                        eject_media_url = response_members.dict["Actions"]["#VirtualMedia.EjectMedia"]["target"]
+                        if image_name == image:
+                            body = {}
+                            response = REDFISH_OBJ.post(eject_media_url, body=body)
+                            if response.status == 204:
+                                result = {'ret': True, 'msg': "'%s' Umount successfully" % image}
+                                return result
+                            else:
+                                error_message = utils.get_extended_error(response)
+                                result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                                eject_media_url, response.status, error_message)}
+                                return result
                         else:
-                            error_message = utils.get_extended_error(response_members)
-                            result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
-                                members_url, response_members.status, error_message)}
-                            return result
+                            continue
+                    # Umount virtual media via patch
+                    elif not members_url.split('/')[-1].startswith("Remote"):
                         if image_name == image:
                             body = {"Image": None}
                             response = REDFISH_OBJ.patch(members_url, body=body)
