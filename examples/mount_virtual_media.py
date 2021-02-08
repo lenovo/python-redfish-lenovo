@@ -108,27 +108,29 @@ def mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsp
                         virtual_media_url, response_virtual_media.status, error_message)}
                     return result
 
+                # Define an anonymous function formatting parameter
+                port = (lambda fsport: ":" + fsport if fsport else fsport)
+                dir = (lambda fsdir: "/" + fsdir.strip("/") if fsdir else fsdir)
+                protocol = fsprotocol.lower()
+                fsport = port(fsport)
+                fsdir = dir(fsdir)
+
                 # Get the members url from the members list
                 for members in members_list:
                     members_url = members["@odata.id"]
+                    # Get the mount image name from the members response resource
+                    response_members = REDFISH_OBJ.get(members_url, None)
+                    if response_members.status == 200:
+                        image_name = response_members.dict["ImageName"]
+                    else:
+                        error_message = utils.get_extended_error(response_members)
+                        result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                            members_url, response_members.status, error_message)}
+                        return result
+
+                    # Mount virtual media via patch
                     if members_url.split('/')[-1].startswith("EXT"):
 
-                        # Get the mount image name from the members response resource
-                        response_members = REDFISH_OBJ.get(members_url, None)
-                        if response_members.status == 200:
-                            image_name = response_members.dict["ImageName"]
-                        else:
-                            error_message = utils.get_extended_error(response_members)
-                            result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
-                                members_url, response_members.status, error_message)}
-                            return result
-
-                        # Via patch request mount virtual media
-                        port = (lambda fsport: ":" + fsport if fsport else fsport)
-                        dir = (lambda fsdir: "/" + fsdir.strip("/") if fsdir else fsdir)
-                        protocol = fsprotocol.lower()
-                        fsport = port(fsport)
-                        fsdir = dir(fsdir)
                         if image_name is None:
                             if protocol == "nfs":
                                 image_uri = fsip + fsport + ":" + fsdir + "/" + image
@@ -147,6 +149,37 @@ def mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsp
                                 return result
                         else:
                             continue
+                    # Mount virtual media via action
+                    elif "#VirtualMedia.InsertMedia" in response_members.dict["Actions"]:
+                        ActionInfo_url = response_members.dict['Actions']['#VirtualMedia.InsertMedia']['@Redfish.ActionInfo']
+                        response_actionInfo = REDFISH_OBJ.get(ActionInfo_url, None)
+                        for parameter in response_actionInfo.dict["Parameters"]:
+                            if parameter["Name"] == "TransferProtocolType":
+                                SupportProtocols = parameter["AllowableValues"]
+
+                        if fsprotocol.upper() in SupportProtocols:
+                            InsertMedia_url = response_members.dict["Actions"]["#VirtualMedia.InsertMedia"]["target"]
+                            if not image_name:
+                                image_uri = protocol + "://" + fsip + fsport + fsdir + "/" + image
+                                if protocol == 'nfs':
+                                    body = {"Image": image_uri, "TransferProtocolType": protocol.upper()}
+                                else:
+                                    body = {"Image": image_uri, "TransferProtocolType": protocol.upper(),
+                                            "UserName": login_account, "Password": login_password}
+                                response = REDFISH_OBJ.post(InsertMedia_url, body=body)
+                                if response.status in [200, 204]:
+                                    result = {'ret': True, 'msg': "'%s' mount successfully" % image}
+                                    return result
+                                else:
+                                    error_message = utils.get_extended_error(response)
+                                    result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                                        InsertMedia_url, response.status, error_message)}
+                                    return result
+                            else:
+                                continue
+                        else:
+                            result = {"ret": False, "msg": "For remote mounts, only support: %s" %SupportProtocols}
+                            return result
                 result = {'ret': False, 'msg': "Up to 4 files can be concurrently mounted to the server by the BMC."}
                 return result
         else:
