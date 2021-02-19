@@ -1,0 +1,30 @@
+---
+- hosts: myhosts
+  connection: local
+  name: Get server asset tag
+  gather_facts: False
+
+  tasks:
+  - name: Set baseuri to inventory_hostname when it is not defined
+    set_fact:
+      baseuri: "{{ inventory_hostname }}"
+    when: baseuri is undefined
+
+  - name: Fail when username or password is undefined
+    debug:
+      msg: "Variables username and password must be defined for BMC connection"
+    failed_when: True
+    when: username is undefined or password is undefined
+
+  - name: Get system inventory
+    command: python ../examples/get_system_inventory.py -i "{{ baseuri }}" -u "{{ username }}" -p "{{ password }}"
+    changed_when: False
+    register: result
+  - set_fact:
+      system_inventory: "{{ result.stdout }}"
+
+  - name: Get AssetTag from system inventory
+    set_fact:
+      assettag: "{{ system_inventory[0].AssetTag }}"
+  - debug:
+      msg: "AssetTag = {{ assettag }}"
