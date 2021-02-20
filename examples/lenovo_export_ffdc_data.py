@@ -184,10 +184,14 @@ def lenovo_export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip,
 
             # Check collect result via returned task uri
             print("Start downloading ffdc files and may need to wait a few minutes...")
+            task_state = ''
+            messages = []
             while True:
                 response_task_uri = REDFISH_OBJ.get(task_uri, None)
                 if response_task_uri.status in [200, 202]:
                     task_state = response_task_uri.dict['TaskState']
+                    if 'Messages' in response_task_uri.dict:
+                        messages = response_task_uri.dict['Messages']
                     if "Completed" in task_state:
                         # If the user does not specify export uri, the ffdc data file will be downloaded to the local
                         if not fsprotocol and 'Oem' in response_task_uri.dict and 'Lenovo' in response_task_uri.dict['Oem']:
@@ -198,32 +202,37 @@ def lenovo_export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip,
                                 ffdc_file_name = os.getcwd() + os.sep + download_uri.split('/')[-1]
                                 time_end = time.time()    
                                 print('time cost: %.2f' %(time_end-time_start)+'s')
-                                result = {'ret': True, 'msg':  "The FFDC data is saved as %s " %(ffdc_file_name)}
+                                result = {'ret': True, 'msg':  "The FFDC data is saved as %s." %(ffdc_file_name)}
                             else:
-                                result = {'ret': False, 'msg':  "The FFDC data download failed"}
+                                result = {'ret': False, 'msg':  "The FFDC data download failed."}
                             break
                         elif fsprotocol:
                             time_end = time.time()
                             print('time cost: %.2f' %(time_end-time_start)+'s')
                             if fsprotocol and fsprotocol.lower() not in export_uri:
                                 export_uri = fsprotocol.lower() + "://" + export_uri
-                            result = {'ret': True, 'msg':  "The FFDC data is saved in %s " %export_uri}
+                            result = {'ret': True, 'msg':  "The FFDC data is saved in %s." %export_uri}
                             break
                         else:
                             result = {'ret': False, 'msg':  "If the user wants to download to a remote server, you need to specify the server type."}
                             break
-                    elif task_state in ["Exception", "Killed"]:
-                        result = {"ret": False, "msg": "Task state is %s, The FFDC data download failed" %task_state}
+                    elif task_state in ["Exception", "Killed", "Cancelled"]:
+                        result = {"ret": False, "msg": "Task state is %s, The FFDC data download failed." %task_state}
                         break
                     else:
-                        flush()
+                        percent = 0
+                        if 'PercentComplete' in response_task_uri.dict:
+                            percent = response_task_uri.dict['PercentComplete']
+                        flush(percent)
                 else: 
                     error_message = utils.get_extended_error(response_task_uri)
-                    result = {'ret': False, 'msg': "Url '%s' response task uri Error code %s \nerror_message: %s" % (task_uri, response_task_uri.status, error_message)}
+                    result = {'ret': False, 'msg': "Url '%s' response task uri Error code %s \nerror_message: %s." % (task_uri, response_task_uri.status, error_message)}
                     break
-            
-            # Delete the task when the task state is completed
-            REDFISH_OBJ.delete(task_uri, None)
+            if messages != []:
+                result['msg'] = result['msg'] + ' Messages: %s' %str(messages)
+            # Delete the task when the task state is completed without any warning
+            if "Completed" in task_state and messages == []:
+                REDFISH_OBJ.delete(task_uri, None)
 
     except Exception as e:
         result = {'ret': False, 'msg': "error_message: %s" % (e)}
@@ -235,12 +244,12 @@ def lenovo_export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip,
         return result
 
 
-def flush():
+def flush(percent):
     list = ['|', '\\', '-', '/']
     for i in list:
         sys.stdout.write(' ' * 100 + '\r')
         sys.stdout.flush()
-        sys.stdout.write(i + '\r')
+        sys.stdout.write(i + (('          PercentComplete: %d' %percent) if percent > 0 else '') + '\r')
         sys.stdout.flush()
         time.sleep(0.1)
 
