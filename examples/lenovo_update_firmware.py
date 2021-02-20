@@ -175,11 +175,13 @@ def lenovo_update_firmware(ip, login_account, login_password, image, targets, fs
                     if result["ret"] is True:
                         task_state = result["task_state"]
                         if task_state in ["Completed", "Done"]:
-                            result = {'ret': True, 'msg': "Update firmware successfully"}
+                            result = {'ret': True, 'msg': "Update firmware successfully. %s" %(result['msg'])}
                         else:
                             task_id = result["id"]
-                            result = {'ret': False, 'msg': "Failed to update firmware, task id is %s, task state is %s" % (task_id, task_state) }
-                        REDFISH_OBJ.delete(task_uri, None)
+                            result = {'ret': False, 'msg': "Failed to update firmware, task id is %s, task state is %s. %s" % (task_id, task_state, result['msg']) }
+                        # Delete the task when the task state is completed
+                        if result["ret"] is True:
+                            REDFISH_OBJ.delete(task_uri, None)
                         return result
                     else:
                         return result
@@ -208,9 +210,12 @@ def task_monitor(REDFISH_OBJ, task_uri):
     END_TASK_STATE = ["Cancelled", "Completed", "Exception", "Killed", "Interrupted", "Suspended", "Done", "Failed when Flashing Image."]
     time_start=time.time()
     print("Start to refresh the firmware, please wait about 3~10 minutes...")
+    messages = []
     while True:
         response_task_uri = REDFISH_OBJ.get(task_uri, None)
         if response_task_uri.status in [200, 202]:
+            if 'Messages' in response_task_uri.dict:
+                messages = response_task_uri.dict['Messages']
             if "TaskState" in response_task_uri.dict:
                 task_state = response_task_uri.dict["TaskState"]
             elif "Oem" in response_task_uri.dict:
@@ -222,7 +227,7 @@ def task_monitor(REDFISH_OBJ, task_uri):
                 task_state = "Exception"
             # Monitor task status until the task terminates
             if task_state in END_TASK_STATE:
-                result = {'ret':True, 'task_state': task_state, 'id': response_task_uri.dict['Id']}
+                result = {'ret':True, 'task_state': task_state, 'id': response_task_uri.dict['Id'], 'msg': ' Messages: %s' %str(messages) if messages != [] else ''}
                 return result
             else:
                 time_now = time.time()
