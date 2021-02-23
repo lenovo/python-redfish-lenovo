@@ -23,6 +23,7 @@
 import sys
 import redfish
 import json
+import traceback
 import lenovo_utils as utils
 
 
@@ -50,6 +51,7 @@ def clear_system_log(ip, login_account, login_password, system_id, type):
         # Login into the server and create a session
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
         return result
 
@@ -127,6 +129,7 @@ def clear_system_log(ip, login_account, login_password, system_id, type):
                             error_message = utils.get_extended_error(response_clear_log)
                             result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (clear_log_url, response_clear_log.status, error_message)}
     except Exception as e:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "error_message: %s" % (e)}
     finally:
         try:

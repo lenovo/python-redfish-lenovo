@@ -23,6 +23,7 @@
 import sys
 import json
 import redfish
+import traceback
 import lenovo_utils as utils
 
 
@@ -54,6 +55,7 @@ def set_bmc_ipv4(ip, login_account, login_password, dhcp_enabled, static_ip, sta
         # Login into the server and create a session
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
         return result
 

@@ -22,6 +22,7 @@
 import sys
 import redfish
 import json
+import traceback
 import lenovo_utils as utils
 
 
@@ -47,6 +48,7 @@ def lenovo_get_bmc_external_ldap(ip, login_account, login_password):
     try:
         REDFISH_OBJ.login(auth="session")
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result
     # Get ServiceBase resource
@@ -128,6 +130,7 @@ def lenovo_get_bmc_external_ldap(ip, login_account, login_password):
         return result
 
     except Exception as e:
+        traceback.print_exc()
         result = {'ret': False, 'msg': 'exception msg %s' % e}
         return result
     finally:

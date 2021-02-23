@@ -23,6 +23,7 @@
 import sys
 import redfish
 import json
+import traceback
 import lenovo_utils as utils
 import time
 import os
@@ -65,6 +66,7 @@ def lenovo_export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip,
                                          password=login_password, default_prefix='/redfish/v1', cafile=utils.g_CAFILE)
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except Exception as e:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Error_message: %s. Please check if username, password and IP are correct" % repr(e)}
         return result
 
@@ -235,6 +237,7 @@ def lenovo_export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip,
                 REDFISH_OBJ.delete(task_uri, None)
 
     except Exception as e:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "error_message: %s" % (e)}
     finally:
         try:
@@ -301,6 +304,7 @@ def download_ffdc(ip, login_account, login_password, download_uri):
         else:
             print("response manaegr uri Error code %s" %response_download_uri.status_code)
     except Exception as e:
+        traceback.print_exc()
         print(e)
     finally:
         # Delete session

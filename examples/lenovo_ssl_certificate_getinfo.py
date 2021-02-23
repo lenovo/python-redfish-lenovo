@@ -22,6 +22,7 @@
 import sys, os
 import redfish
 import json
+import traceback
 import lenovo_utils as utils
 
 
@@ -47,6 +48,7 @@ def lenovo_ssl_certificate_getinfo(ip, login_account, login_password):
     try:
         REDFISH_OBJ.login(auth="session")
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result
 
@@ -164,6 +166,7 @@ def lenovo_ssl_certificate_getinfo(ip, login_account, login_password):
         return result
 
     except Exception as e:
+        traceback.print_exc()
         result = {'ret': False, 'msg': 'exception msg %s' % e}
         return result
     finally:

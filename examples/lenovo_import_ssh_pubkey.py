@@ -24,6 +24,7 @@ import sys
 import logging
 import json
 import redfish
+import traceback
 import lenovo_utils as utils
 
 
@@ -53,6 +54,7 @@ def lenovo_import_ssh_pubkey(ip, login_account, login_password, user_name, pb_co
                 sshpubkey = file.read()
                 sshpubkey = sshpubkey.split("\n")[0]
             except Exception as e:
+                traceback.print_exc()
                 result = {"ret":False,"msg":"Open file:" + pb_command[key] + " fail,please check your input"}
                 return result
 
@@ -66,6 +68,7 @@ def lenovo_import_ssh_pubkey(ip, login_account, login_password, user_name, pb_co
         # Login into the server and create a session
         REDFISH_OBJ.login(auth="session")
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
         return result
 
@@ -152,6 +155,7 @@ def lenovo_import_ssh_pubkey(ip, login_account, login_password, user_name, pb_co
                 accounts_url, accounts_url_response.status, error_message)}
             return result
     except Exception as e:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Error message %s" % e}
     finally:
         # Logout of the current session

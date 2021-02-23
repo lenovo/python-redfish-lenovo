@@ -24,6 +24,7 @@
 import sys
 import json
 import redfish
+import traceback
 import lenovo_utils as utils
 
 
@@ -51,6 +52,7 @@ def get_all_bios_attributes(ip, login_account, login_password, system_id, bios_g
         # Login into the server and create a session
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
         return result
     try:
@@ -106,6 +108,7 @@ def get_all_bios_attributes(ip, login_account, login_password, system_id, bios_g
         result['ret'] = True
         result['attributes'] = attributes
     except Exception as e:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "error message %s" % e}
     finally:
         # Logout of the current session

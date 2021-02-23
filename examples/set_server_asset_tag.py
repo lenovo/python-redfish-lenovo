@@ -23,6 +23,7 @@
 import sys
 import redfish
 import json
+import traceback
 import lenovo_utils as utils
 
 
@@ -50,6 +51,7 @@ def set_server_asset_tag(ip, login_account, login_password, system_id, asset_tag
         # Login into the server and create a session
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result
     try:
@@ -85,6 +87,7 @@ def set_server_asset_tag(ip, login_account, login_password, system_id, asset_tag
                 result = {'ret': False, 'msg': "Url '%s' patch failed. response Error code %s \nerror_message: %s" % (
                     system_url, response_asset_tag.status, error_message)}
     except Exception as e:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "error_message: %s" % e}
     finally:
         # Logout of the current session

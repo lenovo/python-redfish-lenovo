@@ -21,6 +21,7 @@
 
 import sys, os, json, struct
 import redfish
+import traceback
 import lenovo_utils as utils
 
 
@@ -54,6 +55,7 @@ def lenovo_bmc_license_export(ip, login_account, login_password, license_file):
     try:
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result
 

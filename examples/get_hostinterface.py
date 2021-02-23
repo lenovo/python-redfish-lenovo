@@ -23,6 +23,7 @@
 import sys
 import redfish
 import json
+import traceback
 import lenovo_utils as utils
 
 def get_hostinterface(ip, login_account, login_password):
@@ -45,6 +46,7 @@ def get_hostinterface(ip, login_account, login_password):
         # Login into the server and create a session
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check if the username, password, IP is correct."}
         return result
 

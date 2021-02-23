@@ -23,6 +23,7 @@
 import sys
 import redfish
 import json
+import traceback
 import lenovo_utils as utils
 
 
@@ -49,6 +50,7 @@ def enable_bmc_user(ip, login_account, login_password, username):
         # Login into the server and create a session
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result
 
@@ -124,6 +126,7 @@ def enable_bmc_user(ip, login_account, login_password, username):
                                                                                   response_accounts_url.status,
                                                                                   error_message)}
     except Exception as e:
+        traceback.print_exc()
         result = {'ret':False, 'msg':"error message %s" %e}
     finally:
         # Logout of the current session

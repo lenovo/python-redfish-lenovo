@@ -30,6 +30,7 @@
 import sys, os
 import redfish
 import json
+import traceback
 import lenovo_utils as utils
 
 
@@ -71,6 +72,7 @@ def lenovo_eklm_keyserver_config(ip, login_account, login_password, kmprotocol, 
     try:
         REDFISH_OBJ.login(auth="session")
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result
 

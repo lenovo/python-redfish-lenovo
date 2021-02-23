@@ -23,6 +23,7 @@
 import sys, os
 import redfish
 import json
+import traceback
 import lenovo_utils as utils
 
 def get_schema(ip, login_account, login_password, schema_prefix):
@@ -48,6 +49,7 @@ def get_schema(ip, login_account, login_password, schema_prefix):
         # Login into the server and create a session
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result
 
@@ -118,6 +120,7 @@ def get_schema(ip, login_account, login_password, schema_prefix):
         result['ret'] = True
         result['entries'] = schema_uri_info
     except Exception as e:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "error_message: %s" % (e)}
     finally:
         # Logout of the current session

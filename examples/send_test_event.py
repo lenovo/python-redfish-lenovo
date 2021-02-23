@@ -22,6 +22,7 @@
 import sys
 import redfish
 import json
+import traceback
 import lenovo_utils as utils
 import datetime
 
@@ -59,6 +60,7 @@ def send_test_event(ip, login_account, login_password,eventid,message,severity):
     try:
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result
     # Get ServiceBase resource
@@ -158,6 +160,7 @@ def send_test_event(ip, login_account, login_password,eventid,message,severity):
                 '/redfish/v1', response_base_url.status, error_message)}
             return result
     except Exception as e:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Exception msg %s" % e}
         return result
     finally:

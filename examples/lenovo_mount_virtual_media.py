@@ -19,11 +19,11 @@
 # under the License.
 ###
 
-import traceback
 import sys
 import redfish
 import json
 import time
+import traceback
 import lenovo_utils as utils
 
 
@@ -71,6 +71,7 @@ def lenovo_mount_virtual_media(ip, login_account, login_password, image, mountty
                                              password=login_password, default_prefix='/redfish/v1', cafile=utils.g_CAFILE)
         REDFISH_OBJ.login(auth="basic")
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result
 

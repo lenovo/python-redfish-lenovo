@@ -23,6 +23,7 @@
 import sys
 import redfish
 import json
+import traceback
 import lenovo_utils as utils
 
 
@@ -52,6 +53,7 @@ def set_bmc_ntp(ip, login_account, login_password, ntp_server, ProtocolEnabled):
     try:
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result
     try:
@@ -114,6 +116,7 @@ def set_bmc_ntp(ip, login_account, login_password, ntp_server, ProtocolEnabled):
                 manager_url, response_manager_url.status, error_message)}
             return result
     except Exception as e:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "error message %s" % e}
     finally:
         # Logout of the current session

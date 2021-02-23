@@ -22,6 +22,7 @@
 import sys
 import redfish
 import json
+import traceback
 import lenovo_utils as utils
 
 def get_fan_inventory(ip, login_account, login_password):
@@ -47,6 +48,7 @@ def get_fan_inventory(ip, login_account, login_password):
     try:
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result
     # Get ServiceBase resource
@@ -106,6 +108,7 @@ def get_fan_inventory(ip, login_account, login_password):
                 chassis_url, response_chassis_url.status, error_message)}
             return result
     except Exception as e:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "exception msg %s" % e}
         return result
     finally:

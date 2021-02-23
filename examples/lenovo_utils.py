@@ -21,6 +21,7 @@ import sys, os
 import argparse
 import configparser
 import redfish
+import traceback
 
 
 # Define global variable
@@ -126,6 +127,7 @@ def read_config(config_file):
             except:
                 config_ini_info['cafile'] = ''
     except:
+        traceback.print_exc()
         sys.stderr.write("Please check the file path is correct")
         sys.exit(1)
     return config_ini_info

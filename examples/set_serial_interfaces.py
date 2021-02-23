@@ -23,6 +23,7 @@
 import sys
 import json
 import redfish
+import traceback
 import lenovo_utils as utils
 
 
@@ -57,6 +58,7 @@ def set_serial_interfaces(ip, login_account, login_password, interfaceid, bitrat
         # Login into the server and create a session
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except Exception as e:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Error_message: %s. Please check if username, password and IP are correct" % repr(e)}
         return result
         
