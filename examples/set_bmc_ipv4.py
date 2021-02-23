@@ -129,7 +129,6 @@ def set_bmc_ipv4(ip, login_account, login_password, dhcp_enabled, static_ip, sta
     else:
         payload["DHCPv4"]["DHCPEnabled"] = False
     if static_ip is not None or static_gateway is not None or static_mask is not None:
-        payload["IPv4StaticAddresses"] = list()
         config = {}
         if static_ip is not None:
             config["Address"] = static_ip
@@ -137,7 +136,12 @@ def set_bmc_ipv4(ip, login_account, login_password, dhcp_enabled, static_ip, sta
             config["Gateway"] = static_gateway
         if static_mask is not None:
             config["SubnetMask"] = static_mask
-        payload["IPv4StaticAddresses"].append(config)
+        if "HostName" in target_ethernet_current_setting and "TSM" in target_ethernet_current_setting["HostName"]:
+            payload["IPv4Addresses"] = list()
+            payload["IPv4Addresses"].append(config)
+        else:
+            payload["IPv4StaticAddresses"] = list()
+            payload["IPv4StaticAddresses"].append(config)
 
     # If no need change, nothing to do. If error detected, report it
     need_change = False
