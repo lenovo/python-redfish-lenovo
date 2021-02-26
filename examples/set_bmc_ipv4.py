@@ -91,6 +91,11 @@ def set_bmc_ipv4(ip, login_account, login_password, dhcp_enabled, static_ip, sta
         if 'EthernetInterfaces' not in  response_url.dict:
             continue
 
+        # Check whether server is SR635/SR655 or not
+        flag_SR635_SR655 = False
+        if 'Managers/Self' in request_url and 'Oem' in response_url.dict and 'Ami' in response_url.dict['Oem']:
+            flag_SR635_SR655 = True
+
         request_url = response_url.dict["EthernetInterfaces"]["@odata.id"]
         response_url = REDFISH_OBJ.get(request_url, None)
         if response_url.status != 200:
@@ -136,7 +141,7 @@ def set_bmc_ipv4(ip, login_account, login_password, dhcp_enabled, static_ip, sta
             config["Gateway"] = static_gateway
         if static_mask is not None:
             config["SubnetMask"] = static_mask
-        if "HostName" in target_ethernet_current_setting and "TSM" in target_ethernet_current_setting["HostName"]:
+        if flag_SR635_SR655:
             payload["IPv4Addresses"] = list()
             payload["IPv4Addresses"].append(config)
         else:
