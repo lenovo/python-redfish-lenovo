@@ -27,6 +27,7 @@ import traceback
 # Define global variable
 g_AUTH = "session"
 g_CAFILE = ""
+g_timeout = 30
 
 # Set _MAXHEADERS to avoid header over 100 error
 if sys.version_info.major == 2:
@@ -109,7 +110,7 @@ def read_config(config_file):
         if os.sep not in config_file:
             config_file = cur_dir + os.sep + config_file
 
-        config_ini_info = {"ip": "", "user": "", "passwd": "", "auth": "", "cafile": ""}
+        config_ini_info = {"ip": "", "user": "", "passwd": "", "auth": "", "cafile": "", "timeout": None}
         # Check whether the config file exists
         if os.path.exists(config_file):
             cfg.read(config_file)
@@ -126,6 +127,10 @@ def read_config(config_file):
                 config_ini_info['cafile'] = cfg.get('ConnectCfg', 'Cafile')
             except:
                 config_ini_info['cafile'] = ''
+            try:
+                config_ini_info['timeout'] = int(cfg.get('ConnectCfg', 'Timeout'))
+            except:
+                config_ini_info['timeout'] = 30
     except:
         traceback.print_exc()
         sys.stderr.write("Please check the file path is correct")
@@ -156,6 +161,7 @@ def create_common_parameter_list(description_string="This tool can be used to pe
     argget.add_argument('-s', '--sysid', type=str, default=None, help='ComputerSystem instance id(None: first instance, All: all instances)')
     argget.add_argument('-a', '--auth', type=str, default=None, choices=['session', 'basic'], help='Authentication mode(session or basic), the default is session')
     argget.add_argument('-f', '--cafile', type=str, default=None, help='Specify the security certificate file for SSL connections')
+    argget.add_argument('-t', '--timeout', type=int, help='Specify timeout seconds value for BMC redfish accessing. If not set, default value is 30 seconds')
     
     return argget
 
@@ -184,6 +190,8 @@ def parse_parameter(args):
         parameter_info["auth"] = args.auth
     if args.cafile is not None:
         parameter_info["cafile"] = args.cafile
+    if args.timeout is not None:
+        parameter_info["timeout"] = args.timeout
 
     # Use parameters from command line to overrided Configuration file
     for key in parameter_info:
@@ -201,6 +209,8 @@ def parse_parameter(args):
     g_AUTH = config_ini_info["auth"]
     global g_CAFILE
     g_CAFILE = config_ini_info["cafile"]
+    global g_timeout
+    g_timeout = config_ini_info["timeout"]
 
     # Check connect information
     if not config_ini_info['ip'] or not config_ini_info['user'] or not config_ini_info['passwd']:

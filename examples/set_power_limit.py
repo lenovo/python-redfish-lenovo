@@ -50,7 +50,7 @@ def set_power_limit(ip, login_account, login_password, isenable, power_limit):
 
     # Connect using the BMC address, account name, and password
     # Create a REDFISH object
-    REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
+    REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account, timeout=utils.g_timeout,
                                          password=login_password, default_prefix='/redfish/v1', cafile=utils.g_CAFILE)
 
     # Login into the server and create a session
