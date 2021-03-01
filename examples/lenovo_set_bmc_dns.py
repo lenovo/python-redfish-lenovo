@@ -23,6 +23,7 @@
 import sys
 import json
 import redfish
+import traceback
 import lenovo_utils as utils
 
 
@@ -50,6 +51,7 @@ def lenovo_set_bmc_dns(ip, login_account, login_password, enabled, dnsserver):
         # Login into the server and create a session
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
         return result
 
@@ -105,15 +107,43 @@ def lenovo_set_bmc_dns(ip, login_account, login_password, enabled, dnsserver):
                 result = {'ret': False, 'msg': 'User can only specify the name of up to 3 DNS servers'}
                 REDFISH_OBJ.logout()
                 return result
-            payload['PreferredAddresstype'] = 'IPv4' #IPv6 address type is supported too
-            for index in range(len(dnsserver)):
-                payload['IPv4Address%s' %(index+1)] = dnsserver[index] #Update IPv4Address to IPv6Address here if using IPv6
+            if 'Actions' in response_url.dict:
+                if '#DNS.Reset' in response_url.dict['Actions']:
+                    # SR635 / SR655
+                    payload.clear()
+                    payload = {'DNSStatus': 'enable' if enabled == '1' else 'disable'}
+                    payload['DNSDHCP'] = 'Static'
+                    payload['DNSIndex'] = 'none'
+                    payload['IPPriority'] = 'none'
+                    for index in range(len(dnsserver)):
+                        payload['DNSServerIP%s' %(index+1)] = dnsserver[index]
+            else:
+                # XCC
+                payload['PreferredAddresstype'] = 'IPv4'  #IPv6 address type is supported too
+                for index in range(len(dnsserver)):
+                    payload['IPv4Address%s' %(index+1)] = dnsserver[index]  #Update IPv4Address to IPv6Address here if using IPv6
 
         # perform set via patch
         headers = {"If-Match": "*"}
         response_url = REDFISH_OBJ.patch(request_url, body=payload, headers=headers)
         if response_url.status in [200,204]:
-            result = {'ret': True, 'msg': "Set BMC DNS config successfully"}
+            if 'Actions' in response_url.dict:
+                if '#DNS.Reset' in response_url.dict['Actions']:
+                    # For SR635 / SR655 products, need reset the DNS
+                    reset_url = request_url + '/' + 'Actions' + '/' + 'DNS.reset'
+                    body = {"ResetType": "restart"}
+                    response_reset_url = REDFISH_OBJ.post(reset_url, body=body)
+                    if response_reset_url.status == 200:
+                        result = {'ret': True, 'msg': "Set BMC DNS config successfully.\n"
+                                                      "Start to reset the DNS, may take about 1 minute..."}
+                    else:
+                        error_message = utils.get_extended_error(reset_url)
+                        result = {'ret': False, 'msg': "Url '%s' response error code %s \nerror_message: %s" % (
+                            reset_url, response_reset_url.status, error_message)}
+            else:
+                # XCC
+                result = {'ret': True, 'msg': "Set BMC DNS config successfully"}
+
         else:
             error_message = utils.get_extended_error(response_url)
             result = {'ret': False, 'msg': "Url '%s' response error code %s \nerror_message: %s" % (
@@ -160,4 +190,3 @@ if __name__ == '__main__':
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
     else:
         sys.stderr.write(result['msg'] + '\n')
-
