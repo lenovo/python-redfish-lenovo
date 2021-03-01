@@ -49,9 +49,13 @@ def get_system_url(base_url, system_id, redfish_obj):
     """
     # Get ServiceRoot resource
     response_base_url = redfish_obj.get(base_url, None)
+    if response_base_url.status != 200:
+        raise Exception("%s response code %s, %s" %(base_url, response_base_url.status, str(response_base_url.dict)))
     # Get ComputerSystemCollection resource
     systems_url = response_base_url.dict["Systems"]["@odata.id"]
     response_systems_url = redfish_obj.get(systems_url, None)
+    if response_systems_url.status != 200:
+        raise Exception("%s response code %s, %s" %(systems_url, response_systems_url.status, str(response_systems_url.dict)))
     count = response_systems_url.dict["Members@odata.count"]
     Members = response_systems_url.dict["Members"]
     # NOTE: Get the ComputerSystem instance list
