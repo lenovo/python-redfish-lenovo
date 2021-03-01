@@ -61,7 +61,7 @@ def lenovo_export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip,
     try:
         result = {}        
         # Create a REDFISH object
-        REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
+        REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account, timeout=utils.g_timeout,
                                          password=login_password, default_prefix='/redfish/v1', cafile=utils.g_CAFILE)
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except Exception as e:

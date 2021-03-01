@@ -40,7 +40,7 @@ def get_hostinterface(ip, login_account, login_password):
         # Connect using the BMC address, account name, and password
         # Create a REDFISH object
         login_host = "https://" + ip
-        REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
+        REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account, timeout=utils.g_timeout,
                                              password=login_password, default_prefix='/redfish/v1', cafile=utils.g_CAFILE)
         # Login into the server and create a session
         REDFISH_OBJ.login(auth=utils.g_AUTH)
