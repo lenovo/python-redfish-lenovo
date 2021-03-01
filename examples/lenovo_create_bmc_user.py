@@ -23,6 +23,7 @@
 import sys
 import redfish
 import json
+import traceback
 import lenovo_utils as utils
 
 #set user privileges
@@ -108,6 +109,7 @@ def lenovo_create_bmc_user(ip, login_account, login_password, username, password
         # Login into the server and create a session
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result
 
@@ -253,6 +255,7 @@ def lenovo_create_bmc_user(ip, login_account, login_password, username, password
                     return result
 
     except Exception as e:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "exception msg %s" % e}
         return result
     finally:

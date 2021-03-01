@@ -30,6 +30,7 @@
 import sys, os
 import redfish
 import json
+import traceback
 import lenovo_utils as utils
 
 
@@ -65,6 +66,7 @@ def lenovo_eklm_certificate_generate_csr(ip, login_account, login_password, Coun
     try:
         REDFISH_OBJ.login(auth="session")
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result
 
@@ -165,6 +167,7 @@ def lenovo_eklm_certificate_generate_csr(ip, login_account, login_password, Coun
         return result
 
     except Exception as e:
+        traceback.print_exc()
         result = {'ret': False, 'msg': 'exception msg %s' % e}
         return result
     finally:

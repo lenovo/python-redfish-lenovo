@@ -27,6 +27,7 @@ from requests.auth import HTTPBasicAuth
 import redfish
 import json
 import time
+import traceback
 import lenovo_utils as utils
 
 
@@ -65,6 +66,7 @@ def update_firmware(ip, login_account, login_password, image, targets, fsprotoco
                                          password=login_password, default_prefix='/redfish/v1', cafile=utils.g_CAFILE)
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
         return result
 
@@ -207,6 +209,7 @@ def update_firmware(ip, login_account, login_password, image, targets, fsprotoco
             result = {'ret': False, 'msg': "Url '%s' response Error code %s, \nError message :%s" % (update_service_url, response_update_service_url.status, message)}
             return result
     except Exception as e:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "error_message: %s" % (e)}
     finally:
         # Logout of the current session

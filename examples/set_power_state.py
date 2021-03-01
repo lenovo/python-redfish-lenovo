@@ -23,6 +23,7 @@
 import sys
 import json
 import redfish
+import traceback
 import lenovo_utils as utils
 
 
@@ -50,6 +51,7 @@ def set_power_state(ip, login_account, login_password, system_id, reset_type):
         # Login into the server and create a session
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except Exception as e:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Error_message: %s. Please check if username, password and IP are correct" % repr(e)}
         return result
 
@@ -86,6 +88,7 @@ def set_power_state(ip, login_account, login_password, system_id, reset_type):
                 return result
 
     except Exception as e:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "error_message: %s" % e}
     finally:
         # Logout of the current session

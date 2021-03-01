@@ -23,6 +23,7 @@
 import sys
 import redfish
 import json
+import traceback
 import lenovo_utils as utils
 
 
@@ -50,6 +51,7 @@ def get_psu_inventory(ip, login_account, login_password, system_id):
         # Login into the server and create a session
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except Exception as e:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Error_message: %s. Please check if username, password and IP are correct" % repr(e)}
         return result
 

@@ -22,6 +22,7 @@
 import sys
 import redfish
 import json
+import traceback
 import lenovo_utils as utils
 
 def del_tasks(ip, login_account, login_password,option_command):
@@ -49,6 +50,7 @@ def del_tasks(ip, login_account, login_password,option_command):
     try:
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except Exception as e:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Error_message: %s. Please check if username, password and IP are correct" % repr(e)}
         return result
 
@@ -106,6 +108,7 @@ def del_tasks(ip, login_account, login_password,option_command):
                 '/redfish/v1', response_base_url.status, error_message)}
             return result
     except Exception as e:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Exception msg %s" % repr(e)}
         return result
     finally:

@@ -22,6 +22,7 @@
 import sys
 import redfish
 import json
+import traceback
 import lenovo_utils as utils
 import os
 import time
@@ -78,6 +79,7 @@ def lenovo_bmc_config_backup(ip, login_account, login_password, backup_password,
     try:
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check if the username, password, IP are correct\n"}
         return result
     # Get ServiceBase resource

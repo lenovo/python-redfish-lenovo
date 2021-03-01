@@ -24,6 +24,7 @@ import sys
 import logging
 import json
 import redfish
+import traceback
 import lenovo_utils as utils
 from collections import OrderedDict
 
@@ -48,6 +49,7 @@ def lenovo_get_bmc_user_accounts(ip, login_account, login_password):
         # Login into the server and create a session
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
         return result
     try:
@@ -137,6 +139,7 @@ def lenovo_get_bmc_user_accounts(ip, login_account, login_password):
         result['entries'] = user_details
 
     except Exception as e:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Error message %s" %e}
     finally:
         # Logout of the current session

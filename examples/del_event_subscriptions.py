@@ -22,6 +22,7 @@
 import sys
 import redfish
 import json
+import traceback
 import lenovo_utils as utils
 
 def del_event_subscriptions(ip, login_account, login_password,option_command):
@@ -49,6 +50,7 @@ def del_event_subscriptions(ip, login_account, login_password,option_command):
     try:
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result
     # Get ServiceBase resource
@@ -113,6 +115,7 @@ def del_event_subscriptions(ip, login_account, login_password,option_command):
                 '/redfish/v1', response_base_url.status, error_message)}
             return result
     except Exception as e:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Exception msg %s" % e}
         return result
     finally:

@@ -22,8 +22,8 @@
 import sys
 import redfish
 import json
-import lenovo_utils as utils
 import traceback
+import lenovo_utils as utils
 
 def lenovo_set_bmc_user_ldap_policy(ip, login_account, login_password, policy):
     """set BMC authentication policy
@@ -48,6 +48,7 @@ def lenovo_set_bmc_user_ldap_policy(ip, login_account, login_password, policy):
     try:
         REDFISH_OBJ.login(auth="session")
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result
 
@@ -112,6 +113,7 @@ def lenovo_set_bmc_user_ldap_policy(ip, login_account, login_password, policy):
             return result
 
     except Exception as e:
+        traceback.print_exc()
         result = {'ret': False, 'msg': 'exception msg %s' % e}
         return result
     finally:

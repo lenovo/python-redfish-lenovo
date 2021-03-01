@@ -24,6 +24,7 @@ import sys
 import redfish
 import json
 import string
+import traceback
 import lenovo_utils as utils
 
 def clear_sessions(ip, login_account, login_password, username):
@@ -48,6 +49,7 @@ def clear_sessions(ip, login_account, login_password, username):
         # Login into the server and create a session
         REDFISH_OBJ.login(auth="basic")
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result
 

@@ -23,6 +23,7 @@
 import sys
 import redfish
 import json
+import traceback
 import lenovo_utils as utils
 
 
@@ -50,6 +51,7 @@ def reset_secure_boot(ip, login_account, login_password, system_id, reset_keys_t
         # Login into the server and create a session
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
         return result
 
@@ -95,6 +97,7 @@ def reset_secure_boot(ip, login_account, login_password, system_id, reset_keys_t
         return result
 
     except Exception as e:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "error message %s" % e}
     finally:
         # Logout of the current session

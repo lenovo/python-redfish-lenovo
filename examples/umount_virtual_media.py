@@ -34,6 +34,7 @@
 import sys
 import redfish
 import json
+import traceback
 import lenovo_utils as utils
 
 
@@ -59,6 +60,7 @@ def umount_virtual_media(ip, login_account, login_password, image):
                                              password=login_password, default_prefix='/redfish/v1', cafile=utils.g_CAFILE)
         REDFISH_OBJ.login(auth="basic")
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result
 
@@ -134,6 +136,7 @@ def umount_virtual_media(ip, login_account, login_password, image):
             result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
             managers_url, response_managers_url.status, error_message)}
     except Exception as e:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "error_message: %s" % (e)}
     finally:
         # Logout

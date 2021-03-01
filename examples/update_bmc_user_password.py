@@ -23,6 +23,7 @@
 import sys
 import redfish
 import json
+import traceback
 import lenovo_utils as utils
 
 def update_bmc_user_password(ip, login_account, login_password, username, new_password):
@@ -49,6 +50,7 @@ def update_bmc_user_password(ip, login_account, login_password, username, new_pa
         # Login into the server
         REDFISH_OBJ.login(auth="basic")
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result
 
@@ -130,6 +132,7 @@ def update_bmc_user_password(ip, login_account, login_password, username, new_pa
             result = {'ret': False, 'msg': "Url '%s' response error code %s \nerror_message: %s" % (accounts_url,
             response_accounts_url.status, error_message)}
     except Exception as e:
+        traceback.print_exc()
         result = {'ret':False, 'msg':"Error message %s" %e}
     finally:
         # Logout

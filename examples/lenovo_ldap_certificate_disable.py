@@ -22,6 +22,7 @@
 import sys, os
 import redfish
 import json
+import traceback
 import lenovo_utils as utils
 
 
@@ -51,6 +52,7 @@ def lenovo_ldap_certificate_disable(ip, login_account, login_password, binddn=No
     try:
         REDFISH_OBJ.login(auth="session")
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result
 
@@ -191,6 +193,7 @@ def lenovo_ldap_certificate_disable(ip, login_account, login_password, binddn=No
         return result
 
     except Exception as e:
+        traceback.print_exc()
         result = {'ret': False, 'msg': 'exception msg %s' % e}
         return result
     finally:

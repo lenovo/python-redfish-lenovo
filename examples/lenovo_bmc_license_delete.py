@@ -21,6 +21,7 @@
 
 import sys, os, json
 import redfish
+import traceback
 import lenovo_utils as utils
 
 
@@ -48,6 +49,7 @@ def lenovo_bmc_license_delete(ip, login_account, login_password, key_id):
     try:
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result
 

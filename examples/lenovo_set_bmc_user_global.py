@@ -23,6 +23,7 @@
 import sys
 import redfish
 import json
+import traceback
 import lenovo_utils as utils
 
 def lenovo_set_bmc_user_global(ip, login_account, login_password, setting_dict):
@@ -105,6 +106,7 @@ def lenovo_set_bmc_user_global(ip, login_account, login_password, setting_dict):
             return result
 
     except Exception as e:
+        traceback.print_exc()
         result = {'ret':False, 'msg':"Error message %s" %e}
     finally:
         # Logout of the current session

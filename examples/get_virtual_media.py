@@ -22,6 +22,7 @@
 import redfish
 import sys
 import json
+import traceback
 import lenovo_utils as utils
 
 
@@ -45,6 +46,7 @@ def get_virtual_media(ip, login_account, login_password):
         # Login into the server and create a session
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result
 
@@ -117,6 +119,7 @@ def get_virtual_media(ip, login_account, login_password):
         result['entries'] = virtual_media_info_list
 
     except Exception as e:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "error_message: %s" % e}
     finally:
         # Logout of the current session

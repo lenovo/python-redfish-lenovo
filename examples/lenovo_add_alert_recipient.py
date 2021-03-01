@@ -23,6 +23,7 @@
 import sys
 import redfish
 import json
+import traceback
 import lenovo_utils as utils
 
 def lenovo_add_alert_recipient(ip, login_account, login_password, setting_dict):
@@ -49,6 +50,7 @@ def lenovo_add_alert_recipient(ip, login_account, login_password, setting_dict):
         # Login into the server and create a session
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except Exception as e:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Error_message: %s. Please check if username, password and IP are correct" % repr(e)}
         return result
 
@@ -106,6 +108,7 @@ def lenovo_add_alert_recipient(ip, login_account, login_password, setting_dict):
             return result
 
     except Exception as e:
+        traceback.print_exc()
         result = {'ret':False, 'msg':"Error message %s" % repr(e)}
         return result
     finally:
