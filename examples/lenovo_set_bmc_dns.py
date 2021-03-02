@@ -46,7 +46,7 @@ def lenovo_set_bmc_dns(ip, login_account, login_password, enabled, dnsserver):
     try:
         # Connect using the BMC address, account name, and password
         # Create a REDFISH object
-        REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
+        REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account, timeout=utils.g_timeout,
                                              password=login_password, default_prefix='/redfish/v1', cafile=utils.g_CAFILE)
         # Login into the server and create a session
         REDFISH_OBJ.login(auth=utils.g_AUTH)
@@ -112,7 +112,7 @@ def lenovo_set_bmc_dns(ip, login_account, login_password, enabled, dnsserver):
                     # SR635 / SR655
                     payload.clear()
                     payload = {'DNSStatus': 'enable' if enabled == '1' else 'disable'}
-                    payload['DNSDHCP'] = 'Static'
+                    payload['DNSDHCP'] = 'static'
                     payload['DNSIndex'] = 'none'
                     payload['IPPriority'] = 'none'
                     for index in range(len(dnsserver)):
@@ -125,8 +125,8 @@ def lenovo_set_bmc_dns(ip, login_account, login_password, enabled, dnsserver):
 
         # perform set via patch
         headers = {"If-Match": "*"}
-        response_url = REDFISH_OBJ.patch(request_url, body=payload, headers=headers)
-        if response_url.status in [200,204]:
+        response_url_patch = REDFISH_OBJ.patch(request_url, body=payload, headers=headers)
+        if response_url_patch.status in [200,204]:
             if 'Actions' in response_url.dict:
                 if '#DNS.Reset' in response_url.dict['Actions']:
                     # For SR635 / SR655 products, need reset the DNS
