@@ -42,13 +42,14 @@ def get_networkprotocol_info(ip, login_account, login_password):
 
     # Connect using the BMC address, account name, and password
     # Create a REDFISH object
-    REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
+    REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account, timeout=utils.g_timeout,
                                          password=login_password, default_prefix='/redfish/v1', cafile=utils.g_CAFILE)
 
     # Login into the server and create a session
     try:
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result
     # Get ServiceBase resource
@@ -83,13 +84,31 @@ def get_networkprotocol_info(ip, login_account, login_password):
                         if key not in ["Description", "@odata.context", "@odata.id", "@odata.type",
                                        "@odata.etag", "Links", "Actions", "RelatedItem"]:
                             network_protocol_dict[key] = response_network_protocol_url.dict[key]
-                    result = {'ret': True, 'msg': network_protocol_dict}
-                    return result
                 else:
                     error_message = utils.get_extended_error(response_network_protocol_url)
                     result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
                         network_protocol_url, response_network_protocol_url.status, error_message)}
                     return result
+
+                # add DNS info
+                if ('Oem' in response_network_protocol_url.dict and 'Lenovo' in response_network_protocol_url.dict['Oem']
+                        and 'DNS' in response_network_protocol_url.dict['Oem']['Lenovo']):
+                    dns_url = response_network_protocol_url.dict['Oem']['Lenovo']['DNS']['@odata.id']
+                    network_protocol_dict['DNS'] = {}
+                    response_dns_url = REDFISH_OBJ.get(dns_url, None)
+                    if response_dns_url.status == 200:
+                        for key in response_dns_url.dict:
+                            if key not in ["Description", "@odata.context", "@odata.id", "@odata.type",
+                                           "@odata.etag", "Id", "Name", "Links", "Actions", "RelatedItem"]:
+                                network_protocol_dict['DNS'][key] = response_dns_url.dict[key]
+                    else:
+                        error_message = utils.get_extended_error(response_dns_url)
+                        result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                            dns_url, response_dns_url.status, error_message)}
+                        return result
+
+                result = {'ret': True, 'msg': network_protocol_dict}
+                return result
 
         else:
             error_message = utils.get_extended_error(response_managers_url)

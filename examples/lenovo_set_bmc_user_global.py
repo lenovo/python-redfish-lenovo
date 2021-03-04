@@ -23,6 +23,7 @@
 import sys
 import redfish
 import json
+import traceback
 import lenovo_utils as utils
 
 def lenovo_set_bmc_user_global(ip, login_account, login_password, setting_dict):
@@ -47,7 +48,7 @@ def lenovo_set_bmc_user_global(ip, login_account, login_password, setting_dict):
     # Connect using the BMC address, account name, and password
     # Create a REDFISH object
     login_host = "https://" + ip
-    REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
+    REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account, timeout=utils.g_timeout,
                                          password=login_password, default_prefix='/redfish/v1', cafile=utils.g_CAFILE)
     # Login into the server and create a session
     REDFISH_OBJ.login(auth=utils.g_AUTH)
@@ -73,8 +74,6 @@ def lenovo_set_bmc_user_global(ip, login_account, login_password, setting_dict):
             return result
 
         global_setting = {}
-        global_setting['Oem'] = {}
-        global_setting['Oem']['Lenovo'] = {}
 
         # Use user setting to update global_setting dict
         if "AccountLockoutThreshold" in setting_dict:
@@ -86,6 +85,9 @@ def lenovo_set_bmc_user_global(ip, login_account, login_password, setting_dict):
                           "PasswordChangeOnFirstAccess", "MinimumPasswordReuseCycle",
                           "PasswordLength", "WebInactivitySessionTimeout", "PasswordExpirationWarningPeriod"]:
             if item_name in setting_dict:
+                if 'Oem' not in global_setting:
+                    global_setting['Oem'] = {}
+                    global_setting['Oem']['Lenovo'] = {}
                 global_setting['Oem']['Lenovo'][item_name] = setting_dict[item_name]
 
         # Perform patch to change setting
@@ -104,6 +106,7 @@ def lenovo_set_bmc_user_global(ip, login_account, login_password, setting_dict):
             return result
 
     except Exception as e:
+        traceback.print_exc()
         result = {'ret':False, 'msg':"Error message %s" %e}
     finally:
         # Logout of the current session

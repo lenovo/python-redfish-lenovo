@@ -1,0 +1,28 @@
+---
+- hosts: myhosts
+  connection: local
+  name: Get system inventory
+  gather_facts: False
+
+  vars:
+    datatype: SystemInventory
+
+  tasks:
+
+  - name: Define output file
+    include_tasks: create_output_file.yml
+
+  - name: Get system inventory
+    redfish_facts:
+      category: Systems
+      command: GetSystemInventory
+      baseuri: "{{ baseuri }}"
+      username: "{{ username }}"
+      password: "{{ password }}"
+      timeout: 20
+    register: result
+
+  - name: Copy results to output file
+    copy:
+      content: "{{ result | to_nice_json }}"
+      dest: "{{ template }}.json"

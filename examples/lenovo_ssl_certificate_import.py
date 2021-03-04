@@ -22,6 +22,7 @@
 import sys, os, struct
 import redfish
 import json
+import traceback
 import lenovo_utils as utils
 
 
@@ -40,20 +41,21 @@ def lenovo_ssl_certificate_import(ip, login_account, login_password, certfile):
 
     result = {}
 
-    # check file existing
-    if not os.path.exists(certfile):
-        result = {'ret': False, 'msg': "Specified file %s does not exist. Please check your certificate file path." % (certfile)}
+    # check file existing and readable
+    if not os.access(certfile, os.R_OK):
+        result = {'ret': False, 'msg': "Specified file %s does not exist or can't be accessed. Please check your certificate file path." % (certfile)}
         return result
 
     # Create a REDFISH object
     login_host = "https://" + ip
-    REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
+    REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account, timeout=utils.g_timeout,
                                          password=login_password, default_prefix='/redfish/v1')
 
     # Login into the server and create a session
     try:
         REDFISH_OBJ.login(auth="session")
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result
 
@@ -174,6 +176,7 @@ def lenovo_ssl_certificate_import(ip, login_account, login_password, certfile):
         return result
 
     except Exception as e:
+        traceback.print_exc()
         result = {'ret': False, 'msg': 'exception msg %s' % e}
         return result
     finally:
@@ -184,13 +187,15 @@ def lenovo_ssl_certificate_import(ip, login_account, login_password, certfile):
 
 
 def read_cert_file_pem(cert):
+    fhandle = None
     try:
         fhandle = open(cert, 'r')
         filecontent = fhandle.read()
     except:
         filecontent = ''
     finally:
-        fhandle.close()
+        if fhandle:
+            fhandle.close()
     return filecontent if '-----BEGIN CERTIFICATE-----' in filecontent else None
 
 

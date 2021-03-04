@@ -4,7 +4,7 @@
 #
 # Copyright Notice:
 #
-# Copyright 2020 Lenovo Corporation
+# Copyright 2021 Lenovo Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
 # not use this file except in compliance with the License. You may obtain
@@ -22,10 +22,11 @@
 import sys, os
 import redfish
 import json
+import traceback
 import lenovo_utils as utils
 
 
-def lenovo_ldap_certificate_enable(ip, login_account, login_password):
+def lenovo_ldap_certificate_enable(ip, login_account, login_password, binddn=None, bindpassword=None):
     """ Enable LDAP certificate
         :params ip: BMC IP address
         :type ip: string
@@ -33,6 +34,10 @@ def lenovo_ldap_certificate_enable(ip, login_account, login_password):
         :type login_account: string
         :params login_password: BMC user password
         :type login_password: string
+        :params binddn: LDAP DN for binding
+        :type binddn: string
+        :params bindpassword: LDAP password for binding
+        :type bindpassword: string
         :returns: returns get successful result when succeeded or error message when failed
         """
 
@@ -40,13 +45,14 @@ def lenovo_ldap_certificate_enable(ip, login_account, login_password):
 
     # Create a REDFISH object
     login_host = "https://" + ip
-    REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
+    REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account, timeout=utils.g_timeout,
                                          password=login_password, default_prefix='/redfish/v1')
 
     # Login into the server and create a session
     try:
         REDFISH_OBJ.login(auth="session")
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result
 
@@ -111,7 +117,7 @@ def lenovo_ldap_certificate_enable(ip, login_account, login_password):
             request_body = {"SSLSettings": {"EnableLDAPS": True}}
             headers = {"If-Match": "*"}
 
-            # Perform post to add the certificate
+            # Perform patch to enable LDAP SSL
             response_url = REDFISH_OBJ.patch(target_url, body=request_body, headers=headers)
             if response_url.status not in [200, 201, 202, 204]:
                 error_message = utils.get_extended_error(response_url)
@@ -126,11 +132,77 @@ def lenovo_ldap_certificate_enable(ip, login_account, login_password):
                 pass
             return result
 
+        # Enable LDAP for SR635/SR655
+        accountservice_url = "/redfish/v1/AccountService"
+        response_accountservice_url = REDFISH_OBJ.get(accountservice_url, None)
+        if response_accountservice_url.status != 200:
+            error_message = utils.get_extended_error(response_accountservice_url)
+            result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                accountservice_url, response_accountservice_url.status, error_message)}
+            try:
+                REDFISH_OBJ.logout()
+            except:
+                pass
+            return result
+        try:
+            encryption_type = response_accountservice_url.dict['LDAP']['Authentication']['Oem']['Ami']['EncryptionType']
+            if encryption_type == 'SSL':
+                result = {'ret': True,
+                          'msg':"LDAP certificate security is already enabled."}
+                try:
+                    REDFISH_OBJ.logout()
+                except:
+                    pass
+                return result
+
+            elif encryption_type == 'StartTLS':
+                result = {'ret': True,
+                        'msg':"LDAP certificate security is already enabled, EncryptionType is StartTLS. Note: All of the 3 files(CA certificate/Client certificate/Client private key) are required for StartTLS. Because script can only support import CA certificate, please use webUI to import certificates instead of using script."}
+                try:
+                    REDFISH_OBJ.logout()
+                except:
+                    pass
+                return result
+
+            elif encryption_type == 'NoEncryption':
+                if binddn is None or bindpassword is None:
+                    result = {'ret': False,
+                              'msg':"Parameter binddn and bindpassword are needed for enabling LDAP certificate security."}
+                    try:
+                        REDFISH_OBJ.logout()
+                    except:
+                        pass
+                    return result
+
+                # Create request body
+                target_url = accountservice_url
+                request_body = {"LDAP": {"Authentication": {"Username": binddn, "Password": bindpassword, "Oem": {"Ami": {"EncryptionType": "SSL", "CommonNameType": "IPAddress"}}}}}
+                headers = {"If-Match": "*"}
+
+                # Perform patch to enable LDAP SSL
+                response_url = REDFISH_OBJ.patch(target_url, body=request_body, headers=headers)
+                if response_url.status not in [200, 201, 202, 204]:
+                    error_message = utils.get_extended_error(response_url)
+                    result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                        target_url, response_url.status, error_message)}
+                else:
+                    result = {'ret': True,
+                              'msg':"LDAP certificate security is enabled. Note that in order to enable SSL, CA certificate that contains the certificate of the trusted CA certs must be imported before using."}
+                try:
+                    REDFISH_OBJ.logout()
+                except:
+                    pass
+                return result
+
+        except:
+            pass # Related resource not existing
+
         # No LDAP certificate resource found
         result = {'ret': False, 'msg': 'LDAP certificate is not supported'}
         return result
 
     except Exception as e:
+        traceback.print_exc()
         result = {'ret': False, 'msg': 'exception msg %s' % e}
         return result
     finally:
@@ -140,12 +212,20 @@ def lenovo_ldap_certificate_enable(ip, login_account, login_password):
             pass
 
 
+def add_helpmessage(argget):
+    argget.add_argument('--binddn', type=str, required=False, help='Specify DN for binding LDAP server with a DN and password. If DN is not specified, try to bind anonymous. Only ThinkSystem SR635/SR655 need to specify binddn/bindpassword.')
+    argget.add_argument('--bindpassword', type=str, required=False, help='Specify password for binding LDAP server with a DN and password.i Only ThinkSystem SR635/SR655 need to specify binddn/bindpassword.')
+
+
 def add_parameter():
     """Add parameter"""
     parameter_info = {}
     argget = utils.create_common_parameter_list()
+    add_helpmessage(argget)
     args = argget.parse_args()
     parameter_info = utils.parse_parameter(args)
+    parameter_info["binddn"] = args.binddn
+    parameter_info["bindpassword"] = args.bindpassword
     return parameter_info
 
 
@@ -155,9 +235,11 @@ if __name__ == '__main__':
     ip = parameter_info['ip']
     login_account = parameter_info["user"]
     login_password = parameter_info["passwd"]
+    binddn = parameter_info["binddn"]
+    bindpassword = parameter_info["bindpassword"]
 
     # Enable ldap certificate security and check result
-    result = lenovo_ldap_certificate_enable(ip, login_account, login_password)
+    result = lenovo_ldap_certificate_enable(ip, login_account, login_password, binddn, bindpassword)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))

@@ -1,13 +1,13 @@
 ###
 #
-# Lenovo Redfish examples - get SKLM key server info
-# SecureKeyLifecycleManager feature uses centralized SKLM server to provide keys that unlock storage hardware.
+# Lenovo Redfish examples - get ExternalKeyLifecycleManager(EKLM) key server info
+# SecureKeyLifecycleManager feature uses centralized EKLM server to provide keys that unlock storage hardware.
 # To use this feature, below steps are needed:
 #  - Ensure required license has been imported in BMC(XCC)
-#  - Configure SKLM Server(s) in BMC(XCC)
-#  - Install/import SKLM server certificate in BMC(XCC) which can be downloaded from SKLM server
-#  - Generate SKLM client certificate CSR in BMC(XCC)
-#  - Sign the CSR with the CA certificate in SKLM server
+#  - Configure EKLM Server(s) in BMC(XCC)
+#  - Install/import EKLM server certificate in BMC(XCC) which can be downloaded from EKLM server
+#  - Generate EKLM client certificate CSR in BMC(XCC)
+#  - Sign the CSR with the CA certificate in EKLM server
 #  - Import the signed client certificate in BMC(XCC)
 #
 # Copyright Notice:
@@ -30,11 +30,12 @@
 import sys, os
 import redfish
 import json
+import traceback
 import lenovo_utils as utils
 
 
-def lenovo_sklm_keyserver_getinfo(ip, login_account, login_password):
-    """ Get SKLM key server info
+def lenovo_eklm_keyserver_getinfo(ip, login_account, login_password):
+    """ Get EKLM key server info
         :params ip: BMC IP address
         :type ip: string
         :params login_account: BMC user name
@@ -48,13 +49,14 @@ def lenovo_sklm_keyserver_getinfo(ip, login_account, login_password):
 
     # Create a REDFISH object
     login_host = "https://" + ip
-    REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
+    REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account, timeout=utils.g_timeout,
                                          password=login_password, default_prefix='/redfish/v1')
 
     # Login into the server and create a session
     try:
         REDFISH_OBJ.login(auth="session")
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result
 
@@ -78,7 +80,7 @@ def lenovo_sklm_keyserver_getinfo(ip, login_account, login_password):
         return result
 
     # Access /redfish/v1/Managers/1 to get SecureKeyLifecycleService url
-    sklm_url = None
+    eklm_url = None
     for request in response_managers_url.dict['Members']:
         request_url = request['@odata.id']
         response_url = REDFISH_OBJ.get(request_url, None)
@@ -89,18 +91,18 @@ def lenovo_sklm_keyserver_getinfo(ip, login_account, login_password):
             REDFISH_OBJ.logout()
             return result
         if 'SecureKeyLifecycleService' in str(response_url.dict):
-            sklm_url = response_url.dict['Oem']['Lenovo']['SecureKeyLifecycleService']['@odata.id']
+            eklm_url = response_url.dict['Oem']['Lenovo']['SecureKeyLifecycleService']['@odata.id']
             break
 
-    # Return here when SKLM feature is not supported
-    if sklm_url is None:
-        result = {'ret': False, 'msg': 'SecureKeyLifecycleManager(SKLM) is not supported.'}
+    # Return here when EKLM feature is not supported
+    if eklm_url is None:
+        result = {'ret': False, 'msg': 'ExternalKeyLifecycleManager(EKLM) is not supported.'}
         REDFISH_OBJ.logout()
         return result
 
     # Get common info from /redfish/v1/Managers/1/Oem/Lenovo/SecureKeyLifecycleService
-    sklm_details = {}
-    request_url = sklm_url
+    eklm_details = {}
+    request_url = eklm_url
     response_url = REDFISH_OBJ.get(request_url, None)
     if response_url.status != 200:
         error_message = utils.get_extended_error(response_url)
@@ -110,30 +112,30 @@ def lenovo_sklm_keyserver_getinfo(ip, login_account, login_password):
         return result
     for property in ['Name', 'KeyRepoServers', 'DeviceGroup', 'Protocol']:
         if property in response_url.dict:
-            sklm_details[property] = response_url.dict[property]
+            eklm_details[property] = response_url.dict[property]
 
     # Get server certificate info from /redfish/v1/Managers/1/Oem/Lenovo/SecureKeyLifecycleService/ServerCertificate/1
-    sklm_details['ServerCertificate'] = {}
-    request_url = sklm_url + '/ServerCertificate/1'
+    eklm_details['ServerCertificate'] = {}
+    request_url = eklm_url + '/ServerCertificate/1'
     response_url = REDFISH_OBJ.get(request_url, None)
     if response_url.status == 200:
         for property in ['ValidNotBefore', 'ValidNotAfter', 'CertificateType', 'Subject',
                          'Issuer', 'KeyUsage', 'CertificateString']:
             if property in response_url.dict:
-                sklm_details['ServerCertificate'][property] = response_url.dict[property]
+                eklm_details['ServerCertificate'][property] = response_url.dict[property]
 
     # Get client certificate info from /redfish/v1/Managers/1/Oem/Lenovo/SecureKeyLifecycleService/ClientCertificate/1
-    sklm_details['ClientCertificate'] = {}
-    request_url = sklm_url + '/ClientCertificate/1'
+    eklm_details['ClientCertificate'] = {}
+    request_url = eklm_url + '/ClientCertificate/1'
     response_url = REDFISH_OBJ.get(request_url, None)
     if response_url.status == 200:
         for property in ['ValidNotBefore', 'ValidNotAfter', 'CertificateType', 'Subject',
                          'Issuer', 'KeyUsage', 'CertificateString']:
             if property in response_url.dict:
-                sklm_details['ClientCertificate'][property] = response_url.dict[property]
+                eklm_details['ClientCertificate'][property] = response_url.dict[property]
 
     result['ret'] = True
-    result['entries'] = sklm_details
+    result['entries'] = eklm_details
     REDFISH_OBJ.logout()
     return result
 
@@ -154,8 +156,8 @@ if __name__ == '__main__':
     login_account = parameter_info["user"]
     login_password = parameter_info["passwd"]
 
-    # Get SKLM key server info and check result
-    result = lenovo_sklm_keyserver_getinfo(ip, login_account, login_password)
+    # Get EKLM key server info and check result
+    result = lenovo_eklm_keyserver_getinfo(ip, login_account, login_password)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['entries'], sort_keys=True, indent=2))

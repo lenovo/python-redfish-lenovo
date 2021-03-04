@@ -22,6 +22,7 @@
 
 import sys
 import redfish
+import traceback
 import lenovo_utils as utils
 import json
 
@@ -43,11 +44,12 @@ def enable_secure_boot(ip, login_account, login_password, system_id):
     try:
         # Connect using the BMC address, account name, and password
         # Create a REDFISH object
-        REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
+        REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account, timeout=utils.g_timeout,
                                              password=login_password, default_prefix='/redfish/v1', cafile=utils.g_CAFILE)
         # Login into the server and create a session
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result
 
@@ -69,6 +71,18 @@ def enable_secure_boot(ip, login_account, login_password, system_id):
             return result
 
         if 'SecureBoot' in response_system_url.dict:
+            # Toggle Remote Physical Presence Asset if Oem/Lenovo/TPMSettings/AssertRPP exist
+            if 'Oem' in response_system_url.dict and 'Lenovo' in response_system_url.dict['Oem']:
+                if 'TPMSettings' in response_system_url.dict['Oem']['Lenovo'] and 'AssertRPP' in response_system_url.dict['Oem']['Lenovo']['TPMSettings']:
+                    if response_system_url.dict['Oem']['Lenovo']['TPMSettings']['AssertRPP'] != True:
+                        parameter = {"Oem": {"Lenovo": {"TPMSettings": {"AssertRPP": True}}}}
+                        headers = {"If-Match": response_system_url.dict['@odata.etag']}
+                        response_patch = REDFISH_OBJ.patch(system_url, body=parameter, headers=headers)
+                        if response_patch.status not in [200,204]:
+                            error_message = utils.get_extended_error(response_patch)
+                            result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % ( 
+                                system_url, response_patch.status, error_message)}
+
             # Get the SecureBoot resource url
             secureboot_url = response_system_url.dict['SecureBoot']['@odata.id']
             # get etag to set If-Match precondition

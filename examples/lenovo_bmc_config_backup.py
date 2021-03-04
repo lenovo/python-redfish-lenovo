@@ -22,6 +22,7 @@
 import sys
 import redfish
 import json
+import traceback
 import lenovo_utils as utils
 import os
 import time
@@ -71,13 +72,14 @@ def lenovo_bmc_config_backup(ip, login_account, login_password, backup_password,
 
     # Connect using the BMC address, account name, and password
     # Create a REDFISH object
-    REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
+    REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account, timeout=utils.g_timeout,
                                          password=login_password, default_prefix='/redfish/v1', cafile=utils.g_CAFILE)
 
     # Login into the server and create a session
     try:
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check if the username, password, IP are correct\n"}
         return result
     # Get ServiceBase resource
@@ -183,27 +185,37 @@ def lenovo_bmc_config_backup(ip, login_account, login_password, backup_password,
             task_uri = response_backup_uri.dict['@odata.id']
 
             # Check task status
+            task_state = ''
+            messages = []
             while True:
                 response_task_uri = REDFISH_OBJ.get(task_uri, None)
                 if response_task_uri.status in [200, 202]:
                     task_state = response_task_uri.dict['TaskState']
+                    if 'Messages' in response_task_uri.dict:
+                        messages = response_task_uri.dict['Messages']
                     if task_state == "Completed":
                         time_end = time.time()    
                         print('time cost: %.2f' %(time_end-time_start)+'s')
-                        result = {'ret': True, 'msg':  "The backuped bmc config file is saved in %s " %export_uri}
+                        result = {'ret': True, 'msg':  "The backuped bmc config file is saved in %s.%s" %(
+                            export_uri, ' Messages: %s' %str(messages) if messages != [] else '')}
                         break
                     elif task_state in ["Exception", "Killed", "Suspended", "Interrupted", "Cancelled"]:
-                        result = {"ret": False, "msg": "Task state is %s, The bmc config backup failed" %task_state}
+                        result = {"ret": False, "msg": "Task state is %s, The bmc config backup failed.%s" %(
+                            task_state, ' Messages: %s' %str(messages) if messages != [] else '')}
                         break
                     else:
-                        flush()
+                        percent = 0
+                        if 'PercentComplete' in response_task_uri.dict:
+                            percent = response_task_uri.dict['PercentComplete']
+                        flush(percent)
                 else:
                     error_message = utils.get_extended_error(response_task_uri)
                     result = {'ret': False, 'msg': "Url '%s' response task uri Error code %s \nerror_message: %s" % (task_uri, response_task_uri.status, error_message)}
                     break
             
-            # Delete the task when the task state is completed
-            REDFISH_OBJ.delete(task_uri, None)
+            # Delete the task when the task state is completed without messages
+            if task_state == "Completed" and messages == []:
+                REDFISH_OBJ.delete(task_uri, None)
             try:
                 REDFISH_OBJ.logout()
             except:
@@ -216,12 +228,12 @@ def lenovo_bmc_config_backup(ip, login_account, login_password, backup_password,
             return result
 
 
-def flush():
+def flush(percent):
     list = ['|', '\\', '-', '/']
     for i in list:
         sys.stdout.write(' ' * 100 + '\r')
         sys.stdout.flush()
-        sys.stdout.write(i + '\r')
+        sys.stdout.write(i + (('          PercentComplete: %d' %percent) if percent > 0 else '') + '\r')
         sys.stdout.flush()
         time.sleep(0.1)
 

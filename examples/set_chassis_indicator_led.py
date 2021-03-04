@@ -22,6 +22,7 @@
 import redfish
 import sys
 import json
+import traceback
 import lenovo_utils as utils
 
 
@@ -42,11 +43,12 @@ def set_chassis_indicator_led(ip, login_account, login_password, led_status):
     try:
         # Connect using the BMC address, account name, and password
         # Create a REDFISH object
-        REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
+        REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account, timeout=utils.g_timeout,
                                          password=login_password, default_prefix='/redfish/v1', cafile=utils.g_CAFILE)
         # Login into the server and create a session
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result
     try:
@@ -99,6 +101,7 @@ def set_chassis_indicator_led(ip, login_account, login_password, led_status):
             chassis_url, response_chassis_url.status, error_message)}
             return result
     except Exception as e:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "error_message: %s" % e}
     finally:
         # Logout of the current session

@@ -21,6 +21,7 @@
 
 import sys, os, json, struct
 import redfish
+import traceback
 import lenovo_utils as utils
 
 
@@ -46,13 +47,14 @@ def lenovo_bmc_license_import(ip, login_account, login_password, license_file):
 
     # Create a REDFISH object
     login_host = "https://" + ip
-    REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
+    REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account, timeout=utils.g_timeout,
                                          password=login_password, default_prefix='/redfish/v1', cafile=utils.g_CAFILE)
 
     # Login into the server and create a session
     try:
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result
 
@@ -108,6 +110,7 @@ def lenovo_bmc_license_import(ip, login_account, login_password, license_file):
             size = os.path.getsize(license_file)
             license_fhandle = open(license_file, 'rb')
         except Exception as e:
+            traceback.print_exc()
             result = {'ret': False, 'msg': "Failed to open file %s. %s" % (license_file, str(e))}
             REDFISH_OBJ.logout()
             return result

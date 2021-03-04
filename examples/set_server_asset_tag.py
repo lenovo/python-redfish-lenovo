@@ -23,6 +23,7 @@
 import sys
 import redfish
 import json
+import traceback
 import lenovo_utils as utils
 
 
@@ -45,11 +46,12 @@ def set_server_asset_tag(ip, login_account, login_password, system_id, asset_tag
         # Connect using the BMC address, account name, and password
         # Create a REDFISH object
         login_host = "https://" + ip
-        REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
+        REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account, timeout=utils.g_timeout,
                                              password=login_password, default_prefix='/redfish/v1', cafile=utils.g_CAFILE)
         # Login into the server and create a session
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result
     try:
@@ -85,6 +87,7 @@ def set_server_asset_tag(ip, login_account, login_password, system_id, asset_tag
                 result = {'ret': False, 'msg': "Url '%s' patch failed. response Error code %s \nerror_message: %s" % (
                     system_url, response_asset_tag.status, error_message)}
     except Exception as e:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "error_message: %s" % e}
     finally:
         # Logout of the current session

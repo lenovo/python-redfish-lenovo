@@ -4,7 +4,7 @@
 #
 # Copyright Notice:
 #
-# Copyright 2020 Lenovo Corporation
+# Copyright 2021 Lenovo Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
 # not use this file except in compliance with the License. You may obtain
@@ -22,8 +22,8 @@
 import sys
 import redfish
 import json
-import lenovo_utils as utils
 import traceback
+import lenovo_utils as utils
 
 def lenovo_set_bmc_user_ldap_policy(ip, login_account, login_password, policy):
     """set BMC authentication policy
@@ -41,13 +41,14 @@ def lenovo_set_bmc_user_ldap_policy(ip, login_account, login_password, policy):
 
     # Connect using the BMC address, account name, and password
     # Create a REDFISH object
-    REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
+    REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account, timeout=utils.g_timeout,
                                          password=login_password, default_prefix='/redfish/v1')
 
     # Login into the server and create a session
     try:
         REDFISH_OBJ.login(auth="session")
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result
 
@@ -91,6 +92,12 @@ def lenovo_set_bmc_user_ldap_policy(ip, login_account, login_password, policy):
 
         # No related resource found
         if request_body is None:
+            # For ThinkSystem SR635/SR655
+            if "Oem" in response_accounts_url.dict and response_accounts_url.dict["Oem"] and "Ami" in response_accounts_url.dict["Oem"]:
+                result = {'ret': False, 'msg': 'Both local user and ldap can be supported. But policy setting is not supported.'}
+                return result
+
+
             result = {'ret': False, 'msg': 'Only local user is supported'}
             return result
 
@@ -106,6 +113,7 @@ def lenovo_set_bmc_user_ldap_policy(ip, login_account, login_password, policy):
             return result
 
     except Exception as e:
+        traceback.print_exc()
         result = {'ret': False, 'msg': 'exception msg %s' % e}
         return result
     finally:

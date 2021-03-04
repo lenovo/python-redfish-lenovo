@@ -26,6 +26,7 @@ import sys
 import redfish
 import json
 import update_firmware
+import traceback
 import lenovo_utils as utils
 import requests
 import time
@@ -63,10 +64,11 @@ def lenovo_update_firmware(ip, login_account, login_password, image, targets, fs
     try:
         # Create a REDFISH object
         result = {}
-        REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
+        REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account, timeout=utils.g_timeout,
                                          password=login_password, default_prefix='/redfish/v1', cafile=utils.g_CAFILE)
         REDFISH_OBJ.login(auth="basic")
     except Exception as e:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Error_message: %s. Please check if username, password and IP are correct" % repr(e)}
         return result
 
@@ -90,9 +92,21 @@ def lenovo_update_firmware(ip, login_account, login_password, image, targets, fs
                     result = {'ret': False,
                               'msg': "SR635/SR655 products only supports specifying BMC or UEFI to refresh."}
                     return result
-                # Check if BMC is 20B version of SR635/655, if yes, use multipart Uri to update Firmware
-                if "MultipartHttpPushUri" in response_update_service_url.dict and fsprotocol.upper() == "HTTPPUSH":
-                    Multipart_Uri = login_host + response_update_service_url.dict["MultipartHttpPushUri"]
+                # Check if multiparthttppushuri exists in response_update_service_url.dict['Oem']['AMIUpdateService'] / response_update_service_url.dict
+                multiparthttppushuri_exist = False
+                multiparthttppushuri_oem_exist = False
+                if 'Oem' in response_update_service_url.dict:
+                    if 'AMIUpdateService' in response_update_service_url.dict['Oem']:
+                        if "MultipartHttpPushUri" in response_update_service_url.dict['Oem']['AMIUpdateService']:
+                            multiparthttppushuri_oem_exist = True
+                if "MultipartHttpPushUri" in response_update_service_url.dict:
+                    multiparthttppushuri_exist = True
+                # if yes, use multipart Uri to update Firmware
+                if (multiparthttppushuri_oem_exist is True or multiparthttppushuri_exist is True) and fsprotocol.upper() == "HTTPPUSH":
+                    if multiparthttppushuri_oem_exist is True:
+                        Multipart_Uri = login_host + response_update_service_url.dict['Oem']['AMIUpdateService']["MultipartHttpPushUri"]
+                    elif multiparthttppushuri_exist is True:
+                        Multipart_Uri = login_host + response_update_service_url.dict["MultipartHttpPushUri"]
                     BMC_Parameter = {"Targets": ["/redfish/v1/Managers/Self"]}
                     if targets[0].upper() == "BMC":
                         Oem_Parameter = {"FlashType": "HPMFwUpdate", "UploadSelector": "Default"}
@@ -103,22 +117,12 @@ def lenovo_update_firmware(ip, login_account, login_password, image, targets, fs
                                   'msg': "SR635/SR655 products only supports specifying BMC or UEFI to refresh."}
                         return result
 
-                    # Create a temporary file to write to the OEM value
-                    parameter_file = os.getcwd() + os.sep + "parameters.json"
-                    oem_parameter_file = os.getcwd() + os.sep + "oem_parameters.json"
-
-                    with open(parameter_file, 'w') as f:
-                        f.write(json.dumps(BMC_Parameter))
-                    with open(oem_parameter_file, 'w') as f:
-                        f.write(json.dumps(Oem_Parameter))
-
-                    F_parameter = open(parameter_file, 'rb')
-                    F_oparameter = open(oem_parameter_file, 'rb')
+                    F_image = open(fsdir + os.sep + image, 'rb')
                     # Specify the parameters required to update the firmware
-                    files = {'UpdateParameters': ("parameters.json", F_parameter, 'application/json'),
+                    files = {'UpdateParameters': ("parameters.json", json.dumps(BMC_Parameter), 'application/json'),
                              'OemParameters': (
-                             "oem_parameters.json", F_oparameter, 'application/json'),
-                             'UpdateFile': (image, open(fsdir + os.sep + image, 'rb'), 'multipart/form-data')}
+                             "oem_parameters.json", json.dumps(Oem_Parameter), 'application/json'),
+                             'UpdateFile': (image, F_image, 'multipart/form-data')}
 
                     # Send a post command through requests to update the firmware
                     # Ignore SSL Certificates
@@ -129,8 +133,7 @@ def lenovo_update_firmware(ip, login_account, login_password, image, targets, fs
                     firmware_update_url = Multipart_Uri
                     response = requests.post(Multipart_Uri, auth=auth, files=files, verify=False)
                     response_code = response.status_code
-                    F_parameter.close()
-                    F_oparameter.close()
+                    F_image.close()
                 else:
                     if fsprotocol.upper() != "HTTP":
                         result = {'ret': False, 'msg': "SR635/SR655 products only supports the HTTP protocol to update firmware."}
@@ -174,11 +177,13 @@ def lenovo_update_firmware(ip, login_account, login_password, image, targets, fs
                     if result["ret"] is True:
                         task_state = result["task_state"]
                         if task_state in ["Completed", "Done"]:
-                            result = {'ret': True, 'msg': "Update firmware successfully"}
+                            result = {'ret': True, 'msg': "Update firmware successfully. %s" %(result['msg'])}
                         else:
                             task_id = result["id"]
-                            result = {'ret': False, 'msg': "Failed to update firmware, task id is %s, task state is %s" % (task_id, task_state) }
-                        REDFISH_OBJ.delete(task_uri, None)
+                            result = {'ret': False, 'msg': "Failed to update firmware, task id is %s, task state is %s. %s" % (task_id, task_state, result['msg']) }
+                        # Delete the task when the task state is completed
+                        if result["ret"] is True:
+                            REDFISH_OBJ.delete(task_uri, None)
                         return result
                     else:
                         return result
@@ -192,13 +197,9 @@ def lenovo_update_firmware(ip, login_account, login_password, image, targets, fs
             result = {'ret': False, 'msg': "Url '%s' response Error code %s, \nError message :%s" % (update_service_url, response_update_service_url.status, message)}
             return result
     except Exception as e:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "error_message: %s" % (e)}
     finally:
-        # Delete the temporary file if it exists
-        if os.path.exists(os.getcwd() + os.sep + "parameters.json"):
-            os.remove(os.getcwd() + os.sep + "parameters.json")
-        if os.path.exists(os.getcwd() + os.sep + "oem_parameters.json"):
-            os.remove(os.getcwd() + os.sep + "oem_parameters.json")
         # Logout of the current session
         try:
             REDFISH_OBJ.logout()
@@ -212,9 +213,12 @@ def task_monitor(REDFISH_OBJ, task_uri):
     END_TASK_STATE = ["Cancelled", "Completed", "Exception", "Killed", "Interrupted", "Suspended", "Done", "Failed when Flashing Image."]
     time_start=time.time()
     print("Start to refresh the firmware, please wait about 3~10 minutes...")
+    messages = []
     while True:
         response_task_uri = REDFISH_OBJ.get(task_uri, None)
         if response_task_uri.status in [200, 202]:
+            if 'Messages' in response_task_uri.dict:
+                messages = response_task_uri.dict['Messages']
             if "TaskState" in response_task_uri.dict:
                 task_state = response_task_uri.dict["TaskState"]
             elif "Oem" in response_task_uri.dict:
@@ -226,7 +230,7 @@ def task_monitor(REDFISH_OBJ, task_uri):
                 task_state = "Exception"
             # Monitor task status until the task terminates
             if task_state in END_TASK_STATE:
-                result = {'ret':True, 'task_state': task_state, 'id': response_task_uri.dict['Id']}
+                result = {'ret':True, 'task_state': task_state, 'id': response_task_uri.dict['Id'], 'msg': ' Messages: %s' %str(messages) if messages != [] else ''}
                 return result
             else:
                 time_now = time.time()

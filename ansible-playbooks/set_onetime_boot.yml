@@ -1,0 +1,31 @@
+---
+- hosts: myhosts
+  connection: local
+  name: Set one-time BIOS boot device
+  gather_facts: False
+
+  vars:
+    - bootdevice: Cd
+
+  tasks:
+
+  - name: Set one-time boot device to {{ bootdevice }}
+    redfish_command:
+      category: Systems
+      command: SetOneTimeBoot
+      bootdevice: "{{ bootdevice }}"
+      baseuri: "{{ baseuri }}"
+      username: "{{ username }}"
+      password: "{{ password }}"
+      timeout: 20
+    register: bios_onetimeboot
+
+  - name: Reboot system
+    redfish_command:
+      category: Systems
+      command: PowerReboot
+      baseuri: "{{ baseuri }}"
+      username: "{{ username }}"
+      password: "{{ password }}"
+      timeout: 20
+    when: bios_onetimeboot.changed

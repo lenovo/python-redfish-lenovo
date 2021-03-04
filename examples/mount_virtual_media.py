@@ -33,6 +33,7 @@
 import sys
 import redfish
 import json
+import traceback
 import lenovo_utils as utils
 
 
@@ -61,10 +62,11 @@ def mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsp
     try:
         # Connect using the address, account name, and password
         # Create a REDFISH object
-        REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
+        REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account, timeout=utils.g_timeout,
                                              password=login_password, default_prefix='/redfish/v1', cafile=utils.g_CAFILE)
         REDFISH_OBJ.login(auth="basic")
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result
 
@@ -98,7 +100,7 @@ def mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsp
                     return result
 
                 # Get the mount virtual media list
-				# For the latest XCC Firmware(version is 2.5 and above), there are 10 predefined members
+                # For the latest XCC Firmware(version is 2.5 and above), there are 10 predefined members
                 response_virtual_media = REDFISH_OBJ.get(virtual_media_url, None)
                 if response_virtual_media.status == 200:
                     members_list = response_virtual_media.dict["Members"]
@@ -154,6 +156,7 @@ def mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsp
             result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
             managers_url, response_managers_url.status, error_message)}
     except Exception as e:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "error_message: %s" % (e)}
     finally:
         # Logout
@@ -165,8 +168,8 @@ def mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsp
 
 
 def add_helpmessage(argget):
-    argget.add_argument('--fsprotocol', type=str, nargs='?', choices=["NFS", "HTTP"],
-                        help='Specifies the protocol prefix for uploading image or ISO. Support: ["NFS","HTTP"]')
+    argget.add_argument('--fsprotocol', type=str, nargs='?', choices=["NFS", "HTTP", "HTTPS"],
+                        help='Specifies the protocol prefix for uploading image or ISO. Support: ["NFS","HTTP","HTTPS"]')
     argget.add_argument('--fsip', type=str, help='Specify the file server ip')
     argget.add_argument('--fsdir', type=str, help='File path of the image')
     argget.add_argument('--fsport', type=str, default='', help='Specify the file server port')

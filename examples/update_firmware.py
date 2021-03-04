@@ -27,6 +27,7 @@ from requests.auth import HTTPBasicAuth
 import redfish
 import json
 import time
+import traceback
 import lenovo_utils as utils
 
 
@@ -57,14 +58,15 @@ def update_firmware(ip, login_account, login_password, image, targets, fsprotoco
     :returns: returns firmware updating result
     """
     # Connect using the address, account name, and password
-    login_host = "https://" + ip 
+    login_host = "https://" + ip
     try:
         # Create a REDFISH object
         result = {}
-        REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
+        REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account, timeout=utils.g_timeout,
                                          password=login_password, default_prefix='/redfish/v1', cafile=utils.g_CAFILE)
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
         return result
 
@@ -82,7 +84,7 @@ def update_firmware(ip, login_account, login_password, image, targets, fsprotoco
         response_update_service_url = REDFISH_OBJ.get(update_service_url, None)
         if response_update_service_url.status == 200:
             # Update firmware via local payload
-            if fsprotocol.lower() == "httppush":
+            if fsprotocol.lower() == "httppush" and 'MultipartHttpPushUri' not in response_update_service_url.dict.keys():
                 headers = {"Content-Type":"application/octet-stream"}
 
                 firmware_update_url =  login_host + response_update_service_url.dict["HttpPushUri"]
@@ -116,6 +118,41 @@ def update_firmware(ip, login_account, login_password, image, targets, fsprotoco
                     requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
                     firmware_update_response = requests.post(firmware_update_url, headers=headers, auth=auth, files=files, verify=False)
                 response_code = firmware_update_response.status_code
+            elif fsprotocol.lower() == 'httppush' and 'MultipartHttpPushUri' in response_update_service_url.dict.keys():
+                firmware_update_url = login_host + response_update_service_url.dict['MultipartHttpPushUri']
+                if os.path.isdir(fsdir):
+                    file_path = fsdir + os.sep +image
+                else:
+                    result = {'ret':False,'msg':"The path %s doesn't exist, please check the 'fsdir' is correct." %fsdir}
+                    return result
+
+                F_image = open(file_path, 'rb')
+                if targets:
+                    if "BMC-Backup" not in targets[0]:
+                        result = {'ret':False,"msg":"If firmware update target is backup image of BMC, please specify targets as BMC-Backup, otherwise targets parameter is needless."}
+                        return result
+                    multipart_target = login_host + "/redfish/v1/UpdateService/FirmwareInventory/BMC-Backup"
+                    BMC_parameters = {'Targets': [multipart_target]}
+                    print("MultipartHttpPushUriTargets is %s" % [multipart_target])
+                else:
+                    multipart_target = ''
+                    BMC_parameters = {'Targets': []}
+                files = {
+                    'UpdateParameters': (multipart_target, json.dumps(BMC_parameters), 'application/json'),
+                    'UpdateFile': (image, F_image, 'application/octet-stream')
+                }
+                # Set BMC access credential
+                auth = HTTPBasicAuth(login_account,login_password)
+
+                # Get the sessions uri from the session server response
+                if utils.g_CAFILE is not None and utils.g_CAFILE != "":
+                    firmware_update_response = requests.post(firmware_update_url,auth=auth,files=files,verify=utils.g_CAFILE)
+                else:
+                    # Ignore SSL Certificates
+                    requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+                    firmware_update_response = requests.post(firmware_update_url,auth=auth,files=files,verify=False)
+                response_code = firmware_update_response.status_code
+                F_image.close()
             else:
                 firmware_update_url = response_update_service_url.dict['Actions']['#UpdateService.SimpleUpdate']['target']
                 # Update firmware via file server
@@ -150,14 +187,16 @@ def update_firmware(ip, login_account, login_password, image, targets, fsprotoco
                 else:
                     task_uri = firmware_update_response.dict['@odata.id']
                 result = task_monitor(REDFISH_OBJ, task_uri)
-                # Delete task
-                REDFISH_OBJ.delete(task_uri, None)
+                # Delete the task when the task state is completed without any warning
+                if result["ret"] is True and "Completed" == result["task_state"] and result['msg'] == '':
+                    REDFISH_OBJ.delete(task_uri, None)
                 if result["ret"] is True:
-                    task_state = result["msg"]
+                    task_state = result["task_state"]
                     if task_state == "Completed":
-                        result = {'ret': True, 'msg': "Update firmware successfully"}
+                        result['msg'] = 'Update firmware successfully. %s' %(result['msg'])
                     else:
-                        result = {'ret': False, 'msg': "Update firmware failed, task state is %s"  %task_state}
+                        result['ret'] = False
+                        result['msg'] = 'Update firmware failed. %s' %(result['msg'])
                 else:
                     return result
             else:
@@ -170,6 +209,7 @@ def update_firmware(ip, login_account, login_password, image, targets, fsprotoco
             result = {'ret': False, 'msg': "Url '%s' response Error code %s, \nError message :%s" % (update_service_url, response_update_service_url.status, message)}
             return result
     except Exception as e:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "error_message: %s" % (e)}
     finally:
         # Logout of the current session
@@ -180,12 +220,12 @@ def update_firmware(ip, login_account, login_password, image, targets, fsprotoco
         return result
 
 
-def flush():
+def flush(percent):
     list = ['|', '\\', '-', '/']
     for i in list:
         sys.stdout.write(' ' * 100 + '\r')
         sys.stdout.flush()
-        sys.stdout.write(i + '\r')
+        sys.stdout.write(i + (('          PercentComplete: %d' %percent) if percent > 0 else '') + '\r')
         sys.stdout.flush()
         time.sleep(0.1)
 
@@ -195,11 +235,17 @@ def task_monitor(REDFISH_OBJ, task_uri):
     RUNNING_TASK_STATE = ["New", "Pending", "Service", "Starting", "Stopping", "Running", "Cancelling", "Verifying"]
     END_TASK_STATE = ["Cancelled", "Completed", "Exception", "Killed", "Interrupted", "Suspended"]
     current_state = ""
+    messages = []
+    percent = 0
 
     while True:
         response_task_uri = REDFISH_OBJ.get(task_uri, None)
         if response_task_uri.status == 200:
             task_state = response_task_uri.dict["TaskState"]
+            if 'Messages' in response_task_uri.dict:
+                messages = response_task_uri.dict['Messages']
+            if 'PercentComplete' in response_task_uri.dict:
+                percent = response_task_uri.dict['PercentComplete']
 
             if task_state in RUNNING_TASK_STATE:
                 if task_state != current_state:
@@ -207,7 +253,7 @@ def task_monitor(REDFISH_OBJ, task_uri):
                     print('Task state is %s, wait a minute' % current_state)
                     continue
                 else:
-                    flush()
+                    flush(percent)
             elif task_state.startswith("Downloading"):
                 sys.stdout.write(' ' * 100 + '\r')
                 sys.stdout.flush()
@@ -221,15 +267,20 @@ def task_monitor(REDFISH_OBJ, task_uri):
                 sys.stdout.flush()
                 continue
             elif task_state in END_TASK_STATE:
+                sys.stdout.write(' ' * 100 + '\r')
+                sys.stdout.flush()
                 print("End of the task")
-                result = {'ret':True, 'msg': task_state}
+                result = {'ret':True, 'task_state':task_state, 'msg': ' Messages: %s' %str(messages) if messages != [] else ''}
                 return result
             else:
-                result = {"ret":False, "msg":"Task Not conforming to Schema Specification"}
+                result = {'ret':False, 'task_state':task_state}
+                result['msg'] = ('Unknown TaskState %s. ' %task_state) + 'Task Not conforming to Schema Specification. ' + (
+                    'Messages: %s' %str(messages) if messages != [] else '')
                 return result
         else:
             message = utils.get_extended_error(response_task_uri)
-            result = {'ret': False, 'msg': "Url '%s' response Error code %s, \nError message :%s" % (task_uri, response_task_uri.status, message)}
+            result = {'ret': False, 'task_state':None, 'msg': "Url '%s' response Error code %s, \nError message :%s" % (
+                task_uri, response_task_uri.status, message)}
             return result
 
 

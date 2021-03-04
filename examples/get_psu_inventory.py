@@ -23,6 +23,7 @@
 import sys
 import redfish
 import json
+import traceback
 import lenovo_utils as utils
 
 
@@ -44,12 +45,13 @@ def get_psu_inventory(ip, login_account, login_password, system_id):
     try:
         # Connect using the BMC address, account name, and password
         # Create a REDFISH object
-        REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
+        REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account, timeout=utils.g_timeout,
                                              password=login_password, default_prefix='/redfish/v1', cafile=utils.g_CAFILE)
 
         # Login into the server and create a session
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except Exception as e:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Error_message: %s. Please check if username, password and IP are correct" % repr(e)}
         return result
 
@@ -93,9 +95,15 @@ def get_psu_inventory(ip, login_account, login_password, system_id):
                 entry = {}
                 for property in ['Name', 'SerialNumber', 'PowerOutputWatts', 'EfficiencyPercent', 'LineInputVoltage', 
                     'PartNumber', 'FirmwareVersion', 'PowerCapacityWatts', 'PowerInputWatts', 'Model',
-                    'PowerSupplyType', 'Status', 'Manufacturer']:
+                    'PowerSupplyType', 'Status', 'Manufacturer', 'HotPluggable', 'LastPowerOutputWatts',
+                    'InputRanges', 'LineInputVoltageType', 'Location']:
                     if property in PowerSupplies:
                         entry[property] = PowerSupplies[property]
+                if 'Oem' in PowerSupplies and 'Lenovo' in PowerSupplies['Oem']:
+                    entry['Oem'] = {'Lenovo':{}}
+                    for oemprop in ['FruPartNumber', 'ManufactureDate', 'ManufacturerName']:
+                        if oemprop in PowerSupplies['Oem']['Lenovo']:
+                            entry['Oem']['Lenovo'][oemprop] = PowerSupplies['Oem']['Lenovo'][oemprop]
                 psu_details.append(entry)
         else:
             result = {'ret': False, 'msg': "response power url Error code %s" % response_power_url.status}

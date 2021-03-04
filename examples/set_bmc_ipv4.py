@@ -23,6 +23,7 @@
 import sys
 import json
 import redfish
+import traceback
 import lenovo_utils as utils
 
 
@@ -49,11 +50,12 @@ def set_bmc_ipv4(ip, login_account, login_password, dhcp_enabled, static_ip, sta
     try:
         # Connect using the BMC address, account name, and password
         # Create a REDFISH object
-        REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
+        REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account, timeout=utils.g_timeout,
                                              password=login_password, default_prefix='/redfish/v1', cafile=utils.g_CAFILE)
         # Login into the server and create a session
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
         return result
 
@@ -90,6 +92,11 @@ def set_bmc_ipv4(ip, login_account, login_password, dhcp_enabled, static_ip, sta
 
         if 'EthernetInterfaces' not in  response_url.dict:
             continue
+
+        # Check whether server is SR635/SR655 or not
+        flag_SR635_SR655 = False
+        if 'Managers/Self' in request_url and 'Oem' in response_url.dict and 'Ami' in response_url.dict['Oem']:
+            flag_SR635_SR655 = True
 
         request_url = response_url.dict["EthernetInterfaces"]["@odata.id"]
         response_url = REDFISH_OBJ.get(request_url, None)
@@ -129,7 +136,6 @@ def set_bmc_ipv4(ip, login_account, login_password, dhcp_enabled, static_ip, sta
     else:
         payload["DHCPv4"]["DHCPEnabled"] = False
     if static_ip is not None or static_gateway is not None or static_mask is not None:
-        payload["IPv4StaticAddresses"] = list()
         config = {}
         if static_ip is not None:
             config["Address"] = static_ip
@@ -137,7 +143,12 @@ def set_bmc_ipv4(ip, login_account, login_password, dhcp_enabled, static_ip, sta
             config["Gateway"] = static_gateway
         if static_mask is not None:
             config["SubnetMask"] = static_mask
-        payload["IPv4StaticAddresses"].append(config)
+        if flag_SR635_SR655:
+            payload["IPv4Addresses"] = list()
+            payload["IPv4Addresses"].append(config)
+        else:
+            payload["IPv4StaticAddresses"] = list()
+            payload["IPv4StaticAddresses"].append(config)
 
     # If no need change, nothing to do. If error detected, report it
     need_change = False

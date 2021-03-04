@@ -23,6 +23,7 @@
 import sys
 import json
 import redfish
+import traceback
 import lenovo_utils as utils
 
 
@@ -57,11 +58,12 @@ def lenovo_update_raid_volume(ip, login_account, login_password, system_id, raid
     try:
         # Connect using the BMC address, account name, and password
         # Create a REDFISH object
-        REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
+        REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account, timeout=utils.g_timeout,
                                              password=login_password, default_prefix='/redfish/v1', cafile=utils.g_CAFILE)
         # Login into the server and create a session
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
         return result
     storage_details = []
@@ -84,6 +86,10 @@ def lenovo_update_raid_volume(ip, login_account, login_password, system_id, raid
 
         if "Storage" not in response_system_url.dict:
             continue #skip the invalid ComputeSystem that has no storage resource
+
+        flag_sr645_sr665 = False
+        if 'SR645' in response_system_url.dict['Model'] or 'SR665' in response_system_url.dict['Model']:
+            flag_sr645_sr665 = True
 
         # GET the Storage resources from the ComputerSystem resource
         storage_url = response_system_url.dict["Storage"]["@odata.id"]
@@ -162,9 +168,24 @@ def lenovo_update_raid_volume(ip, login_account, login_password, system_id, raid
              "Oem":{"Lenovo":{}}
             }
         if read_policy is not None:
-            parameter["Oem"]["Lenovo"]["ReadPolicy"] = read_policy
+            if not flag_sr645_sr665:
+                parameter["Oem"]["Lenovo"]["ReadPolicy"] = read_policy
+            else:
+                read_policy_mapdict = {
+                    "NoReadAhead": "Off",
+                    "ReadAhead": "ReadAhead"
+                    }
+                parameter["ReadCachePolicy"] = read_policy_mapdict[read_policy]
         if write_policy is not None:
-            parameter["Oem"]["Lenovo"]["WritePolicy"] = write_policy
+            if not flag_sr645_sr665:
+                parameter["Oem"]["Lenovo"]["WritePolicy"] = write_policy
+            else:
+                write_policy_mapdict = {
+                    "WriteThrough": "WriteThrough",
+                    "AlwaysWriteBack": "UnprotectedWriteBack",
+                    "WriteBackWithBBU": "ProtectedWriteBack"
+                    }
+                parameter["WriteCachePolicy"] = write_policy_mapdict[write_policy]
         if io_policy is not None:
             parameter["Oem"]["Lenovo"]["IOPolicy"] = io_policy
         if access_policy is not None:
