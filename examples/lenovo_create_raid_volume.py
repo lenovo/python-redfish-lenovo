@@ -91,6 +91,10 @@ def lenovo_create_raid_volume(ip, login_account, login_password, system_id, raid
         if "Storage" not in response_system_url.dict:
             continue #skip the invalid ComputeSystem that has no storage resource
 
+        flag_sr645_sr665 = False
+        if 'SR645' in response_system_url.dict['Model'] or 'SR665' in response_system_url.dict['Model']:
+            flag_sr645_sr665 = True
+
         # GET the Storage resources from the ComputerSystem resource
         storage_url = response_system_url.dict["Storage"]["@odata.id"]
         response_storage_url = REDFISH_OBJ.get(storage_url, None)
@@ -181,9 +185,24 @@ def lenovo_create_raid_volume(ip, login_account, login_password, system_id, raid
         if volume_capacity > 0:
             parameter["CapacityBytes"] = volume_capacity # if you want to use all space, no need to specify CapacityBytes
         if read_policy is not None:
-            parameter["Oem"]["Lenovo"]["ReadPolicy"] = read_policy
+            if not flag_sr645_sr665:
+                parameter["Oem"]["Lenovo"]["ReadPolicy"] = read_policy
+            else:
+                read_policy_mapdict = {
+                    "NoReadAhead": "Off",
+                    "ReadAhead": "ReadAhead"
+                    }
+                parameter["ReadCachePolicy"] = read_policy_mapdict[read_policy]
         if write_policy is not None:
-            parameter["Oem"]["Lenovo"]["WritePolicy"] = write_policy
+            if not flag_sr645_sr665:
+                parameter["Oem"]["Lenovo"]["WritePolicy"] = write_policy
+            else:
+                write_policy_mapdict = {
+                    "WriteThrough": "WriteThrough",
+                    "AlwaysWriteBack": "UnprotectedWriteBack",
+                    "WriteBackWithBBU": "ProtectedWriteBack"
+                    }
+                parameter["WriteCachePolicy"] = write_policy_mapdict[write_policy]
         if io_policy is not None:
             parameter["Oem"]["Lenovo"]["IOPolicy"] = io_policy
         if access_policy is not None:
@@ -193,9 +212,12 @@ def lenovo_create_raid_volume(ip, login_account, login_password, system_id, raid
 
         response_create_volume = REDFISH_OBJ.post(target_raid_volumes_url,body=parameter, headers=headers)
         if response_create_volume.status in [200, 201]:
-            rt_link = login_host + "/" + response_create_volume.dict["@odata.id"]
-            id = rt_link.split("/")[-1]
-            result = {"ret":True,"msg":"Create volume successfully, volume id is " + id + ", volume 's link is:" + rt_link}
+            try:
+                rt_link = login_host + "/" + response_create_volume.dict["@odata.id"]
+                id = rt_link.split("/")[-1]
+                result = {"ret":True,"msg":"Create volume successfully, volume id is " + id + ", volume 's link is:" + rt_link}
+            except:
+                result = {"ret":True,"msg":"Create volume successfully"}
             try:
                 REDFISH_OBJ.logout()
             except:
