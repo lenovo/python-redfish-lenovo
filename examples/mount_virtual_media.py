@@ -21,10 +21,10 @@
 
 ###
 #
-# This script only works on the latest XCC Firmware of lenovo (2.50 and above). 
+# This script only works on the latest XCC Firmware of lenovo (2.50 and above).
 # You can check "version" property of the URI below:
 #     https://ip/redfish/v1/UpdateService/FirmwareInventory/BMC-Primary
-# 
+#
 # If your version is lower than it, you can use the script below, which works on old XCC Firmware.
 #     https://github.com/lenovo/python-redfish-lenovo/blob/master/examples/lenovo_mount_virtual_media.py
 #
@@ -61,10 +61,11 @@ def mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsp
     try:
         # Connect using the address, account name, and password
         # Create a REDFISH object
-        REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account,
+        REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account, timeout=utils.g_timeout,
                                              password=login_password, default_prefix='/redfish/v1', cafile=utils.g_CAFILE)
         REDFISH_OBJ.login(auth="basic")
     except:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result
 
@@ -98,7 +99,7 @@ def mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsp
                     return result
 
                 # Get the mount virtual media list
-				# For the latest XCC Firmware(version is 2.5 and above), there are 10 predefined members
+                # For the latest XCC Firmware(version is 2.5 and above), there are 10 predefined members
                 response_virtual_media = REDFISH_OBJ.get(virtual_media_url, None)
                 if response_virtual_media.status == 200:
                     members_list = response_virtual_media.dict["Members"]
@@ -127,11 +128,9 @@ def mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsp
                         result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
                             members_url, response_members.status, error_message)}
                         return result
-
-                    # Mount virtual media via patch
-                    if members_url.split('/')[-1].startswith("EXT"):
-
-                        if image_name is None:
+                    if image_name is None or not image_name:
+                        # Mount virtual media via patch
+                        if members_url.split('/')[-1].startswith("EXT"):
                             if protocol == "nfs":
                                 image_uri = fsip + fsport + ":" + fsdir + "/" + image
                             else:
@@ -147,19 +146,16 @@ def mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsp
                                 result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
                                     members_url, response.status, error_message)}
                                 return result
-                        else:
-                            continue
-                    # Mount virtual media via action
-                    elif "#VirtualMedia.InsertMedia" in response_members.dict["Actions"]:
-                        ActionInfo_url = response_members.dict['Actions']['#VirtualMedia.InsertMedia']['@Redfish.ActionInfo']
-                        response_actionInfo = REDFISH_OBJ.get(ActionInfo_url, None)
-                        for parameter in response_actionInfo.dict["Parameters"]:
-                            if parameter["Name"] == "TransferProtocolType":
-                                SupportProtocols = parameter["AllowableValues"]
+                        # Mount virtual media via action
+                        elif "#VirtualMedia.InsertMedia" in response_members.dict["Actions"]:
+                            ActionInfo_url = response_members.dict['Actions']['#VirtualMedia.InsertMedia']['@Redfish.ActionInfo']
+                            response_actionInfo = REDFISH_OBJ.get(ActionInfo_url, None)
+                            for parameter in response_actionInfo.dict["Parameters"]:
+                                if parameter["Name"] == "TransferProtocolType":
+                                    SupportProtocols = parameter["AllowableValues"]
 
-                        if fsprotocol.upper() in SupportProtocols:
-                            InsertMedia_url = response_members.dict["Actions"]["#VirtualMedia.InsertMedia"]["target"]
-                            if not image_name:
+                            if fsprotocol.upper() in SupportProtocols:
+                                InsertMedia_url = response_members.dict["Actions"]["#VirtualMedia.InsertMedia"]["target"]
                                 image_uri = protocol + "://" + fsip + fsport + fsdir + "/" + image
                                 if protocol == 'nfs':
                                     body = {"Image": image_uri, "TransferProtocolType": protocol.upper()}
@@ -176,10 +172,10 @@ def mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsp
                                         InsertMedia_url, response.status, error_message)}
                                     return result
                             else:
-                                continue
-                        else:
-                            result = {"ret": False, "msg": "For remote mounts, only support: %s" %SupportProtocols}
-                            return result
+                                result = {"ret": False, "msg": "For remote mounts, only support: %s" %SupportProtocols}
+                                return result
+                    else:
+                        continue
                 result = {'ret': False, 'msg': "Up to 4 files can be concurrently mounted to the server by the BMC."}
                 return result
         else:
@@ -187,6 +183,7 @@ def mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsp
             result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
             managers_url, response_managers_url.status, error_message)}
     except Exception as e:
+        traceback.print_exc()
         result = {'ret': False, 'msg': "error_message: %s" % (e)}
     finally:
         # Logout
@@ -198,8 +195,8 @@ def mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsp
 
 
 def add_helpmessage(argget):
-    argget.add_argument('--fsprotocol', type=str, nargs='?', choices=["NFS", "HTTP"],
-                        help='Specifies the protocol prefix for uploading image or ISO. Support: ["NFS","HTTP"]')
+    argget.add_argument('--fsprotocol', type=str, nargs='?', choices=["NFS", "HTTP", "HTTPS"],
+                        help='Specifies the protocol prefix for uploading image or ISO. Support: ["NFS","HTTP","HTTPS"]')
     argget.add_argument('--fsip', type=str, help='Specify the file server ip')
     argget.add_argument('--fsdir', type=str, help='File path of the image')
     argget.add_argument('--fsport', type=str, default='', help='Specify the file server port')
