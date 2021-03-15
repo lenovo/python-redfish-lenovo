@@ -79,6 +79,8 @@ def get_volt_inventory(ip, login_account, login_password):
                     power_url = response_url.dict['Power']['@odata.id']
                     response_power_url = REDFISH_OBJ.get(power_url, None)
                     if response_power_url.status == 200:
+                        if 'Voltages' not in response_power_url.dict:
+                            continue
                         list_volt = response_power_url.dict["Voltages"]
                         for volt_item in list_volt:
                             tmp_volt_item = {}
