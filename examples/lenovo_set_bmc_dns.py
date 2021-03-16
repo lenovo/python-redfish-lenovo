@@ -137,7 +137,7 @@ def lenovo_set_bmc_dns(ip, login_account, login_password, enabled, dnsserver):
                         result = {'ret': True, 'msg': "Set BMC DNS config successfully.\n"
                                                       "Start to reset the DNS, may take about 1 minute..."}
                     else:
-                        error_message = utils.get_extended_error(reset_url)
+                        error_message = utils.get_extended_error(response_reset_url)
                         result = {'ret': False, 'msg': "Url '%s' response error code %s \nerror_message: %s" % (
                             reset_url, response_reset_url.status, error_message)}
             else:
@@ -145,9 +145,9 @@ def lenovo_set_bmc_dns(ip, login_account, login_password, enabled, dnsserver):
                 result = {'ret': True, 'msg': "Set BMC DNS config successfully"}
 
         else:
-            error_message = utils.get_extended_error(response_url)
+            error_message = utils.get_extended_error(response_url_patch)
             result = {'ret': False, 'msg': "Url '%s' response error code %s \nerror_message: %s" % (
-                      request_url, response_url.status, error_message)}
+                      request_url, response_url_patch.status, error_message)}
 
         try:
             REDFISH_OBJ.logout()
