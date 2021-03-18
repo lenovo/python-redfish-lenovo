@@ -27,7 +27,7 @@ import redfish
 import lenovo_utils as utils
 
 
-def delete_ssh_pubkey(ip, login_account, login_password, user_name):
+def lenovo_delete_ssh_pubkey(ip, login_account, login_password, user_name):
     """Delete SSH Pubkey    
     :params ip: BMC IP address
     :type ip: string
@@ -154,7 +154,7 @@ if __name__ == '__main__':
     user_name = parameter_info["username"]
 
     # Delete SSH public key and check result
-    result = delete_ssh_pubkey(ip, login_account, login_password,user_name)
+    result = lenovo_delete_ssh_pubkey(ip, login_account, login_password,user_name)
 
     if result['ret'] is True:
         del result['ret']
