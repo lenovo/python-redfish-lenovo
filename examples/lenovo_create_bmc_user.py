@@ -82,6 +82,69 @@ def set_custom_role_privileges(REDFISH_OBJ,response_account_service_url,roleid,a
         return result
 
 
+import requests
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+
+def set_tsm_privileges(ip, login_account, login_password, username, kvm, vm):
+    """Set priviledges for kvm console and virtual media access
+    :params ip: BMC IP address
+    :type ip: string
+    :params login_account: BMC user name
+    :type login_account: string
+    :params login_password: BMC user password
+    :type login_password: string
+    :params username: user will be granted
+    :type username: string
+    :params kvm: KVM console access authority
+    :type kvm: int
+    :params vm: virtual media access authority
+    :type vm: int
+    :returns: returns result with messages when succeeded or failed
+    """
+    login_host = "https://" + ip
+    headers = {"Content-Type": "application/json"}
+    session_url = login_host + "/api/session"
+    body = {'username':login_account,'password':login_password}
+    # Create session connection
+    requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+    s = requests.session()
+    response = s.post(session_url, headers=headers, data=json.dumps(body), verify=False)
+    json_response = json.loads(response.content)
+    if response.status_code == 200:
+        h = {"X-CSRFTOKEN": "%s" % (json_response["CSRFToken"]), "Content-Type": "application/json"}
+        # Get user list and find if username exist
+        user_list_url = login_host + "/api/settings/users"
+        response_user_list_uri = s.get(user_list_url, headers=h, cookies=s.cookies.get_dict(), verify=False)
+        user_list = json.loads(response_user_list_uri.content)
+        user = None
+        for member in user_list:
+            if member['name'] == username:
+                user = member
+                break
+        if user == None:
+            result = {'ret': False, 'msg': "The user specified %s does not exist." % username}
+            return result
+
+        # Change kvm/vm access
+        user_url = login_host + "/api/settings/users/%s" % user['userid']
+        user['kvm'] = kvm
+        user['vmedia'] = vm
+        response_put_uri = s.put(user_url, headers=h, data=json.dumps(user), cookies=s.cookies.get_dict(), verify=False)
+        if response_put_uri.status_code == 200:
+            result = {'ret': True, 'msg': "Success to set KVM or VM access privileges."}
+        else:
+            result = {'ret': False, 'msg': "Failed to set KVM or VM access privileges, response code  %s" % response_put_uri.status_code}
+
+        # Delete session
+        delete_url = login_host + "/api/session"
+        s.get(delete_url, headers=h, cookies=s.cookies.get_dict(), verify=False)
+        return result
+
+    else:
+        result = {'ret': False,
+                  'msg': "Session connection failed, response code %s" % response.status_code}
+        return result
+
 
 def lenovo_create_bmc_user(ip, login_account, login_password, username, password, authority):
     """create bmc user
@@ -150,6 +213,8 @@ def lenovo_create_bmc_user(ip, login_account, login_password, username, password
         if create_mode == "POST_Action":
                 # Set user privilege
                 rolename = ""
+                kvm_privilege = 0
+                vm_privilege = 0
                 if "Supervisor" in authority:
                     rolename = "Administrator"
                 elif "Operator" in authority:
@@ -158,6 +223,13 @@ def lenovo_create_bmc_user(ip, login_account, login_password, username, password
                     rolename = "ReadOnly"
                 else:
                     rolename = authority[0]
+                
+                if "RemoteConsoleAccess" in authority:
+                    kvm_privilege = 1
+                elif "RemoteConsoleAndVirtualMediaAccess" in authority:
+                    kvm_privilege = 1
+                    vm_privilege = 1
+
                 #create new user account
                 headers = None
                 parameter = {
@@ -165,10 +237,14 @@ def lenovo_create_bmc_user(ip, login_account, login_password, username, password
                     "Name": username,
                     "UserName": username,
                     "RoleId":rolename
-                    }
+                }
                 response_create_url = REDFISH_OBJ.post(accounts_url, body=parameter, headers=headers)
                 if response_create_url.status == 200 or response_create_url.status == 201 or response_create_url.status == 204:
-                    result = {'ret': True, 'msg': "create new user successful"}
+                    result = {'ret': True, 'msg': "create new user successful."}
+                    if kvm_privilege or vm_privilege:
+                        result_set = set_tsm_privileges(ip, login_account, login_password, username, kvm_privilege, vm_privilege)
+                        if result_set['ret'] == False:
+                            result['msg'] = "create new user successful but failed to set kvm or virtual media access privileges."
                     return result
                 else:
                     error_message = utils.get_extended_error(response_create_url)
@@ -273,7 +349,7 @@ def add_helpmessage(argget):
     help_str += "For super user, this parameter shall be Supervisor. default is Supervisor. "
     help_str += "For the user to view information only, this parameter shall be ReadOnly. "
     help_str += "For other OEM authority, you can choose one or more values in the OEM privileges list:"
-    help_str += "[UserAccountManagement,RemoteConsoleAccess,RemoteConsoleAndVirtualMediaAcccess,RemoteServerPowerRestartAccess,AbilityClearEventLogs,AdapterConfiguration_Basic,AdapterConfiguration_NetworkingAndSecurity,AdapterConfiguration_Advanced]"
+    help_str += "[UserAccountManagement,RemoteConsoleAccess,RemoteConsoleAndVirtualMediaAccess,RemoteServerPowerRestartAccess,AbilityClearEventLogs,AdapterConfiguration_Basic,AdapterConfiguration_NetworkingAndSecurity,AdapterConfiguration_Advanced]"
     argget.add_argument('--authority', nargs='*', default=["Supervisor"], help=help_str)
 
 
