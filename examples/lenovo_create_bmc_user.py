@@ -31,7 +31,7 @@ def set_custom_role_privileges(REDFISH_OBJ,response_account_service_url,roleid,a
     result = {}
     list_auth = []
     #check custom privileges
-    rang_custom_auth = ("Supervisor","ReadOnly","UserAccountManagement","RemoteConsoleAccess","RemoteConsoleAndVirtualMediaAcccess","RemoteServerPowerRestartAccess","AbilityClearEventLogs","AdapterConfiguration_Basic"
+    rang_custom_auth = ("Supervisor","ReadOnly","UserAccountManagement","RemoteConsoleAccess","RemoteConsoleAndVirtualMediaAccess","RemoteServerPowerRestartAccess","AbilityClearEventLogs","AdapterConfiguration_Basic"
 ,"AdapterConfiguration_NetworkingAndSecurity","AdapterConfiguration_Advanced")
     for auth in authority:
         if auth not in rang_custom_auth:
@@ -137,7 +137,7 @@ def set_tsm_privileges(ip, login_account, login_password, username, kvm, vm):
 
         # Delete session
         delete_url = login_host + "/api/session"
-        s.get(delete_url, headers=h, cookies=s.cookies.get_dict(), verify=False)
+        s.delete(delete_url, headers=h, cookies=s.cookies.get_dict(), verify=False)
         return result
 
     else:
@@ -226,7 +226,7 @@ def lenovo_create_bmc_user(ip, login_account, login_password, username, password
                 
                 if "RemoteConsoleAccess" in authority:
                     kvm_privilege = 1
-                elif "RemoteConsoleAndVirtualMediaAccess" in authority:
+                if "RemoteConsoleAndVirtualMediaAccess" in authority:
                     kvm_privilege = 1
                     vm_privilege = 1
 
@@ -242,7 +242,7 @@ def lenovo_create_bmc_user(ip, login_account, login_password, username, password
                 if response_create_url.status == 200 or response_create_url.status == 201 or response_create_url.status == 204:
                     result = {'ret': True, 'msg': "create new user successful."}
                     if kvm_privilege or vm_privilege:
-                        result_set = set_tsm_privileges(ip, login_account, login_password, username, kvm_privilege, vm_privilege)
+                        result_set = set_tsm_privileges(ip, login_account, login_password, username, kvm=kvm_privilege, vm=vm_privilege)
                         if result_set['ret'] == False:
                             result['msg'] = "create new user successful but failed to set kvm or virtual media access privileges."
                     return result
