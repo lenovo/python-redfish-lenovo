@@ -126,7 +126,7 @@
 |                    | lenovo_ssl_certificate_import.py         |     NO        |     Yes       |     Yes        |     Yes         |
 |                    | lenovo_get_ssh_pubkey.py                 |     NO        |     Yes       |     Yes        |     Yes         |
 |                    | lenovo_import_ssh_pubkey.py              |     NO        |     Yes       |     Yes        |     Yes         |
-|                    | lenovo_delete_ssh_pubkey.key             |     NO        |     Yes       |     Yes        |     Yes         |
+|                    | lenovo_delete_ssh_pubkey.py              |     NO        |     Yes       |     Yes        |     Yes         |
 |--------------------|------------------------------------------|---------------|---------------|----------------|-----------------|
 | Other              | set_server_asset_tag.py                  |     Yes       |     Yes       |     Yes        |     Yes         |
 |                    | get_all_tasks.py                         |     Yes       |     Yes       |     Yes        |     Yes         |
@@ -136,7 +136,7 @@
 
 *1: Need to ajust the jumper
 *2: After enabling user, may request changing password for first login
-*3: Not supported for SN550, SN850. These info are controlled by CMM or SMM.
+*3: Not supported for SN550 (v2), SN850 (v2). These info are controlled by CMM or SMM.
 *4: Supported from firmware release of March, 2021
 
 ThinkSystem AMD 1P (Rome):      SR635, SR655
