@@ -39,7 +39,7 @@ def set_networkprotocol(ip, login_account, login_password, service, enabled, por
         :type enabled: int
         :params port: The value of this property shall contain the port assigned for the protocol
         :type port: int
-        :returns: returns Get bmc networkprotocol result when succeeded or error message when failed
+        :returns: returns set bmc networkprotocol result when succeeded or error message when failed
         """
 
     result = {}
