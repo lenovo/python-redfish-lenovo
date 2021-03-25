@@ -34,7 +34,7 @@ def get_networkprotocol_info(ip, login_account, login_password):
         :type login_account: string
         :params login_password: BMC user password
         :type login_password: string
-        :returns: returns Get bmc ntp result when succeeded or error message when failed
+        :returns: returns Get bmc networkprotocol result when succeeded or error message when failed
         """
 
     result = {}
