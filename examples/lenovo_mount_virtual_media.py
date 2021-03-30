@@ -277,7 +277,7 @@ def mount_virtual_media_from_cd(REDFISH_OBJ, members_list, protocol, fsip, fspor
         response_members = REDFISH_OBJ.get(members_url, None)
         if response_members.status == 200:
             image_name = response_members.dict["ImageName"]
-            InsertMedia_url = response_members.dict["Actions"]["#VirtualMedia.InsertMedia"]["target"]
+            insert_media_url = response_members.dict["Actions"]["#VirtualMedia.InsertMedia"]["target"]
         else:
             error_message = utils.get_extended_error(response_members)
             result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
@@ -290,14 +290,14 @@ def mount_virtual_media_from_cd(REDFISH_OBJ, members_list, protocol, fsip, fspor
                 body = {"Image": image_uri, "TransferProtocolType": protocol.upper()}
             else:
                 body = {"Image": image_uri, "TransferProtocolType": protocol.upper(), "UserName": fsusername, "Password": fspassword}
-            response = REDFISH_OBJ.post(InsertMedia_url, body=body)
+            response = REDFISH_OBJ.post(insert_media_url, body=body)
             if response.status in [200, 204]:
                 result = {'ret': True, 'msg': "'%s' mount successfully" % image}
                 return result
             else:
                 error_message = utils.get_extended_error(response)
                 result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
-                    InsertMedia_url, response.status, error_message)}
+                    insert_media_url, response.status, error_message)}
                 return result
         else:
             continue

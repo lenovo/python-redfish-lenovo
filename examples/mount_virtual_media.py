@@ -37,7 +37,7 @@ import traceback
 import lenovo_utils as utils
 
 
-def mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsport, image, fsdir, inserted, writeprotocol):
+def mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsport, fsusername, fspassword, image, fsdir, inserted, writeprotocol):
     """Mount an ISO or IMG image file from a file server to the host as a DVD or USB drive.
     :params ip: BMC IP address
     :type ip: string
@@ -130,54 +130,53 @@ def mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsp
                             members_url, response_members.status, error_message)}
                         return result
                     if image_name is None or not image_name:
-                        # Mount virtual media via patch
-                        if members_url.split('/')[-1].startswith("EXT"):
-                            if protocol == "nfs":
-                                image_uri = fsip + fsport + ":" + fsdir + "/" + image
-                            else:
-                                image_uri = protocol + "://" + fsip + fsport + fsdir + "/" + image
-                            body = {"Image": image_uri, "WriteProtected": bool(writeprotocol),
-                                    "Inserted": bool(inserted)}
-                            response = REDFISH_OBJ.patch(members_url, body=body)
-                            if response.status in [200, 204]:
-                                result = {'ret': True, 'msg': "'%s' mount successfully" % image}
-                                return result
-                            else:
-                                error_message = utils.get_extended_error(response)
-                                result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
-                                    members_url, response.status, error_message)}
-                                return result
-                        # Mount virtual media via action
-                        elif "Actions" in response_members.dict:
-                            if "#VirtualMedia.InsertMedia" in response_members.dict["Actions"]:
-                                ActionInfo_url = response_members.dict['Actions']['#VirtualMedia.InsertMedia']['@Redfish.ActionInfo']
-                                response_actionInfo = REDFISH_OBJ.get(ActionInfo_url, None)
-                                for parameter in response_actionInfo.dict["Parameters"]:
-                                    if parameter["Name"] == "TransferProtocolType":
-                                        SupportProtocols = parameter["AllowableValues"]
-
-                                if fsprotocol.upper() in SupportProtocols:
-                                    InsertMedia_url = response_members.dict["Actions"]["#VirtualMedia.InsertMedia"]["target"]
-                                    image_uri = protocol + "://" + fsip + fsport + fsdir + "/" + image
-                                    if protocol == 'nfs':
-                                        body = {"Image": image_uri, "TransferProtocolType": protocol.upper()}
-                                    else:
-                                        body = {"Image": image_uri, "TransferProtocolType": protocol.upper(),
-                                                "UserName": login_account, "Password": login_password}
-                                    response = REDFISH_OBJ.post(InsertMedia_url, body=body)
-                                    if response.status in [200, 204]:
-                                        result = {'ret': True, 'msg': "'%s' mount successfully" % image}
-                                        return result
-                                    else:
-                                        error_message = utils.get_extended_error(response)
-                                        result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
-                                            InsertMedia_url, response.status, error_message)}
-                                        return result
-                                else:
-                                    result = {"ret": False, "msg": "For remote mounts, only support: %s" %SupportProtocols}
-                                    return result
-                    else:
                         continue
+                    # Mount virtual media via patch
+                    if members_url.split('/')[-1].startswith("EXT"):
+                        if protocol == "nfs":
+                            image_uri = fsip + fsport + ":" + fsdir + "/" + image
+                        else:
+                            image_uri = protocol + "://" + fsip + fsport + fsdir + "/" + image
+                        body = {"Image": image_uri, "WriteProtected": bool(writeprotocol),
+                                "Inserted": bool(inserted)}
+                        response = REDFISH_OBJ.patch(members_url, body=body)
+                        if response.status in [200, 204]:
+                            result = {'ret': True, 'msg': "'%s' mount successfully" % image}
+                            return result
+                        else:
+                            error_message = utils.get_extended_error(response)
+                            result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                                members_url, response.status, error_message)}
+                            return result
+                    # Mount virtual media via action
+                    elif "Actions" in response_members.dict:
+                        if "#VirtualMedia.InsertMedia" in response_members.dict["Actions"]:
+                            action_url = response_members.dict['Actions']['#VirtualMedia.InsertMedia']['@Redfish.ActionInfo']
+                            response_action = REDFISH_OBJ.get(action_url, None)
+                            for parameter in response_action.dict["Parameters"]:
+                                if parameter["Name"] == "TransferProtocolType":
+                                    support_protocols = parameter["AllowableValues"]
+
+                            if fsprotocol.upper() in support_protocols:
+                                insert_url = response_members.dict["Actions"]["#VirtualMedia.InsertMedia"]["target"]
+                                image_uri = protocol + "://" + fsip + fsport + fsdir + "/" + image
+                                if protocol == 'nfs':
+                                    body = {"Image": image_uri, "TransferProtocolType": protocol.upper()}
+                                else:
+                                    body = {"Image": image_uri, "TransferProtocolType": protocol.upper(),
+                                            "UserName": fsusername, "Password": fspassword}
+                                response_insert = REDFISH_OBJ.post(insert_url, body=body)
+                                if response_insert.status in [200, 204]:
+                                    result = {'ret': True, 'msg': "'%s' mount successfully" % image}
+                                    return result
+                                else:
+                                    error_message = utils.get_extended_error(response_insert)
+                                    result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                                        insert_url, response_insert.status, error_message)}
+                                    return result
+                            else:
+                                result = {"ret": False, "msg": "For remote mounts, only support: %s" %support_protocols}
+                                return result
                 result = {'ret': False, 'msg': "Up to 4 files can be concurrently mounted to the server by the BMC."}
                 return result
         else:
@@ -197,11 +196,15 @@ def mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsp
 
 
 def add_helpmessage(argget):
-    argget.add_argument('--fsprotocol', type=str, nargs='?', choices=["NFS", "HTTP", "HTTPS"],
-                        help='Specifies the protocol prefix for uploading image or ISO. Support: ["NFS","HTTP","HTTPS"]')
+    argget.add_argument('--fsprotocol', type=str, nargs='?', choices=["NFS", "HTTP", "HTTPS", "CIFS"],
+                        help='Specifies the protocol prefix for uploading image or ISO. Support: ["NFS","HTTP","HTTPS", "CIFS"]')
     argget.add_argument('--fsip', type=str, help='Specify the file server ip')
     argget.add_argument('--fsdir', type=str, help='File path of the image')
     argget.add_argument('--fsport', type=str, default='', help='Specify the file server port')
+    argget.add_argument('--fsusername', type=str, nargs='?',
+                        help='Username to access the file path, available for Samba, CIFS, HTTP, SFTP/FTP')
+    argget.add_argument('--fspassword', type=str, nargs='?',
+                        help='Password to access the file path, password should be encrypted after object creation, available for Samba, CIFS, HTTP, SFTP/FTP')
     argget.add_argument('--image', type=str, required=True, help='Mount media iso name')
     argget.add_argument('--inserted', type=int, nargs='?', default=1, choices=[0, 1],
                         help='Indicates if virtual media is inserted in the virtual device. Support: [0:False, 1:True].')
@@ -230,6 +233,8 @@ Example of HTTP/NFS:
         config_ini_info["fsprotocol"] = cfg.get('FileServerCfg', 'FSprotocol')
         config_ini_info["fsip"] = cfg.get('FileServerCfg', 'FSip')
         config_ini_info["fsport"] = cfg.get('FileServerCfg', 'FSport')
+        config_ini_info["fsusername"] = cfg.get('FileServerCfg', 'FSusername')
+        config_ini_info["fspassword"] = cfg.get('FileServerCfg', 'FSpassword')
         config_ini_info["fsdir"] = cfg.get('FileServerCfg', 'FSdir')
 
     # Gets the parameters specified on the command line
@@ -240,6 +245,8 @@ Example of HTTP/NFS:
     # Parse the added parameters
     parameter_info['fsprotocol'] = args.fsprotocol
     parameter_info['fsport'] = args.fsport
+    parameter_info['fsusername'] = args.fsusername
+    parameter_info['fspassword'] = args.fspassword
     parameter_info['fsip'] = args.fsip
     parameter_info['fsdir'] = args.fsdir
 
@@ -266,6 +273,8 @@ if __name__ == '__main__':
         fsprotocol = parameter_info['fsprotocol']
         fsip = parameter_info['fsip']
         fsport = parameter_info['fsport']
+        fsusername = parameter_info['fsusername']
+        fspassword = parameter_info['fspassword']
         image = parameter_info['image']
         fsdir = parameter_info['fsdir']
         inserted = parameter_info['inserted']
@@ -275,7 +284,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     # Get mount media iso result and check result
-    result = mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsport, image, fsdir, inserted, writeprotocol)
+    result = mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsport, fsusername, fspassword, image, fsdir, inserted, writeprotocol)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
