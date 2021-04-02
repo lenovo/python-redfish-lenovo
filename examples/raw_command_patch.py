@@ -58,13 +58,6 @@ def raw_command_patch(ip, login_account, login_password, resource_uri, body):
 
     request_url = resource_uri
 
-    response_url = REDFISH_OBJ.get(request_url, None)
-    if response_url.status != 200:
-        error_message = utils.get_extended_error(response_url)
-        result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-            request_url, response_url.status, error_message)}
-        return result
-
     headers = {"If-Match": "*"}
     response_url = REDFISH_OBJ.patch(request_url, body=json.loads(body), headers=headers)
     if response_url.status not in [200, 204]:
@@ -89,9 +82,9 @@ def raw_command_patch(ip, login_account, login_password, resource_uri, body):
 
 def add_helpmessage(parser):
     parser.add_argument('--resource_uri', type=str, required=True,
-                        help='Specify redfish resource uri.')
+            help='Specify redfish resource uri. Ex: "/redfish/v1/Systems/1"')
     parser.add_argument('--body', type=str, required=True,
-                        help='Specify json string body for redfish patch request.')
+            help='Specify json string body for redfish patch request. Ex: \'{"AssetTag": "new_asset_tag"}\'')
 
 
 def add_parameter():
