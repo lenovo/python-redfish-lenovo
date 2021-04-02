@@ -74,7 +74,7 @@ def raw_command_patch(ip, login_account, login_password, resource_uri, body):
         return result
 
     message_extendedinfo = ""
-    if "@Message.ExtendedInfo" in response_url.dict:
+    if response_url.status == 200 and "@Message.ExtendedInfo" in response_url.dict:
         message_extendedinfo = "@Message.ExtendedInfo: " + str(response_url.dict["@Message.ExtendedInfo"])
 
     result['ret'] = True
