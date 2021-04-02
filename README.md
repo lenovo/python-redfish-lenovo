@@ -60,6 +60,8 @@ This example prints the system reset types that are supported by this server, th
     
     Python lenovo_set_reset_types.py ForceOff
 
+Note: There are three scripts (raw_command_*.py) to support raw redfish get/patch/post requests. If existing scripts can't meet your requirement, please try them.
+
 Contributing
 ----------
 
