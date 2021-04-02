@@ -67,6 +67,7 @@ def raw_command_post(ip, login_account, login_password, action_target, body=None
         error_message = utils.get_extended_error(response_url)
         result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
             request_url, response_url.status, error_message)}
+        REDFISH_OBJ.logout()
         return result
 
     message_extendedinfo = ""

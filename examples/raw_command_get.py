@@ -61,6 +61,7 @@ def raw_command_get(ip, login_account, login_password, resource_uri):
         error_message = utils.get_extended_error(response_url)
         result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
             request_url, response_url.status, error_message)}
+        REDFISH_OBJ.logout()
         return result
 
     resource_details = response_url.dict
@@ -77,7 +78,7 @@ def raw_command_get(ip, login_account, login_password, resource_uri):
 
 def add_helpmessage(parser):
     parser.add_argument('--resource_uri', type=str, required=True,
-                        help='Specify redfish resource uri.')
+            help='Specify redfish resource uri. Ex: "/redfish/v1/Systems/1"')
 
 
 def add_parameter():
