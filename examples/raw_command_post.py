@@ -148,7 +148,7 @@ def add_helpmessage(parser):
     parser.add_argument('--action_target', type=str, required=True,
                         help='Specify redfish action target. Ex: "/redfish/v1/Systems/1/Actions/ComputerSystem.Reset"')
     parser.add_argument('--body', type=str,
-            help='Specify json string body for redfish post request. Ex: \'{"ResetType": "On"}\'')
+            help='Specify json string body for redfish post request. Ex: "{\\"ResetType\\": \\"On\\"}"')
 
 
 def add_parameter():
