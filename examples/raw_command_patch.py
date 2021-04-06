@@ -85,7 +85,7 @@ def add_helpmessage(parser):
     parser.add_argument('--resource_uri', type=str, required=True,
             help='Specify redfish resource uri. Ex: "/redfish/v1/Systems/1"')
     parser.add_argument('--body', type=str, required=True,
-            help='Specify json string body for redfish patch request. Ex: \'{"AssetTag": "new_asset_tag"}\'')
+            help='Specify json string body for redfish patch request. Ex: "{\\"AssetTag\\": \\"new_asset_tag\\"}"')
 
 
 def add_parameter():
