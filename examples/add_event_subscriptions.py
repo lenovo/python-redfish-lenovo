@@ -4,7 +4,7 @@
 #
 # Copyright Notice:
 #
-# Copyright 2018 Lenovo Corporation
+# Copyright 2021 Lenovo Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
 # not use this file except in compliance with the License. You may obtain
@@ -25,7 +25,7 @@ import json
 import traceback
 import lenovo_utils as utils
 
-def add_event_subscriptions(ip, login_account, login_password,destination,eventtypes,context):
+def add_event_subscriptions(ip, login_account, login_password, destination, subscribe_type, context):
     """Add event subscriptions
         :params ip: BMC IP address
         :type ip: string
@@ -35,23 +35,12 @@ def add_event_subscriptions(ip, login_account, login_password,destination,eventt
         :type login_password: string
         :params destination: destination url
         :type destination: string
-        :params eventtypes: event types
-        :type eventtypes: list
+        :params subscribe_type: subscribe event format type
+        :type subscribe_type: string
         :params context: context of event
         :type destination: string
         :returns: returns Add event subscriptions result when succeeded or error message when failed
         """
-    #check paramater
-    typelist = ["StatusChange","ResourceUpdated","ResourceAdded","ResourceRemoved","Alert","MetricReport"]
-    flag = False
-    for type in eventtypes:
-        flag = True
-        if type not in typelist:
-            flag = False
-            break
-    if flag is False:
-        result = {'ret':False,'msg':"The value of event type outside the scope,please check your input"}
-        return result
     result = {}
     login_host = "https://" + ip
 
@@ -82,13 +71,40 @@ def add_event_subscriptions(ip, login_account, login_password,destination,eventt
                 EventService_Type = EventService_Type.split('.')[-2]
                 if EventService_Type.startswith('v'):
                     EventService_Version = int(EventService_Type.replace('v','').replace('_',''))
+
                 # Get /redfish/v1/EventService/Subscriptions
                 subscriptions_url = response_event_url.dict["Subscriptions"]["@odata.id"]
-                response_subscriptions_url = REDFISH_OBJ.get(subscriptions_url,None)
+                response_subscriptions_url = REDFISH_OBJ.get(subscriptions_url, None)
                 if response_subscriptions_url.status == 200:
                     # Construct hearders and body to do post
                     headers = {"Content-Type": "application/json"}
-                    if EventService_Version >= 130:
+                    if EventService_Version >= 160:
+                        if subscribe_type == 'MetricReport':
+                            parameter = {
+                                 "Destination": destination,
+                                 "Protocol": "Redfish",
+                                 "SubscriptionType": "RedfishEvent",
+                                 "EventFormatType": "MetricReport",
+                                }
+                            # Additional filter to configure on create
+                            # "MetricReportDefinitions": [],  filter by Metric Report Definitions, if not set, subscribe all
+                        else:
+                            parameter = {
+                                 "Destination": destination,
+                                 "Protocol": "Redfish",
+                                 "SubscriptionType": "RedfishEvent",
+                                 "EventFormatType": "Event",
+                                }
+                            # Additional filter to configure on create
+                            # "MessageIds": [],             filter by Message Ids, if not set, subscribe all
+                            # "RegistryPrefixes": [],       filter by Registry Prefixes, if not set, subscribe all
+                            # "ResourceTypes": [],          filter by Resource Types, if not set, subscribe all
+                            # "OriginResources": [],        filter by Origin Resources, if not set, subscribe all
+                            # "SubordinateResources": True, indicate whether the subscription is for events in the OriginResources array and its subordinate Resources
+                        if context is not None and context != '':
+                            parameter['Context'] = context
+
+                    elif EventService_Version >= 130:
                         if "@Redfish.CollectionCapabilities" in response_subscriptions_url.dict:
                             parameter = {
                                  "Destination":destination,
@@ -97,16 +113,24 @@ def add_event_subscriptions(ip, login_account, login_password,destination,eventt
                         else:
                             parameter = {
                                  "Destination":destination,
-                                 "Context":context,
                                  "Protocol":"Redfish"
                                 }
+                            if context is not None and context != '':
+                                parameter['Context'] = context
                     else:
                         parameter = {
                              "Destination":destination,
-                             "EventTypes":eventtypes,
-                             "Context":context,
                              "Protocol":"Redfish"
                             }
+                        if context is not None and context != '':
+                            parameter['Context'] = context
+                        if subscribe_type == 'Event':
+                            eventtypes = ['StatusChange', 'ResourceUpdated', 'ResourceAdded', 'ResourceRemoved', 'Alert']
+                        else:
+                            eventtypes = ['MetricReport']
+                        parameter['EventTypes'] = eventtypes
+
+                    # Perform post to create new subscription
                     response_add_subscriptions = REDFISH_OBJ.post(subscriptions_url,body=parameter, headers=headers)
                     if response_add_subscriptions.status == 200 or response_add_subscriptions.status == 201:
                         rt_link = login_host + "/" + response_add_subscriptions.dict["@odata.id"]
@@ -144,24 +168,28 @@ def add_event_subscriptions(ip, login_account, login_password,destination,eventt
             pass
 
 def add_helpmessage(argget):
-    argget.add_argument('--destination', type=str, help="The new subscription's destination url you want to set",required=True)
-    argget.add_argument('--eventtypes', type=str, nargs='+', default=['Alert'],
-                        help="The event types you want to receive,supported eventtypes[StatusChange,ResourceUpdated,ResourceAdded,ResourceRemoved,Alert,MetricReport]")
-    argget.add_argument('--context', type=str,
-                        help="Specify a client-supplied string that is stored with the event destination subscription.",required=True)
+    argget.add_argument('--destination', required=True, type=str,
+                        help="The new subscription's destination url you want to set")
+    argget.add_argument('--subscribe_type', type=str, default='Event', choices=['Event', 'MetricReport'],
+                        help="Specify Event or MetricReport which you want to subscribe. Default value is Event.")
+    # As EventTypes property has been deprecated, depercate this parameter too
+    #argget.add_argument('--eventtypes', type=str, nargs='+', default=['Alert'],
+    #                    help="The event types you want to receive,supported eventtypes[StatusChange,ResourceUpdated,ResourceAdded,ResourceRemoved,Alert,MetricReport]")
+    argget.add_argument('--context', type=str, default='',
+                        help="Specify a client-supplied string that is stored with the event destination subscription.")
 
 def add_parameter():
     """Add event subscriptions parameter"""
     parameter_info = {}
     argget = utils.create_common_parameter_list(example_string='''
 Example:
-  "python add_event_subscriptions.py -i 10.10.10.10 -u USERID -p PASSW0RD --destination https://10.10.10.11 --eventtypes Alert --context test"
+  "python add_event_subscriptions.py -i 10.10.10.10 -u USERID -p PASSW0RD --destination https://10.10.10.11 --context test"
 ''')
     add_helpmessage(argget)
     args = argget.parse_args()
     parameter_info = utils.parse_parameter(args)
     parameter_info["destination"] = args.destination
-    parameter_info["eventtypes"] = args.eventtypes
+    parameter_info["subscribe_type"] = args.subscribe_type
     parameter_info["context"] = args.context
     return parameter_info
 
@@ -174,11 +202,11 @@ if __name__ == '__main__':
     login_account = parameter_info["user"]
     login_password = parameter_info["passwd"]
     destination = parameter_info["destination"]
-    eventtypes = parameter_info["eventtypes"]
+    subscribe_type = parameter_info["subscribe_type"]
     context = parameter_info["context"]
 
     # Add event subscriptions and check result
-    result = add_event_subscriptions(ip, login_account,login_password,destination,eventtypes,context)
+    result = add_event_subscriptions(ip, login_account, login_password, destination, subscribe_type, context)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
