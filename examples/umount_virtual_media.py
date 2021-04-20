@@ -115,36 +115,35 @@ def umount_virtual_media(ip, login_account, login_password, image):
                         result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
                             members_url, response_members.status, error_message)}
                         return result
-                    if image_name == image:
-                        # Umount virtual media via action
-                        if "Actions" in response_members.dict:
-                            if "#VirtualMedia.EjectMedia" in response_members.dict["Actions"]:
-                                eject_media_url = response_members.dict["Actions"]["#VirtualMedia.EjectMedia"]["target"]
+                    if image_name != image:
+                        continue
+                    # Umount virtual media via action
+                    if "Actions" in response_members.dict:
+                        if "#VirtualMedia.EjectMedia" in response_members.dict["Actions"]:
+                            eject_media_url = response_members.dict["Actions"]["#VirtualMedia.EjectMedia"]["target"]
 
-                                body = {}
-                                response = REDFISH_OBJ.post(eject_media_url, body=body)
-                                if response.status == 204:
-                                    result = {'ret': True, 'msg': "'%s' Umount successfully" % image}
-                                    return result
-                                else:
-                                    error_message = utils.get_extended_error(response)
-                                    result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
-                                    eject_media_url, response.status, error_message)}
-                                    return result
-                        # Umount virtual media via patch
-                        else:
-                            body = {"Image": None}
-                            response = REDFISH_OBJ.patch(members_url, body=body)
-                            if response.status in [200,204]:
+                            body = {}
+                            response = REDFISH_OBJ.post(eject_media_url, body=body)
+                            if response.status == 204:
                                 result = {'ret': True, 'msg': "'%s' Umount successfully" % image}
                                 return result
                             else:
-                                error_message = utils.get_extended_error(response_managers_url)
+                                error_message = utils.get_extended_error(response)
                                 result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
-                                    members_url, response.status, error_message)}
+                                eject_media_url, response.status, error_message)}
                                 return result
+                    # Umount virtual media via patch
                     else:
-                        continue
+                        body = {"Image": None}
+                        response = REDFISH_OBJ.patch(members_url, body=body)
+                        if response.status in [200,204]:
+                            result = {'ret': True, 'msg': "'%s' Umount successfully" % image}
+                            return result
+                        else:
+                            error_message = utils.get_extended_error(response)
+                            result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                                members_url, response.status, error_message)}
+                            return result
                 result = {"ret": False, "msg": "Please check the image name is correct and has been mounted."}
                 return result
         else:
