@@ -37,7 +37,7 @@ import traceback
 import lenovo_utils as utils
 
 
-def mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsport, fsusername, fspassword, image, fsdir, inserted, writeprotocol):
+def mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsport, fsusername, fspassword, image, fsdir, inserted=True, writeprotocol=True):
     """Mount an ISO or IMG image file from a file server to the host as a DVD or USB drive.
     :params ip: BMC IP address
     :type ip: string
@@ -137,6 +137,8 @@ def mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsp
                             image_uri = fsip + fsport + ":" + fsdir + "/" + image
                         else:
                             image_uri = protocol + "://" + fsip + fsport + fsdir + "/" + image
+                        if inserted is None:
+                            inserted = 1
                         body = {"Image": image_uri, "WriteProtected": bool(writeprotocol),
                                 "Inserted": bool(inserted)}
                         response = REDFISH_OBJ.patch(members_url, body=body)
@@ -206,8 +208,9 @@ def add_helpmessage(argget):
     argget.add_argument('--fspassword', type=str, nargs='?',
                         help='Specify the file server password, available for CIFS')
     argget.add_argument('--image', type=str, required=True, help='Mount media iso name')
-    argget.add_argument('--inserted', type=int, nargs='?', default=1, choices=[0, 1],
-                        help='Indicates if virtual media is inserted in the virtual device. Support: [0:False, 1:True].')
+    #As inserted property must be true while mounting, so comment this argument
+    #argget.add_argument('--inserted', type=int, nargs='?', default=1, choices=[0, 1],
+    #                    help='Indicates if virtual media is inserted in the virtual device. Support: [0:False, 1:True].')
     argget.add_argument('--writeprotocol', type=int, nargs='?', default=1, choices=[0, 1],
                         help='Indicates the media is write protected. Support: [0:False, 1:True].')
 
@@ -239,7 +242,6 @@ Example of HTTP/NFS:
 
     # Gets the parameters specified on the command line
     parameter_info['image'] = args.image
-    parameter_info['inserted'] = args.inserted
     parameter_info['writeprotocol'] = args.writeprotocol
 
     # Parse the added parameters
@@ -277,14 +279,13 @@ if __name__ == '__main__':
         fspassword = parameter_info['fspassword']
         image = parameter_info['image']
         fsdir = parameter_info['fsdir']
-        inserted = parameter_info['inserted']
         writeprotocol = parameter_info['writeprotocol']
     except:
         sys.stderr.write("Please run the command 'python %s -h' to view the help info" % sys.argv[0])
         sys.exit(1)
 
     # Get mount media iso result and check result
-    result = mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsport, fsusername, fspassword, image, fsdir, inserted, writeprotocol)
+    result = mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsport, fsusername, fspassword, image, fsdir, True, writeprotocol)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))

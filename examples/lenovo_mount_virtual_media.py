@@ -27,7 +27,7 @@ import traceback
 import lenovo_utils as utils
 
 
-def lenovo_mount_virtual_media(ip, login_account, login_password, image, mounttype, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir, readonly, domain, options, inserted, writeprotocol):
+def lenovo_mount_virtual_media(ip, login_account, login_password, image, mounttype, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir, readonly, domain, options, inserted=True, writeprotocol=True):
     """Mount virtual media, supporting both 18D and 19A version of Lenovo XCC.
     :params ip: BMC IP address
     :type ip: string
@@ -476,8 +476,9 @@ def add_helpmessage(argget):
                         help='Domain of the username to access the file path, available for Samba only.')
     argget.add_argument('--options', type=str, nargs='?', default='',
                         help='It indicates the mount options to map the image of the file path, available for Samba and NFS only.')
-    argget.add_argument('--inserted', type=int, nargs='?', default=1, choices=[0, 1],
-                        help='Indicates if virtual media is inserted in the virtual device. Support: [0:False, 1:True].')
+    # As inserted property must be true while mounting, so comment this argument
+    #argget.add_argument('--inserted', type=int, nargs='?', default=1, choices=[0, 1],
+    #                    help='Indicates if virtual media is inserted in the virtual device. Support: [0:False, 1:True].')
     argget.add_argument('--writeprotocol', type=int, nargs='?', default=1, choices=[0, 1],
                         help='Indicates the media is write protected. Support: [0:False, 1:True].')
 
@@ -526,7 +527,6 @@ Example of SFTP/FTP/Samba:
     parameter_info['readonly'] = args.readonly
     parameter_info['domain'] = args.domain
     parameter_info['options'] = args.options
-    parameter_info['inserted'] = args.inserted
     parameter_info['writeprotocol'] = args.writeprotocol
 
     # The parameters in the configuration file are used when the user does not specify parameters
@@ -559,7 +559,6 @@ if __name__ == '__main__':
         readonly = parameter_info['readonly']
         domain = parameter_info['domain']
         options = parameter_info['options']
-        inserted = parameter_info['inserted']
         writeprotocol = parameter_info['writeprotocol']
     except:
         sys.stderr.write("Please run the command 'python %s -h' to view the help info" % sys.argv[0])
@@ -567,7 +566,7 @@ if __name__ == '__main__':
 
     # Get mount media iso result and check result
 
-    result = lenovo_mount_virtual_media(ip, login_account, login_password, image, mounttype, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir, readonly, domain, options, inserted, writeprotocol)
+    result = lenovo_mount_virtual_media(ip, login_account, login_password, image, mounttype, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir, readonly, domain, options, True, writeprotocol)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
