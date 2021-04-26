@@ -123,7 +123,7 @@ def get_storage_inventory(ip, login_account, login_password, system_id):
                                         error_message = utils.get_extended_error(response_volume_url)
                                         result = {'ret': False,
                                                   'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                                                      volume_inventory, response_volume_url.status,
+                                                      volume_url, response_volume_url.status,
                                                       error_message)}
                                         return result
                             else:

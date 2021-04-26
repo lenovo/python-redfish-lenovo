@@ -131,7 +131,7 @@ def lenovo_delete_bmc_user(ip, login_account, login_password, username):
             else:
                 error_message = utils.get_extended_error(response_delete_account_url)
                 result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                    response_delete_account_url, response_delete_account_url.status, error_message)}
+                    dest_account_url, response_delete_account_url.status, error_message)}
                 return result
 
         if delete_mode == "PATCH_Action":
@@ -149,7 +149,7 @@ def lenovo_delete_bmc_user(ip, login_account, login_password, username):
             else:
                 error_message = utils.get_extended_error(response_delete_account_url)
                 result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                    response_delete_account_url, response_delete_account_url.status, error_message)}
+                    dest_account_url, response_delete_account_url.status, error_message)}
                 return result
 
     except Exception as e:

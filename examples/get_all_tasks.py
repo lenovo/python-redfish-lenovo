@@ -90,12 +90,12 @@ def get_all_tasks(ip, login_account, login_password):
                 else:
                     error_message = utils.get_extended_error(response_tasks_url)
                     result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                        subscriptions_url, response_tasks_url.status, error_message)}
+                        tasks_url, response_tasks_url.status, error_message)}
                     return result
             else:
                 error_message = utils.get_extended_error(response_taskservice_url)
                 result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                    event_url, response_taskservice_url.status, error_message)}
+                    taskservice_url, response_taskservice_url.status, error_message)}
                 return result
         else:
             error_message = utils.get_extended_error(response_base_url)

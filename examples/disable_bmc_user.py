@@ -100,13 +100,13 @@ def disable_bmc_user(ip, login_account, login_password, username):
                         headers = {"If-Match": etag}
                         parameter = {"Enabled": False, "UserName": username}
 
-                        response_enable_user = REDFISH_OBJ.patch(account_x_url, body=parameter, headers=headers)
-                        if response_enable_user.status in [200,204]:
+                        response_disable_user = REDFISH_OBJ.patch(account_x_url, body=parameter, headers=headers)
+                        if response_disable_user.status in [200,204]:
                             result = {'ret': True, 'msg': "BMC User %s disabled successfully" % username}
                             return result
                         else:
-                            error_message = utils.get_extended_error(response_enable_user)
-                            result = {'ret': False, 'msg': "Disabled BMC user failed, url '%s' response Error code %s \nerror_message: %s" % (account_x_url, response_enable_user.status, error_message)}
+                            error_message = utils.get_extended_error(response_disable_user)
+                            result = {'ret': False, 'msg': "Disabled BMC user failed, url '%s' response Error code %s \nerror_message: %s" % (account_x_url, response_disable_user.status, error_message)}
                             return result
                 else:
                     error_message = utils.get_extended_error(response_account_x_url)
