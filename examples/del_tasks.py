@@ -59,10 +59,10 @@ def del_tasks(ip, login_account, login_password,option_command):
         response_base_url = REDFISH_OBJ.get('/redfish/v1', None)
         if response_base_url.status == 200:
             taskservice_url = response_base_url.dict["Tasks"]["@odata.id"]
-            response_taskservice_url = REDFISH_OBJ.get(taskservice_url,None)
+            response_taskservice_url = REDFISH_OBJ.get(taskservice_url, None)
             if response_taskservice_url.status == 200:
                 tasks_url = response_taskservice_url.dict["Tasks"]["@odata.id"]
-                response_tasks_url = REDFISH_OBJ.get(tasks_url,None)
+                response_tasks_url = REDFISH_OBJ.get(tasks_url, None)
                 if response_tasks_url.status == 200:
                     if len(response_tasks_url.dict["Members"]) == 0:
                         result = {"ret":True,"msg":"There are no tasks found in this system!"}
@@ -95,12 +95,12 @@ def del_tasks(ip, login_account, login_password,option_command):
                 else:
                     error_message = utils.get_extended_error(response_tasks_url)
                     result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                        subscriptions_url, response_tasks_url.status, error_message)}
+                        tasks_url, response_tasks_url.status, error_message)}
                     return result
             else:
                 error_message = utils.get_extended_error(response_taskservice_url)
                 result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                    event_url, response_taskservice_url.status, error_message)}
+                    taskservice_url, response_taskservice_url.status, error_message)}
                 return result
         else:
             error_message = utils.get_extended_error(response_base_url)

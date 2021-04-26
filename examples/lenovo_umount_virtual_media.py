@@ -280,7 +280,7 @@ def umount_all_virtual_from_network(REDFISH_OBJ, remotemap_url):
             error_message = utils.get_extended_error(response_umount_image)
             result = {'ret': False,
                       'msg': "Umount media iso failed, '%s' response Error code %s \nerror_message: %s" % (
-                      remotemap_url, response_umount_image.status, error_message)}
+                      umount_image_url, response_umount_image.status, error_message)}
             return result
     else:
         error_message = utils.get_extended_error(response_remotemap_url)

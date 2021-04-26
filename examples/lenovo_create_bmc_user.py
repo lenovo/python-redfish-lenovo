@@ -249,7 +249,7 @@ def lenovo_create_bmc_user(ip, login_account, login_password, username, password
                 else:
                     error_message = utils.get_extended_error(response_create_url)
                     result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                        response_create_url, response_create_url.status, error_message)}
+                        accounts_url, response_create_url.status, error_message)}
                     return result
 
         if create_mode == "PATCH_Action":
@@ -298,7 +298,7 @@ def lenovo_create_bmc_user(ip, login_account, login_password, username, password
                 if response_empty_account_url.status != 200:
                     error_message = utils.get_extended_error(response_empty_account_url)
                     result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                        response_empty_account_url, response_empty_account_url.status, error_message)}
+                        first_empty_account, response_empty_account_url.status, error_message)}
                     return result
                 if "@odata.etag" in response_empty_account_url.dict:
                     etag = response_empty_account_url.dict['@odata.etag']
@@ -327,7 +327,7 @@ def lenovo_create_bmc_user(ip, login_account, login_password, username, password
                 else:
                     error_message = utils.get_extended_error(response_create_url)
                     result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                        response_create_url, response_create_url.status, error_message)}
+                        first_empty_account, response_create_url.status, error_message)}
                     return result
 
     except Exception as e:
