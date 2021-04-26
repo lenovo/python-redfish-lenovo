@@ -69,6 +69,16 @@ def lenovo_set_bmc_config_default(ip, login_account, login_password):
             request_url = request['@odata.id']
             response_url = REDFISH_OBJ.get(request_url, None)
             if response_url.status == 200:
+                # check whether function is supported first
+                if 'Oem' not in response_url.dict or 'Lenovo' not in response_url.dict['Oem'] or 'Configuration' not in response_url.dict['Oem']['Lenovo']:
+                    result = {'ret': True,
+                              'msg': "Action #LenovoConfigurationService.ResetToDefault is not supported on target server."}
+                    try:
+                        REDFISH_OBJ.logout()
+                    except:
+                        pass
+                    return result
+
                 # get bmc configuratino url
                 oem_resource = response_url.dict['Oem']['Lenovo']
                 config_url = oem_resource['Configuration']['@odata.id']
