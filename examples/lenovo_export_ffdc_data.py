@@ -321,7 +321,7 @@ def download_ffdc(ip, login_account, login_password, download_uri):
 
 import argparse
 def add_helpmessage(argget):
-    argget.add_argument('--fsprotocol', type=str, choices = ["SFTP", "TFTP", "HTTP"], help='Specify the file server protocol. Support:["SFTP", "TFTP", "HTTP"]. Note: HTTP file server can only be used on SR635 and SR655.')
+    argget.add_argument('--fsprotocol', type=str, choices = ["SFTP", "TFTP", "HTTP"], help='Specify the file server protocol. Support:["SFTP", "TFTP", "HTTP"]. Note: HTTP file server can only be used on SR635 and SR655 old firmwares, since BMC version V2.94(BUILD ID:AMBT16O) support protocol switch to SFTP file server instead of HTTP file server.')
     argget.add_argument('--fsip', type=str, help='Specify the file server ip.')
     argget.add_argument('--fsport', type=int, default=80, help='Specify the HTTP file server port, default port is 80.')
     argget.add_argument('--fsusername', type=str, help='Specify the SFTP file server username.')
