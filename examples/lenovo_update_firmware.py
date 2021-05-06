@@ -104,9 +104,9 @@ def lenovo_update_firmware(ip, login_account, login_password, image, targets, fs
                 # if yes, use multipart Uri to update Firmware
                 if (multiparthttppushuri_oem_exist is True or multiparthttppushuri_exist is True) and fsprotocol.upper() == "HTTPPUSH":
                     if multiparthttppushuri_oem_exist is True:
-                        Multipart_Uri = login_host + response_update_service_url.dict['Oem']['AMIUpdateService']["MultipartHttpPushUri"]
+                        firmware_update_url = login_host + response_update_service_url.dict['Oem']['AMIUpdateService']["MultipartHttpPushUri"]
                     elif multiparthttppushuri_exist is True:
-                        Multipart_Uri = login_host + response_update_service_url.dict["MultipartHttpPushUri"]
+                        firmware_update_url = login_host + response_update_service_url.dict["MultipartHttpPushUri"]
                     BMC_Parameter = {"Targets": ["/redfish/v1/Managers/Self"]}
                     if targets[0].upper() == "BMC":
                         Oem_Parameter = {"FlashType": "HPMFwUpdate", "UploadSelector": "Default"}
@@ -120,8 +120,7 @@ def lenovo_update_firmware(ip, login_account, login_password, image, targets, fs
                     F_image = open(fsdir + os.sep + image, 'rb')
                     # Specify the parameters required to update the firmware
                     files = {'UpdateParameters': ("parameters.json", json.dumps(BMC_Parameter), 'application/json'),
-                             'OemParameters': (
-                             "oem_parameters.json", json.dumps(Oem_Parameter), 'application/json'),
+                             'OemParameters': ("oem_parameters.json", json.dumps(Oem_Parameter), 'application/json'),
                              'UpdateFile': (image, F_image, 'multipart/form-data')}
 
                     # Send a post command through requests to update the firmware
@@ -130,8 +129,7 @@ def lenovo_update_firmware(ip, login_account, login_password, image, targets, fs
                     # Set BMC access credential
                     auth = HTTPBasicAuth(login_account, login_password)
                     print("Start to upload the image, may take about 3~10 minutes...\n")
-                    firmware_update_url = Multipart_Uri
-                    response = requests.post(Multipart_Uri, auth=auth, files=files, verify=False)
+                    response = requests.post(firmware_update_url, auth=auth, files=files, verify=False)
                     response_code = response.status_code
                     F_image.close()
                 else:
