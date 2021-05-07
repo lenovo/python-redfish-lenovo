@@ -71,7 +71,7 @@ def lenovo_set_bmc_config_default(ip, login_account, login_password):
             if response_url.status == 200:
                 # check whether function is supported first
                 if 'Oem' not in response_url.dict or 'Lenovo' not in response_url.dict['Oem'] or 'Configuration' not in response_url.dict['Oem']['Lenovo']:
-                    result = {'ret': True,
+                    result = {'ret': False,
                               'msg': "Action #LenovoConfigurationService.ResetToDefault is not supported on target server."}
                     try:
                         REDFISH_OBJ.logout()
