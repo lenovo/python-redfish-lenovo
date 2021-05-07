@@ -248,7 +248,7 @@ def add_helpmessage(argget):
     argget.add_argument('--image', type=str, required=True, help='Specify the fixid of the firmware to be updated.')
     argget.add_argument('--targets', nargs='*', help='For SR635/SR655 products, only support BMC or UEFI, for other products, specify the targets of firmware to refresh. '
                                                      'Only support the target of BMC-Backup for 20A and after version of XCC.')
-    argget.add_argument('--fsprotocol', type=str, choices=["SFTP", "TFTP", "HTTP", "HTTPPUSH"], help='Specify the file server protocol. Support:["SFTP", "TFTP", "HTTPPUSH", "HTTP"]')
+    argget.add_argument('--fsprotocol', type=str, choices=["SFTP", "TFTP", "HTTP", "HTTPPUSH"], help='Specify the file server protocol. For SR635/SR655 products, support "HTTP" and "HTTPPUSH". For other products, support "SFTP", "TFTP" and "HTTPPUSH".')
     argget.add_argument('--fsip', type=str, help='Specify the file server ip.')
     argget.add_argument('--fsport', type=str, default='', help='Specify the file server port')
     argget.add_argument('--fsusername', type=str, help='Specify the file server username.')
@@ -262,13 +262,13 @@ def add_parameter():
     """Add update firmware parameter"""
     argget = utils.create_common_parameter_list(example_string='''
     Example of SFTP:
-      "python lenovo_update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --targets https://10.10.10.10/redfish/v1/UpdateService/FirmwareInventory/Slot_7.Bundle --fsprotocol SFTP --fsip 10.10.10.11 --fsusername mysftp --fspassword mypass --fsdir /fspath/ --image lnvgy_fw_sraidmr35_530-50.7.0-2054_linux_x86-64.bin"
+      "python lenovo_update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --targets https://10.10.10.10/redfish/v1/UpdateService/FirmwareInventory/BMC-Backup --fsprotocol SFTP --fsip 10.10.10.11 --fsusername mysftp --fspassword mypass --fsdir /fspath/ --image lnvgy_fw_xcc_cdi364m-5.40_anyos_noarch.uxz"
     Example of TFTP:
-      "python lenovo_update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --targets https://10.10.10.10/redfish/v1/UpdateService/FirmwareInventory/Slot_7.Bundle --fsprotocol TFTP --fsip 10.10.10.11 --fsdir /fspath/ --image lnvgy_fw_sraidmr35_530-50.7.0-2054_linux_x86-64.bin"
+      "python lenovo_update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --targets https://10.10.10.10/redfish/v1/UpdateService/FirmwareInventory/BMC-Backup --fsprotocol TFTP --fsip 10.10.10.11 --fsdir /fspath/ --image lnvgy_fw_xcc_cdi364m-5.40_anyos_noarch.uxz"
     Example of HTTPPUSH:
       "python lenovo_update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --fsprotocol HTTPPUSH --fsdir /fspath/ --image lnvgy_fw_sraidmr35_530-50.7.0-2054_linux_x86-64.bin"
     Example of HTTP:
-      "python lenovo_update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --targets BMC --fsprotocol HTTP --fsdir /fspath/ --image lnvgy_fw_sraidmr35_530-50.7.0-2054_linux_x86-64.bin"
+      "python lenovo_update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --targets BMC --fsprotocol HTTP --fsip 10.10.10.11 --fsport 80 --fsdir /fspath/ --image lnvgy_fw_bmc_ambt08l-1.82_anyos_arm.hpm"
     ''')
     add_helpmessage(argget)
     args = argget.parse_args()
