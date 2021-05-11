@@ -56,6 +56,8 @@ def lenovo_export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip,
     if fsprotocol and (fsip is None or fsip == ''):
         result = {'ret': False, 'msg': "fsip in needed for %s file server" %(fsprotocol)}
         return result
+    if fsdir is not None:
+        fsdir = fsdir.strip('/')
 
     # Connect using the address, account name, and password
     login_host = "https://" + ip 
