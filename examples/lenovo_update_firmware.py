@@ -85,7 +85,7 @@ def lenovo_update_firmware(ip, login_account, login_password, image, targets, fs
 
         response_update_service_url = REDFISH_OBJ.get(update_service_url, None)
         if response_update_service_url.status == 200:
-            # Check if BMC is 20A or before version of SR635/655. if yes, go through OEM way, else, call standard update way.
+            # Check if BMC is V1.88 (BUILD ID:AMBT08R) or before version of SR635/655. if yes, go through OEM way, else, call standard update way.
             if "Oem" in response_update_service_url.dict['Actions']:
                 # Check whether the firmware is BMC or UEFI
                 if targets[0].upper() not in ["BMC", "UEFI"]:
@@ -144,7 +144,7 @@ def lenovo_update_firmware(ip, login_account, login_password, image, targets, fs
                         firmware_update_url = response_update_service_url.dict['Actions']['Oem']["#UpdateService.UEFIUpdate"]['target']
                     else:
                         result = {'ret': False,
-                                  'msg': "Check whether the BMC is 20A version of SR635/655"}
+                                  'msg': "Check whether the BMC is V1.88 (BUILD ID:AMBT08R) version of SR635/655"}
                         return result
                     port = (lambda fsport: ":" + fsport if fsport else fsport)
                     dir = (lambda fsdir: "/" + fsdir.strip("/") if fsdir else fsdir)
@@ -247,7 +247,7 @@ import argparse
 def add_helpmessage(argget):
     argget.add_argument('--image', type=str, required=True, help='Specify the fixid of the firmware to be updated.')
     argget.add_argument('--targets', nargs='*', help='For SR635/SR655 products, only support BMC or UEFI, for other products, specify the targets of firmware to refresh. '
-                                                     'Only support the target of BMC-Backup for 20A and after version of XCC.')
+                                                     'Only support the target of BMC-Backup for V1.88 (BUILD ID:AMBT08R) and after version of XCC.')
     argget.add_argument('--fsprotocol', type=str, choices=["SFTP", "TFTP", "HTTP", "HTTPPUSH"], help='Specify the file server protocol. For SR635/SR655 products, support "HTTP" and "HTTPPUSH". For other products, support "SFTP", "TFTP" and "HTTPPUSH".')
     argget.add_argument('--fsip', type=str, help='Specify the file server ip.')
     argget.add_argument('--fsport', type=str, default='', help='Specify the file server port')
