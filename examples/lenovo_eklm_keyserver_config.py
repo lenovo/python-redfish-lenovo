@@ -116,6 +116,21 @@ def lenovo_eklm_keyserver_config(ip, login_account, login_password, kmprotocol, 
         REDFISH_OBJ.logout()
         return result
 
+    # Check whether SKLM is supported
+    if kmprotocol == 'SKLM':
+        request_url = eklm_url
+        response_url = REDFISH_OBJ.get(request_url, None)
+        if response_url.status != 200:
+            error_message = utils.get_extended_error(response_url)
+            result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                request_url, response_url.status, error_message)}
+            REDFISH_OBJ.logout()
+            return result
+        if 'Protocol@Redfish.AllowableValues' in response_url.dict and 'SKLM' not in response_url.dict['Protocol@Redfish.AllowableValues']:
+            result = {'ret': False, 'msg': 'SKLM protocol is not supported(extra license needed), only KMIP is supported on target server.'}
+            REDFISH_OBJ.logout()
+            return result
+
     # Patch configuration via /redfish/v1/Managers/1/Oem/Lenovo/SecureKeyLifecycleService
     requestbody = {'KeyRepoServers':[]}
     for index in range(4):
