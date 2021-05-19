@@ -133,14 +133,20 @@ def mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsp
                         continue
                     # Mount virtual media via patch
                     if members_url.split('/')[-1].startswith("EXT"):
+                        body = {}
                         if protocol == "nfs":
                             image_uri = fsip + fsport + ":" + fsdir + "/" + image
+                        elif protocol == "cifs":
+                            image_uri = "//" + fsip + fsport + fsdir + "/" + image
+                            body = {"Image": image_uri, "TransferProtocolType": protocol.upper(),
+                                    "UserName": fsusername, "Password": fspassword,
+                                    "WriteProtected": bool(writeprotocol), "Inserted": bool(inserted)}
                         else:
                             image_uri = protocol + "://" + fsip + fsport + fsdir + "/" + image
                         if inserted is None:
                             inserted = 1
-                        body = {"Image": image_uri, "WriteProtected": bool(writeprotocol),
-                                "Inserted": bool(inserted)}
+                        if protocol != "cifs":
+                            body = {"Image": image_uri, "WriteProtected": bool(writeprotocol), "Inserted": bool(inserted)}
                         response = REDFISH_OBJ.patch(members_url, body=body)
                         if response.status in [200, 204]:
                             result = {'ret': True, 'msg': "'%s' mount successfully" % image}
