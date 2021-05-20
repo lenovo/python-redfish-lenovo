@@ -379,7 +379,7 @@ def mount_virtual_media_from_rdoc(REDFISH_OBJ, remotecontrol_url, remotemap_url,
         # Get mount image url form remote map resource instance
         mount_image_url = response_remotemap_url.dict['Actions']['#LenovoRemoteMapService.Mount']['target']
 
-        response_mount_image = REDFISH_OBJ.post(mount_image_url, None)
+        response_mount_image = REDFISH_OBJ.post(mount_image_url, body={})
         if response_mount_image.status in [200, 204]:
             result = {'ret': True, 'msg': "'%s' mount successfully" % image}
             return result
@@ -439,7 +439,7 @@ def mount_virtual_media_from_network(REDFISH_OBJ, remotemap_url, image, fsip, fs
 
         # Get mount image url form remote map resource instance
         mount_image_url = response_remotemap_url.dict['Actions']['#LenovoRemoteMapService.Mount']['target']
-        response_mount_image = REDFISH_OBJ.post(mount_image_url, None)
+        response_mount_image = REDFISH_OBJ.post(mount_image_url, body={})
         if response_mount_image.status in [200, 204]:
             result = {'ret': True, 'msg': "'%s' mount successfully" % image}
             return result
