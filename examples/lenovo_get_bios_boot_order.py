@@ -156,6 +156,8 @@ def lenovo_get_bios_boot_order(ip, login_account, login_password, system_id):
                 boot_order_info['BootOrderSupported'] = boot_order_supported
                 boot_order_info['BootOrderCurrent'] = boot_order_current
                 boot_info_list.append(boot_order_info)
+
+            if len(boot_info_list) > 0:
                 result['ret'] = True
                 result['entries'] = boot_info_list
                 return result
