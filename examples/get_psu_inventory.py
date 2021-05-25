@@ -110,14 +110,19 @@ def get_psu_inventory(ip, login_account, login_password, system_id):
             REDFISH_OBJ.logout()
             return result
 
+    if len(psu_details) > 0:
         result['ret'] = True
         result['entry_details'] = psu_details
-        # Logout of the current session
-        try:
-            REDFISH_OBJ.logout()
-        except:
-            pass
-        return result
+    else:
+        result['ret'] = False
+        result['entry_details'] = []
+
+    # Logout of the current session
+    try:
+        REDFISH_OBJ.logout()
+    except:
+        pass
+    return result
 
 
 if __name__ == '__main__':

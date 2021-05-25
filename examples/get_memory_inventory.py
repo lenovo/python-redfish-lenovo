@@ -119,9 +119,9 @@ def get_memory_inventory(ip, login_account, login_password, system_id, member_id
                     system_url, response_system_url.status, error_message)}
                 return result
 
-            result['ret'] = True
-            result['entries'] = list_memory_info
-            return result
+        result['ret'] = True
+        result['entries'] = list_memory_info
+        return result
     except Exception as e:
         traceback.print_exc()
         result = {'ret': False, 'msg': "exception msg %s" % e}

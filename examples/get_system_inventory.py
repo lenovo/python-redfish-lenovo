@@ -105,14 +105,14 @@ def get_system_inventory(ip, login_account, login_password, system_id):
             REDFISH_OBJ.logout()
             return result
 
-        result['ret'] = True
-        result['entries'] = system_details
-        # Logout of the current session
-        try:
-            REDFISH_OBJ.logout()
-        except:
-            pass
-        return result
+    result['ret'] = True
+    result['entries'] = system_details
+    # Logout of the current session
+    try:
+        REDFISH_OBJ.logout()
+    except:
+        pass
+    return result
 
 
 if __name__ == '__main__':
