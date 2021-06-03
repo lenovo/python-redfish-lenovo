@@ -56,6 +56,7 @@ def get_system_inventory(ip, login_account, login_password, system_id):
     system_properties = ['Status', 'HostName', 'PowerState', 'Model', 'Manufacturer', 'SystemType',
                       'PartNumber', 'SerialNumber', 'AssetTag', 'ServiceTag', 'UUID', 'SKU',
                       'BiosVersion', 'ProcessorSummary', 'MemorySummary', 'TrustedModules']
+    lenovo_oem_properties = ['FrontPanelUSB', 'SystemStatus', 'NumberOfReboots', 'TotalPowerOnHours']
     system_details = []
     # GET the ComputerSystem resource
     system = utils.get_system_url("/redfish/v1",system_id, REDFISH_OBJ)
@@ -72,6 +73,11 @@ def get_system_inventory(ip, login_account, login_password, system_id):
             for system_property in system_properties:
                 if system_property in response_system_url.dict:
                     system[system_property] = response_system_url.dict[system_property]
+            if 'Oem' in response_system_url.dict and 'Lenovo' in response_system_url.dict['Oem']:
+                system['Oem'] = {'Lenovo': {}}
+                for oem_property in lenovo_oem_properties:
+                    if oem_property in response_system_url.dict['Oem']['Lenovo']:
+                        system['Oem']['Lenovo'][oem_property] = response_system_url.dict['Oem']['Lenovo'][oem_property]
 
             # GET System EtherNetInterfaces resources
             nics_url = response_system_url.dict["EthernetInterfaces"]["@odata.id"]
