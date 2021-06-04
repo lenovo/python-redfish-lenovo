@@ -388,6 +388,7 @@ def mount_virtual_media_from_rdoc(REDFISH_OBJ, remotecontrol_url, remotemap_url,
 
         response_mount_image = REDFISH_OBJ.post(mount_image_url, body={})
         if response_mount_image.status in [200, 204]:
+            image = source_url.split('/')[-1]
             result = {'ret': True, 'msg': "'%s' mount successfully" % image}
             return result
         else:
