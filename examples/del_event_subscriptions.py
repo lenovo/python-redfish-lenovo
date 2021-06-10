@@ -126,7 +126,7 @@ def del_event_subscriptions(ip, login_account, login_password,option_command):
 
 def add_helpmessage(argget):
     group = argget.add_mutually_exclusive_group(required=True)
-    group.add_argument('--destination', type=str, help="The destination ip/servername you want to delete")
+    group.add_argument('--destination', type=str, help="The destination ip/servername you want to delete. Note: All matched items will be deleted.")
     group.add_argument('--all', help="Delete all subscriptions", action="store_true")
     group.add_argument('--id', type=str, help="The subscription id you want to delete")
 
