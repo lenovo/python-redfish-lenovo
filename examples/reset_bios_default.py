@@ -23,6 +23,7 @@
 
 import sys
 import json
+import time
 import redfish
 import traceback
 import lenovo_utils as utils
@@ -95,6 +96,21 @@ def reset_bios_default(ip, login_account, login_password, system_id):
                     response_reset_bios = REDFISH_OBJ.post(reset_bios_url, headers=headers, body=body)
                 if response_reset_bios.status in [200, 204]:
                     result = {'ret': True, 'msg': 'Reset bios default successfully'}
+                elif response_reset_bios.status == 202:
+                    task_uri = response_reset_bios.dict["@odata.id"]
+                    result = task_monitor(REDFISH_OBJ, task_uri)
+                    # Delete the task when the task state is completed without any warning
+                    if result["ret"] is True and "Completed" == result["task_state"] and result["msg"] == "":
+                        REDFISH_OBJ.delete(task_uri, None)
+                    if result["ret"] is True:
+                        task_state = result["task_state"]
+                        if task_state == "Completed":
+                            result["msg"] = "Reset bios default successfully. %s" %(result["msg"])
+                        else:
+                            result["ret"] = False
+                            result["msg"] = "Reset bios default failed. %s" %(result["msg"])
+                    else:
+                        return result
                 else:
                     error_message = utils.get_extended_error(response_reset_bios)
                     result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s"% (reset_bios_url, response_reset_bios.status, error_message)}
@@ -113,6 +129,59 @@ def reset_bios_default(ip, login_account, login_password, system_id):
         except:
             pass
         return result
+
+
+def task_monitor(REDFISH_OBJ, task_uri):
+    """Monitor task status"""
+    RUNNING_TASK_STATE = ["New", "Pending", "Service", "Starting", "Stopping", "Running", "Cancelling", "Verifying"]
+    END_TASK_STATE = ["Cancelled", "Completed", "Exception", "Killed", "Interrupted", "Suspended"]
+    current_state = ""
+    messages = []
+    percent = 0
+
+    while True:
+        response_task_uri = REDFISH_OBJ.get(task_uri, None)
+        if response_task_uri.status == 200:
+            task_state = response_task_uri.dict["TaskState"]
+
+            if "Messages" in response_task_uri.dict:
+                messages = response_task_uri.dict["Messages"]
+            if "PercentComplete" in response_task_uri.dict:
+                percent = response_task_uri.dict["PercentComplete"]
+
+            if task_state in RUNNING_TASK_STATE:
+                if task_state != current_state:
+                    current_state = task_state
+                    print("Task state is %s, wait a minute" %current_state)
+                    continue
+                else:
+                    flush(percent)
+            elif task_state in END_TASK_STATE:
+                sys.stdout.write(' ' * 100 + '\r')
+                sys.stdout.flush()
+                print("End of the task")
+                result = {'ret':True, 'task_state':task_state, 'msg': ' Messages: %s' %str(messages) if messages != [] else ''}
+                return result
+            else:
+                result = {'ret':False, 'task_state':task_state}
+                result['msg'] = ('Unknown TaskState %s. ' %task_state) + 'Task Not conforming to Schema Specification. ' + (
+                    'Messages: %s' %str(messages) if messages != [] else '')
+                return result
+        else:
+            message = utils.get_extended_error(response_task_uri)
+            result = {'ret': False, 'task_state':None, 'msg': "Url '%s' response Error code %s, \nError message :%s" % (
+                task_uri, response_task_uri.status, message)}
+            return result
+
+
+def flush(percent):
+    list = ['|', '\\', '-', '/']
+    for i in list:
+        sys.stdout.write(' ' * 100 + '\r')
+        sys.stdout.flush()
+        sys.stdout.write(i + (('          PercentComplete: %d' %percent) if percent > 0 else '') + '\r')
+        sys.stdout.flush()
+        time.sleep(0.1)
 
 
 if __name__ == '__main__':
