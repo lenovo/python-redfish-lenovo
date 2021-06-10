@@ -121,7 +121,7 @@ def lenovo_bmc_license_getinfo(ip, login_account, login_password):
                         request_url, response_url.status, error_message)}
                     REDFISH_OBJ.logout()
                     return result
-                for property in ['Id', 'Name', 'Expires', 'Status', 'IdTypes', 'UseCount', 'DescTypeCode', 'Description']:
+                for property in ['Id', 'Name', 'Expires', 'Status', 'IdTypes', 'UseCount', 'DescTypeCode', 'Identifier', 'Description']:
                     if property in response_url.dict:
                         license_detail[property] = response_url.dict[property]
                 license_details.append(license_detail)
