@@ -198,7 +198,7 @@ def add_event_subscriptions(ip, login_account, login_password, destination, subs
 
 def add_helpmessage(argget):
     argget.add_argument('--protocol', type=str, default='Redfish', choices=['Redfish', 'SMTP', 'SNMPv1', 'SNMPv3'],
-                        help="Specify the protocol of new subscription's destination. Default value is Redfish.")
+                        help="Specify the protocol of new subscription's destination. Default value is Redfish. Note: SMTP subscription need SMTP Email Server to be configured in advance. SNMPv1 subscription need SNMPv1 global info(community) to be configured in advance. SNMPv3 subscription need SNMPv3 global info and user info to be configured in advance.")
     argget.add_argument('--destination', required=True, type=str,
                         help="Specify the new subscription's destination url you want to set. If protocol is Redfish, destination format should be like 'https://10.10.10.11'. If protocol is SMTP, destination format should be like 'myname@example.com'. If protocol is SNMPv1, destination format should be like '10.10.10.11'. If protocol is SNMPv3, destination format should be like 'USERID@10.10.10.11'")
     argget.add_argument('--subscribe_type', type=str, default='Event', choices=['Event', 'MetricReport'],
