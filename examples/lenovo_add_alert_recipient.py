@@ -1,6 +1,6 @@
 ###
 #
-# Lenovo Redfish examples - Add one alert recipient
+# Lenovo Redfish examples - Add one alert recipient (Email/Syslog Recipients)
 #
 # Copyright Notice:
 #

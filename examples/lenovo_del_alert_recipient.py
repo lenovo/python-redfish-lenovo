@@ -1,6 +1,6 @@
 ###
 #
-# Lenovo Redfish examples - delete alert recipient specified
+# Lenovo Redfish examples - delete alert recipient specified (Email/Syslog Recipients)
 #
 # Copyright Notice:
 #
