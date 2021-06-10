@@ -25,7 +25,7 @@ import json
 import traceback
 import lenovo_utils as utils
 
-def add_event_subscriptions(ip, login_account, login_password, destination, subscribe_type, context):
+def add_event_subscriptions(ip, login_account, login_password, destination, subscribe_type='Event', context='', protocol='Redfish'):
     """Add event subscriptions
         :params ip: BMC IP address
         :type ip: string
@@ -38,6 +38,8 @@ def add_event_subscriptions(ip, login_account, login_password, destination, subs
         :params subscribe_type: subscribe event format type
         :type subscribe_type: string
         :params context: context of event
+        :type destination: string
+        :params context: protocol of destination
         :type destination: string
         :returns: returns Add event subscriptions result when succeeded or error message when failed
         """
@@ -78,7 +80,29 @@ def add_event_subscriptions(ip, login_account, login_password, destination, subs
                 if response_subscriptions_url.status == 200:
                     # Construct hearders and body to do post
                     headers = {"Content-Type": "application/json"}
-                    if EventService_Version >= 160:
+                    if EventService_Version >= 160 and protocol == 'SMTP':
+                        if '@' not in destination:
+                            result = {'ret': False, 'msg': 'mail address %s is invalid, please correct it first.' %destination}
+                            return result
+                        parameter = {
+                                "Destination": "mailto:%s" %(destination),
+                                "Protocol": protocol
+                                }
+                    elif EventService_Version >= 160 and protocol == 'SNMPv1':
+                        parameter = {
+                                "Destination": "snmp://%s" %(destination),
+                                "Protocol": protocol
+                                }
+                    elif EventService_Version >= 160 and protocol == 'SNMPv3':
+                        if '@' not in destination:
+                            result = {'ret': False, 'msg': 'SNMPv3 address %s is invalid, please correct it first.' %destination}
+                            return result
+                        parameter = {
+                                "Destination": "snmp://%s" %(destination),
+                                "Protocol": protocol
+                                }
+                    elif EventService_Version >= 160 and protocol == 'Redfish':
+
                         if subscribe_type == 'MetricReport':
                             parameter = {
                                  "Destination": destination,
@@ -103,6 +127,10 @@ def add_event_subscriptions(ip, login_account, login_password, destination, subs
                             # "SubordinateResources": True, indicate whether the subscription is for events in the OriginResources array and its subordinate Resources
                         if context is not None and context != '':
                             parameter['Context'] = context
+
+                    elif EventService_Version < 160 and protocol != 'Redfish':
+                        result = {'ret': False, 'msg': 'Target server only support Redfish protocol.'}
+                        return result
 
                     elif EventService_Version >= 130:
                         if "@Redfish.CollectionCapabilities" in response_subscriptions_url.dict:
@@ -167,16 +195,20 @@ def add_event_subscriptions(ip, login_account, login_password, destination, subs
         except:
             pass
 
+
 def add_helpmessage(argget):
+    argget.add_argument('--protocol', type=str, default='Redfish', choices=['Redfish', 'SMTP', 'SNMPv1', 'SNMPv3'],
+                        help="Specify the protocol of new subscription's destination. Default value is Redfish.")
     argget.add_argument('--destination', required=True, type=str,
-                        help="The new subscription's destination url you want to set")
+                        help="Specify the new subscription's destination url you want to set. If protocol is Redfish, destination format should be like 'https://10.10.10.11'. If protocol is SMTP, destination format should be like 'myname@example.com'. If protocol is SNMPv1, destination format should be like '10.10.10.11'. If protocol is SNMPv3, destination format should be like 'USERID@10.10.10.11'")
     argget.add_argument('--subscribe_type', type=str, default='Event', choices=['Event', 'MetricReport'],
-                        help="Specify Event or MetricReport which you want to subscribe. Default value is Event.")
+                        help="Specify Event or MetricReport which you want to subscribe. Default value is Event. This option is only for Redfish protocol.")
     # As EventTypes property has been deprecated, depercate this parameter too
     #argget.add_argument('--eventtypes', type=str, nargs='+', default=['Alert'],
     #                    help="The event types you want to receive,supported eventtypes[StatusChange,ResourceUpdated,ResourceAdded,ResourceRemoved,Alert,MetricReport]")
     argget.add_argument('--context', type=str, default='',
-                        help="Specify a client-supplied string that is stored with the event destination subscription.")
+                        help="Specify a client-supplied string that is stored with the event destination subscription. This option is only for Redfish protocol.")
+
 
 def add_parameter():
     """Add event subscriptions parameter"""
@@ -191,6 +223,7 @@ Example:
     parameter_info["destination"] = args.destination
     parameter_info["subscribe_type"] = args.subscribe_type
     parameter_info["context"] = args.context
+    parameter_info["protocol"] = args.protocol
     return parameter_info
 
 if __name__ == '__main__':
@@ -204,9 +237,10 @@ if __name__ == '__main__':
     destination = parameter_info["destination"]
     subscribe_type = parameter_info["subscribe_type"]
     context = parameter_info["context"]
+    protocol = parameter_info["protocol"]
 
     # Add event subscriptions and check result
-    result = add_event_subscriptions(ip, login_account, login_password, destination, subscribe_type, context)
+    result = add_event_subscriptions(ip, login_account, login_password, destination, subscribe_type, context, protocol)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
