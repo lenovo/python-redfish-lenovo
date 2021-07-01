@@ -78,10 +78,10 @@ def lenovo_get_bmc_user_accounts(ip, login_account, login_password):
             # Loop through Accounts and print info
             account_count = accounts_url_response.dict["Members@odata.count"]
         else:
-            error_message = utils.get_extended_error(response_accounts_url)
+            error_message = utils.get_extended_error(accounts_url_response)
             result = {'ret': False,
                       'msg': "Url '%s' response error code %s \nerror_message: %s" % (accounts_url,
-                                                                                      response_accounts_url.status,
+                                                                                      accounts_url_response.status,
                                                                                       error_message)}
             return result
 
