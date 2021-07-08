@@ -26,7 +26,7 @@ import traceback
 import lenovo_utils as utils
 
 
-def set_systemname(ip, login_account, login_password, system_name):
+def set_system_name(ip, login_account, login_password, system_name):
     """set system name
     :params ip: BMC IP address
     :type ip: string
@@ -147,7 +147,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     # set system name and check result
-    result = set_systemname(ip, login_account, login_password, system_name)
+    result = set_system_name(ip, login_account, login_password, system_name)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
