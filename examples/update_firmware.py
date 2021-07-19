@@ -227,7 +227,7 @@ def flush(percent):
         sys.stdout.flush()
         sys.stdout.write(i + (('          PercentComplete: %d' %percent) if percent > 0 else '') + '\r')
         sys.stdout.flush()
-        time.sleep(0.1)
+        time.sleep(0.5)
 
 
 def task_monitor(REDFISH_OBJ, task_uri):
@@ -237,7 +237,7 @@ def task_monitor(REDFISH_OBJ, task_uri):
     current_state = ""
     messages = []
     percent = 0
-
+    num_503 = 0
     while True:
         response_task_uri = REDFISH_OBJ.get(task_uri, None)
         if response_task_uri.status == 200:
@@ -246,7 +246,6 @@ def task_monitor(REDFISH_OBJ, task_uri):
                 messages = response_task_uri.dict['Messages']
             if 'PercentComplete' in response_task_uri.dict:
                 percent = response_task_uri.dict['PercentComplete']
-
             if task_state in RUNNING_TASK_STATE:
                 if task_state != current_state:
                     current_state = task_state
@@ -278,10 +277,14 @@ def task_monitor(REDFISH_OBJ, task_uri):
                     'Messages: %s' %str(messages) if messages != [] else '')
                 return result
         else:
-            message = utils.get_extended_error(response_task_uri)
-            result = {'ret': False, 'task_state':None, 'msg': "Url '%s' response Error code %s, \nError message :%s" % (
-                task_uri, response_task_uri.status, message)}
-            return result
+            num_503 += 1
+            if response_task_uri.status == 503 and num_503 <= 3:
+                continue
+            else:
+                message = utils.get_extended_error(response_task_uri)
+                result = {'ret': False, 'task_state':None, 'msg': "Url '%s' response Error code %s, \nError message :%s" % (
+                    task_uri, response_task_uri.status, message)}
+                return result
 
 
 import argparse
