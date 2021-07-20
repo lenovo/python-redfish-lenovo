@@ -277,8 +277,8 @@ def task_monitor(REDFISH_OBJ, task_uri):
                     'Messages: %s' %str(messages) if messages != [] else '')
                 return result
         else:
-            num_503 += 1
-            if response_task_uri.status == 503 and num_503 <= 3:
+            if response_task_uri.status == 503 and num_503 < 3:
+                num_503 += 1
                 continue
             else:
                 message = utils.get_extended_error(response_task_uri)
