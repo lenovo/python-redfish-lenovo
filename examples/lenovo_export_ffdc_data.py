@@ -114,7 +114,9 @@ def lenovo_export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip,
                 # Check the transport protocol, only support sftp and tftp protocols
                 export_uri = ""
                 if fsprotocol:
-                    export_uri = fsprotocol.lower() + "://" + fsip + ":/" + fsdir + "/"
+                    export_uri = fsprotocol.lower() + "://" + fsip
+                    if fsdir:
+                        export_uri += ":/" + fsdir + "/"
                     body['ExportURI'] = export_uri
                     if fsprotocol.lower() not in ["sftp", "tftp"]:
                         error_message = "Target server only support sftp and tftp, http is not supported"
