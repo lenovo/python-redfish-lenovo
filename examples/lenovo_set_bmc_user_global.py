@@ -26,6 +26,62 @@ import json
 import traceback
 import lenovo_utils as utils
 
+import requests
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+
+# This function is uesed to enable/disable complex password setting for XCC, not support for SR635/SR655.
+# If you want the support for SR635/SR655, please open Issue on Github. 
+def enable_complex_password(ip, login_account, login_password, enabled):
+    """enable or disable complex password
+    :params ip: BMC IP address
+    :type ip: string
+    :params login_account: BMC user name
+    :type login_account: string
+    :params login_password: BMC user password
+    :type login_password: string
+    :params enabled: '1' for enable or '0' for disable
+    :type enabled: string
+    :returns: returns result with messages when succeeded or failed
+    """
+
+    # Create session connection
+    login_host = "https://" + ip
+    headers = {"Content-Type": "application/json"}
+    session_url = login_host + "/api/login"
+    body = {'username':login_account,'password':login_password}
+
+    requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+    s = requests.session()
+    response = s.post(session_url, headers=headers, data=json.dumps(body), verify=False)
+    json_response = json.loads(response.content)
+
+    if response.status_code == 200: # set up the connection successfully.
+        # Change Complex Password setting
+        h = {"Authorization": "Bearer %s" % (json_response["access_token"]), "Content-Type": "application/json"}
+        h['X-XSRF-TOKEN'] = s.cookies.get_dict()['_csrf_token']
+        setting_url = login_host + "/api/dataset"
+        setting = {}
+        setting['USER_GlobalPassComplexRequired'] = "%s" % enabled
+        response_post_uri = s.post(setting_url, headers=h, data=json.dumps(setting), cookies=s.cookies.get_dict(), verify=False)
+
+        if response_post_uri.status_code == 200:
+            result = {'ret': True, 'msg': "Succeed to change complex password setting."}
+        else:
+            result = {'ret': False, 'msg': "Failed to change complex password setting, response code  %s" % response_post_uri.status_code}
+
+        # Logout
+        logout_url = login_host + "/api/providers/logout"
+        del h["Content-Type"]
+        s.get(logout_url, headers=h, cookies=s.cookies.get_dict(), verify=False)
+
+        return result
+
+    else:
+        result = {'ret': False,
+                  'msg': "Session connection failed, response code %s" % response.status_code}
+        return result
+
+
 def lenovo_set_bmc_user_global(ip, login_account, login_password, setting_dict):
     """update bmc user global settings 
     :params ip: BMC IP address
@@ -54,6 +110,32 @@ def lenovo_set_bmc_user_global(ip, login_account, login_password, setting_dict):
     REDFISH_OBJ.login(auth=utils.g_AUTH)
 
     try:
+        global_setting = {}
+
+        # Use user setting to update global_setting dict
+        if "AccountLockoutThreshold" in setting_dict:
+            global_setting['AccountLockoutThreshold'] = setting_dict['AccountLockoutThreshold'] 
+        if "AccountLockoutDuration" in setting_dict:
+            global_setting['AccountLockoutDuration'] = setting_dict['AccountLockoutDuration'] 
+        for item_name in ["PasswordChangeOnNextLogin", "AuthenticationMethod",
+                          "MinimumPasswordChangeIntervalHours", "PasswordExpirationPeriodDays",
+                          "PasswordChangeOnFirstAccess", "MinimumPasswordReuseCycle",
+                          "PasswordLength", "WebInactivitySessionTimeout", "PasswordExpirationWarningPeriod"]:
+            if item_name in setting_dict:
+                if 'Oem' not in global_setting:
+                    global_setting['Oem'] = {}
+                    global_setting['Oem']['Lenovo'] = {}
+                global_setting['Oem']['Lenovo'][item_name] = setting_dict[item_name]
+
+        # Set complex password via WebAPI, not Redfish.
+        if "ComplexPassword" in setting_dict: 
+            result = enable_complex_password(ip, login_account, login_password, enabled = setting_dict['ComplexPassword'])
+            if result['ret'] == False: # if failed to set complex password, return the error info.
+                return result
+            if not global_setting: # if no other setting items, just return the result of complex password setting.
+                return result
+
+        # Continue to handle other settings except complex password via Redfish
         # Get response_base_url resource
         response_base_url = REDFISH_OBJ.get('/redfish/v1', None)
 
@@ -72,23 +154,6 @@ def lenovo_set_bmc_user_global(ip, login_account, login_password, setting_dict):
             error_message = utils.get_extended_error(response_account_service_url)
             result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (account_service_url, response_account_service_url.status, error_message)}
             return result
-
-        global_setting = {}
-
-        # Use user setting to update global_setting dict
-        if "AccountLockoutThreshold" in setting_dict:
-            global_setting['AccountLockoutThreshold'] = setting_dict['AccountLockoutThreshold'] 
-        if "AccountLockoutDuration" in setting_dict:
-            global_setting['AccountLockoutDuration'] = setting_dict['AccountLockoutDuration'] 
-        for item_name in ["PasswordChangeOnNextLogin", "AuthenticationMethod",
-                          "MinimumPasswordChangeIntervalHours", "PasswordExpirationPeriodDays",
-                          "PasswordChangeOnFirstAccess", "MinimumPasswordReuseCycle",
-                          "PasswordLength", "WebInactivitySessionTimeout", "PasswordExpirationWarningPeriod"]:
-            if item_name in setting_dict:
-                if 'Oem' not in global_setting:
-                    global_setting['Oem'] = {}
-                    global_setting['Oem']['Lenovo'] = {}
-                global_setting['Oem']['Lenovo'][item_name] = setting_dict[item_name]
 
         # Perform patch to change setting
         if "@odata.etag" in response_account_service_url.dict:
@@ -129,6 +194,7 @@ def add_helpmessage(argget):
     argget.add_argument('--MinimumPasswordChangeInterval', type=int, help='Minimum amount of time, in hours, that must elapse before a user may change a password again after it has been changed once. The value specified for this setting cannot exceed the value specified for the password expiration period. A small value allows users to more quickly use old passwords. If set to 0, passwords may be changed immediately.')
     argget.add_argument('--LockThreshold', type=int, help='The maximum number of times that a user can attempt to log in with an incorrect password before the user account is locked out. The number specified for the lockout period after maximum login failures determines how long the user account is locked out. Accounts that are locked cannot be used to gain access to the system even if a valid password is provided. If set to 0, accounts are never locked. The failed login counter is reset to zero after a successful login.')
     argget.add_argument('--LockDuration', type=int, help='Minimum amount of time, in minutes, that must pass before a user that was locked out can attempt to log back in again.')
+    argget.add_argument('--ComplexPassword', type=str, choices=['0', '1'], help='Disable or Enable complex password, 0: Disable, 1: Enable. Default is Enable.')
 
 
 def add_parameter():
@@ -157,6 +223,8 @@ def add_parameter():
         globalsetting_dict["AccountLockoutThreshold"] = int(args.LockThreshold)
     if args.LockDuration is not None:
         globalsetting_dict["AccountLockoutDuration"] = int(args.LockDuration)*60 # convert minute value to second value in redfish API
+    if args.ComplexPassword is not None:
+        globalsetting_dict["ComplexPassword"] = args.ComplexPassword
 
     parameter_info["globalsetting_dict"] = globalsetting_dict
     return parameter_info
