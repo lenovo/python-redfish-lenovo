@@ -11,6 +11,7 @@
 |                    | get_power_redundancy.py                  |     Yes       |     Yes       |     Yes *3     |     Yes *3      |
 |                    | get_storage_inventory.py                 |     Yes       |     Yes       |     Yes        |     Yes         |
 |                    | get_system_inventory.py                  |     Yes       |     Yes       |     Yes        |     Yes         |
+|                    | get_chassis_inventory.py                 |     Yes       |     Yes       |     Yes        |     Yes         |
 |                    | get_temperatures_inventory.py            |     Yes       |     Yes       |     Yes        |     Yes         |
 |                    | lenovo_get_cpu_inventory.py              |     Yes       |     Yes       |     Yes        |     Yes         |
 |                    | get_volt_inventory.py                    |     Yes       |     Yes       |     Yes        |     Yes         |
@@ -83,6 +84,11 @@
 |                    | set_bmc_vlanid.py                        |     Yes       |     Yes       |     Yes *5     |     Yes         |
 |                    | lenovo_set_bmc_config_default.py         |     NO        |     Yes       |     Yes        |     Yes         |
 |                    | set_bmc_ipv4.py                          |     Yes       |     Yes       |     Yes        |     Yes         |
+|                    | lenovo_generate_snmp_engineid.py         |     NO        |     Yes       |     Yes        |     Yes         |
+|                    | lenovo_get_snmp_global.py                |     NO        |     Yes       |     Yes        |     Yes         |
+|                    | lenovo_set_snmp_global.py                |     NO        |     Yes       |     Yes        |     Yes         |
+|                    | update_bmc_user_snmpinfo.py              |     NO        |     Yes       |     Yes        |     Yes         |
+|                    | set_bmc_hostname.py                      |     Yes       |     Yes       |     Yes        |     Yes         |
 |--------------------|------------------------------------------|---------------|---------------|----------------|-----------------|
 | Virtual Media      | get_virtual_media.py                     |     Yes       |     Yes       |     Yes        |     Yes         |
 |                    | mount_virtual_media.py                   |     Yes       |     Yes       |     Yes        |     Yes         |
@@ -132,6 +138,10 @@
 |                    | get_all_tasks.py                         |     Yes       |     Yes       |     Yes        |     Yes         |
 |                    | del_tasks.py                             |     Yes       |     Yes       |     Yes        |     Yes         |
 |                    | get_schema.py                            |     Yes       |     Yes       |     Yes        |     Yes         |
+|                    | set_system_name.py                       |     Yes       |     Yes       |     Yes        |     Yes         |
+|                    | raw_command_get.py                       |     Yes       |     Yes       |     Yes        |     Yes         |
+|                    | raw_command_patch.py                     |     Yes       |     Yes       |     Yes        |     Yes         |
+|                    | raw_command_post.py                      |     Yes       |     Yes       |     Yes        |     Yes         |
 |--------------------|------------------------------------------|---------------|---------------|----------------|-----------------|
 
 *1: Need to ajust the jumper
