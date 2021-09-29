@@ -85,7 +85,7 @@ def lenovo_update_firmware(ip, login_account, login_password, image, targets, fs
 
         response_update_service_url = REDFISH_OBJ.get(update_service_url, None)
         if response_update_service_url.status == 200:
-            # Check if BMC is V1.88 (BUILD ID:AMBT08R) or before version of SR635/655. if yes, go through OEM way, else, call standard update way.
+            # For SR635/655
             if "Oem" in response_update_service_url.dict['Actions']:
                 # Check whether the firmware is BMC or UEFI
                 if targets[0].upper() not in ["BMC", "UEFI"]:
@@ -102,7 +102,10 @@ def lenovo_update_firmware(ip, login_account, login_password, image, targets, fs
                 if "MultipartHttpPushUri" in response_update_service_url.dict:
                     multiparthttppushuri_exist = True
                 # if yes, use multipart Uri to update Firmware
-                if (multiparthttppushuri_oem_exist is True or multiparthttppushuri_exist is True) and fsprotocol.upper() == "HTTPPUSH":
+                if multiparthttppushuri_oem_exist is True or multiparthttppushuri_exist is True:
+                    if fsprotocol.upper() != "HTTPPUSH":
+                        result = {'ret': False,'msg': "SR635/SR655 products only supports the HTTPPUSH protocol to update firmware."}
+                        return result
                     if multiparthttppushuri_oem_exist is True:
                         firmware_update_url = login_host + response_update_service_url.dict['Oem']['AMIUpdateService']["MultipartHttpPushUri"]
                     elif multiparthttppushuri_exist is True:
@@ -133,9 +136,6 @@ def lenovo_update_firmware(ip, login_account, login_password, image, targets, fs
                     response_code = response.status_code
                     F_image.close()
                 else:
-                    if fsprotocol.upper() != "HTTP":
-                        result = {'ret': False, 'msg': "SR635/SR655 products only supports the HTTP protocol to update firmware."}
-                        return result
                     # for SR635/SR655 products, refresh the firmware with OEM action
                     Oem_dict = response_update_service_url.dict['Actions']['Oem']
                     if "#UpdateService.HPMUpdate" in Oem_dict and targets[0].upper() == "BMC":
@@ -144,7 +144,12 @@ def lenovo_update_firmware(ip, login_account, login_password, image, targets, fs
                         firmware_update_url = response_update_service_url.dict['Actions']['Oem']["#UpdateService.UEFIUpdate"]['target']
                     else:
                         result = {'ret': False,
-                                  'msg': "Check whether the BMC is V1.88 (BUILD ID:AMBT08R) version of SR635/655"}
+                                  'msg':"Check whether the BMC of SR635/655 is a version before V1.88 (BUILD ID:AMBT08R). If yes, update firmware with HTTP protocol is not supported."}
+                        return result
+
+                    if fsprotocol.upper() != "HTTP":
+                        result = {'ret': False,
+                                  'msg': "SR635/SR655 products only supports the HTTP protocol to update firmware."}
                         return result
                     port = (lambda fsport: ":" + fsport if fsport else fsport)
                     dir = (lambda fsdir: "/" + fsdir.strip("/") if fsdir else fsdir)
@@ -154,6 +159,7 @@ def lenovo_update_firmware(ip, login_account, login_password, image, targets, fs
                     body["TransferProtocol"] = fsprotocol.upper()
                     response = REDFISH_OBJ.post(firmware_update_url, body=body)
                     response_code = response.status
+            # For other servers
             else:
                 result = update_firmware.update_firmware(ip, login_account, login_password, image, targets, fsprotocol, fsip,
                                                    fsport, fsusername, fspassword, fsdir)
