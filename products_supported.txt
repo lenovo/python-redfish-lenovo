@@ -121,7 +121,7 @@
 |                    | lenovo_ldap_certificate_enable.py        |     Yes       |     Yes       |     Yes *5     |     Yes         |
 |                    | lenovo_get_bmc_user_ldap_policy.py       |     NO        |     Yes       |     Yes *5     |     Yes         |
 |                    | lenovo_set_bmc_user_ldap_policy.py       |     NO        |     Yes       |     Yes *5     |     Yes         |
-|                    | lenovo_ldap_certificate_add.py           |     NO        |     Yes       |     Yes *5     |     Yes         |
+|                    | lenovo_ldap_certificate_add.py           |     Yes       |     Yes       |     Yes *5     |     Yes         |
 |--------------------|------------------------------------------|---------------|---------------|----------------|-----------------|
 | Security           | lenovo_eklm_keyserver_config.py          |     NO        |     Yes       |     Yes        |     Yes         |
 |                    | lenovo_eklm_keyserver_getinfo.py         |     NO        |     Yes       |     Yes        |     Yes         |
