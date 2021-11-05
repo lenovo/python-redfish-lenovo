@@ -127,14 +127,6 @@ def lenovo_set_bmc_user_global(ip, login_account, login_password, setting_dict):
                     global_setting['Oem']['Lenovo'] = {}
                 global_setting['Oem']['Lenovo'][item_name] = setting_dict[item_name]
 
-        # Set complex password via WebAPI, not Redfish.
-        if "ComplexPassword" in setting_dict: 
-            result = enable_complex_password(ip, login_account, login_password, enabled = setting_dict['ComplexPassword'])
-            if result['ret'] == False: # if failed to set complex password, return the error info.
-                return result
-            if not global_setting: # if no other setting items, just return the result of complex password setting.
-                return result
-
         # Continue to handle other settings except complex password via Redfish
         # Get response_base_url resource
         response_base_url = REDFISH_OBJ.get('/redfish/v1', None)
@@ -154,6 +146,23 @@ def lenovo_set_bmc_user_global(ip, login_account, login_password, setting_dict):
             error_message = utils.get_extended_error(response_account_service_url)
             result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (account_service_url, response_account_service_url.status, error_message)}
             return result
+
+        # Handle ComplexPassword setting
+        if "ComplexPassword" in setting_dict:
+            # Check whether property ComplexPassword is supported. If supported, set via Redfish, if not, set via WebAPI
+            if 'Oem' in response_account_service_url.dict and 'Lenovo' in response_account_service_url.dict['Oem'] and (
+                    'ComplexPassword' in response_account_service_url.dict['Oem']['Lenovo']):
+                if 'Oem' not in global_setting:
+                    global_setting['Oem'] = {}
+                    global_setting['Oem']['Lenovo'] = {}
+                global_setting['Oem']['Lenovo']['ComplexPassword'] = bool(int(setting_dict['ComplexPassword']))
+            else:
+                # Set complex password via WebAPI, not Redfish.
+                result = enable_complex_password(ip, login_account, login_password, enabled = setting_dict['ComplexPassword'])
+                if result['ret'] == False: # if failed to set complex password, return the error info.
+                    return result
+                if not global_setting: # if no other setting items, just return the result of complex password setting.
+                    return result
 
         # Perform patch to change setting
         if "@odata.etag" in response_account_service_url.dict:
@@ -194,7 +203,7 @@ def add_helpmessage(argget):
     argget.add_argument('--MinimumPasswordChangeInterval', type=int, help='Minimum amount of time, in hours, that must elapse before a user may change a password again after it has been changed once. The value specified for this setting cannot exceed the value specified for the password expiration period. A small value allows users to more quickly use old passwords. If set to 0, passwords may be changed immediately.')
     argget.add_argument('--LockThreshold', type=int, help='The maximum number of times that a user can attempt to log in with an incorrect password before the user account is locked out. The number specified for the lockout period after maximum login failures determines how long the user account is locked out. Accounts that are locked cannot be used to gain access to the system even if a valid password is provided. If set to 0, accounts are never locked. The failed login counter is reset to zero after a successful login.')
     argget.add_argument('--LockDuration', type=int, help='Minimum amount of time, in minutes, that must pass before a user that was locked out can attempt to log back in again.')
-    argget.add_argument('--ComplexPassword', type=str, choices=['0', '1'], help='Disable or Enable complex password, 0: Disable, 1: Enable. Default is Enable.')
+    argget.add_argument('--ComplexPassword', type=str, choices=['0', '1'], help='Disable or Enable complex password, 0: Disable, 1: Enable. Default is Enable. Note: MinimumPasswordLength setting is needed when complex password is enabled.')
 
 
 def add_parameter():
