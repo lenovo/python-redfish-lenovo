@@ -154,7 +154,30 @@ def update_firmware(ip, login_account, login_password, image, targets, fsprotoco
                 response_code = firmware_update_response.status_code
                 F_image.close()
             else:
-                firmware_update_url = response_update_service_url.dict['Actions']['#UpdateService.SimpleUpdate']['target']
+                # Check whether the current protocol is allowed to update firmware
+                simple_update_dict = response_update_service_url.dict['Actions']['#UpdateService.SimpleUpdate']
+                if 'TransferProtocol@Redfish.AllowableValues' in simple_update_dict.keys():
+                    if fsprotocol not in simple_update_dict['TransferProtocol@Redfish.AllowableValues']:
+                        result = {"ret": False, "msg": "%s isn't supported. Supported protocol list: %s." % (
+                                    fsprotocol, simple_update_dict['TransferProtocol@Redfish.AllowableValues'])}
+                        return result
+                # The property VerifyRemoteServerCertificate exists
+                if fsprotocol.lower() == "https" and "VerifyRemoteServerCertificate" in response_update_service_url.dict and "RemoteServerCertificates" in response_update_service_url.dict:
+                    if response_update_service_url.dict["VerifyRemoteServerCertificate"] is True:
+                        remote_url = response_update_service_url.dict["RemoteServerCertificates"]["@odata.id"]
+                        remote_response = REDFISH_OBJ.get(remote_url, None)
+                        if remote_response.status != 200:
+                            message = utils.get_extended_error(remote_response)
+                            result = {'ret': False,
+                                      'msg': "Url '%s' response Error code %s, \nError message :%s" % (
+                                          remote_url, remote_response.status, message)}
+                            return result
+                        if remote_response.dict["Members@odata.count"] == 0:
+                            result = {"ret": False,
+                                      "msg": "Target server require certificate verification of HTTPS file server. Please go to 'lenovo_https_certificate_import.py' script to upload the certificate."}
+                            return result
+
+                firmware_update_url = simple_update_dict['target']
                 # Update firmware via file server
                 # Define an anonymous function formatting parameter
                 port = (lambda fsport: ":" + fsport if fsport else fsport)
@@ -291,11 +314,11 @@ import argparse
 def add_helpmessage(argget):
     argget.add_argument('--image', type=str, required=True, help='Specify the fixid of the firmware to be updated.')
     argget.add_argument('--targets', nargs='*', help='Input the targets list')
-    argget.add_argument('--fsprotocol', type=str, choices=["SFTP", "TFTP", "HTTPPUSH"], help='Specify the file server protocol.Support:["SFTP", "TFTP", "HTTPPUSH"]')
+    argget.add_argument('--fsprotocol', type=str, choices=["SFTP", "TFTP", "HTTPPUSH", "HTTP", "HTTPS"], help='Specify the file server protocol.Support:["SFTP", "TFTP", "HTTPPUSH", "HTTP", "HTTPS"]')
     argget.add_argument('--fsip', type=str, help='Specify the file server ip.')
     argget.add_argument('--fsport', type=str, default='', help='Specify the file server port')
-    argget.add_argument('--fsusername', type=str, help='Specify the file server username.')
-    argget.add_argument('--fspassword', type=str, help='Specify the file server password.')
+    argget.add_argument('--fsusername', type=str, help='Specify the file server username, only for SFTP')
+    argget.add_argument('--fspassword', type=str, help='Specify the file server password, only for SFTP')
     argget.add_argument('--fsdir', type=str, help='Specify the file server dir to the firmware upload.')
 
 import os
