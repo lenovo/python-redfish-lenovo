@@ -254,11 +254,11 @@ def add_helpmessage(argget):
     argget.add_argument('--image', type=str, required=True, help='Specify the fixid of the firmware to be updated.')
     argget.add_argument('--targets', nargs='*', help='For SR635/SR655 products, only support BMC or UEFI, for other products, specify the targets of firmware to refresh. '
                                                      'Only support the target of BMC-Backup for V1.88 (BUILD ID:AMBT08R) and after version of XCC.')
-    argget.add_argument('--fsprotocol', type=str, choices=["SFTP", "TFTP", "HTTP", "HTTPPUSH"], help='Specify the file server protocol. For SR635/SR655 products, support "HTTP" and "HTTPPUSH". For other products, support "SFTP", "TFTP" and "HTTPPUSH".')
+    argget.add_argument('--fsprotocol', type=str, choices=["SFTP", "TFTP", "HTTP", "HTTPS", "HTTPPUSH"], help='Specify the file server protocol. For SR635/SR655 products, support "HTTP" and "HTTPPUSH". For other products, support "SFTP", "TFTP", "HTTP", "HTTPS" and "HTTPPUSH".')
     argget.add_argument('--fsip', type=str, help='Specify the file server ip.')
     argget.add_argument('--fsport', type=str, default='', help='Specify the file server port')
-    argget.add_argument('--fsusername', type=str, help='Specify the file server username.')
-    argget.add_argument('--fspassword', type=str, help='Specify the file server password.')
+    argget.add_argument('--fsusername', type=str, help='Specify the file server username, only for SFTP')
+    argget.add_argument('--fspassword', type=str, help='Specify the file server password, only for SFTP')
     argget.add_argument('--fsdir', type=str, help='Specify the file server dir to the firmware upload.')
 
 
