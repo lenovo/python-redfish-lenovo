@@ -26,7 +26,7 @@ import traceback
 import lenovo_utils as utils
 
 
-def lenovo_https_certificate_disable(ip, login_account, login_password):
+def lenovo_https_certificate_enable(ip, login_account, login_password):
     """ Import ssl certificate
     :params ip: BMC IP address
     :type ip: string
@@ -117,7 +117,7 @@ if __name__ == '__main__':
     login_password = parameter_info["passwd"]
 
     # Import certificate and check result
-    result = lenovo_https_certificate_disable(ip, login_account, login_password)
+    result = lenovo_https_certificate_enable(ip, login_account, login_password)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
