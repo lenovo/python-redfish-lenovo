@@ -22,9 +22,6 @@
       timeout: 20
     register: result
 
-  - name: get power state
-    set_fact: power_state={{ result.redfish_facts.system.entries[0][1].PowerState }}
-
   - name: Copy results to output file   
     copy:
       content: "{{ result | to_nice_json }}"
