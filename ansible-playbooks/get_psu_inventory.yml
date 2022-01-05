@@ -13,7 +13,7 @@
     include_tasks: create_output_file.yml
 
   - name: Get psu inventory
-    redfish_facts:
+    redfish_info:
       category: Chassis
       command: GetPsuInventory
       baseuri: "{{ baseuri }}"
