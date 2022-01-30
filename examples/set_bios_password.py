@@ -115,21 +115,51 @@ def set_bios_password(ip, login_account, login_password, system_id, bios_passwor
                     if "PasswordName@Redfish.AllowableValues" in response_bios_url.dict["Actions"]["#Bios.ChangePassword"]:
                         password_allowed_values = response_bios_url.dict["Actions"]["#Bios.ChangePassword"]["PasswordName@Redfish.AllowableValues"]
 
-                # Check whether password name is in allowable value list  
+                # Check whether password name is in allowable value list
+                # For SR635/SR655 products, switch to the allowed PasswordName
                 if len(password_allowed_values) != 0 and bios_password_name not in password_allowed_values:
-                    result = {'ret': False, 'msg': "Specified password name is not included in allowable value list. Please select password name from list: %s" % (str(password_allowed_values))}
-                    return result
+                    for name in password_allowed_values:
+                        if bios_password_name == "UefiAdminPassword" and name.find("Administrator") != -1:
+                            bios_password_name = name
+                            break
+                        elif bios_password_name == "UefiPowerOnPassword" and name.find("User") != -1:
+                            bios_password_name = name
+                            break
+                        else:
+                            result = {'ret': False,
+                                      'msg': "Specified password name is not included in allowable value list. Please select password name from list: %s" % (
+                                          str(password_allowed_values))}
+                            return result
 
-                # get parameter requirement if ActionInfo is provided
-                if "@Redfish.ActionInfo" in response_bios_url.dict["Actions"]["#Bios.ChangePassword"]:
-                    actioninfo_url = response_bios_url.dict["Actions"]["#Bios.ChangePassword"]["@Redfish.ActionInfo"]
-                    response_actioninfo_url = REDFISH_OBJ.get(actioninfo_url, None)
-                    if (response_actioninfo_url.status == 200) and ("Parameters" in response_actioninfo_url.dict):
-                        for parameter in response_actioninfo_url.dict["Parameters"]:
-                            if ("OldPassword" == parameter["Name"]) and (True == parameter["Required"]):
-                                if oldbiospass == None:
-                                    result = {'ret': False, 'msg': "Required parameter oldbiospasswd need to be specified."}
-                                    return result
+                # Check whether the OldPassword has been set
+                if "Oem" in response_bios_url.dict:
+                    if "Lenovo" in response_bios_url.dict["Oem"]:
+                        is_old_passwd_set = False
+                        if bios_password_name == "UefiAdminPassword" and "IsUefiAdminPasswordSet" in response_bios_url.dict["Oem"]["Lenovo"]:
+                            is_old_passwd_set = response_bios_url.dict["Oem"]["Lenovo"]["IsUefiAdminPasswordSet"]
+                        elif bios_password_name == "UefiPowerOnPassword" and "IsUefiPowerOnPasswordSet" in response_bios_url.dict["Oem"]["Lenovo"]:
+                            is_old_passwd_set = response_bios_url.dict["Oem"]["Lenovo"]["IsUefiPowerOnPasswordSet"]
+                        if oldbiospass == None or oldbiospass == '':
+                            if is_old_passwd_set == True:
+                                result = {'ret': False, 'msg': "Required parameter oldbiospasswd need to be specified."}
+                                return result
+                            else:
+                                oldbiospass = ""
+                        else:
+                            if is_old_passwd_set == False:
+                                result = {'ret': False, 'msg': "The oldbiospasswd parameter does not need to be specified."}
+                                return result
+
+                else:
+                    # get parameter requirement if ActionInfo is provided
+                    if "@Redfish.ActionInfo" in response_bios_url.dict["Actions"]["#Bios.ChangePassword"]:
+                        actioninfo_url = response_bios_url.dict["Actions"]["#Bios.ChangePassword"]["@Redfish.ActionInfo"]
+                        response_actioninfo_url = REDFISH_OBJ.get(actioninfo_url, None)
+                        if (response_actioninfo_url.status == 200) and ("Parameters" in response_actioninfo_url.dict):
+                            for parameter in response_actioninfo_url.dict["Parameters"]:
+                                if ("OldPassword" == parameter["Name"]) and (True == parameter["Required"]):
+                                    if oldbiospass == None:
+                                        oldbiospass = ""
 
                 # Get the change password url
                 change_password_url = response_bios_url.dict['Actions']['#Bios.ChangePassword']['target']
@@ -138,10 +168,8 @@ def set_bios_password(ip, login_account, login_password, system_id, bios_passwor
                 requestbody = {}
                 PasswordName = bios_password_name
                 new_password = bios_password
-                if oldbiospass == None:
-                    requestbody = {"PasswordName":PasswordName, "NewPassword":new_password}
-                else:
-                    requestbody = {"PasswordName":PasswordName, "NewPassword":new_password, "OldPassword":oldbiospass}
+
+                requestbody = {"PasswordName":PasswordName, "NewPassword":new_password, "OldPassword":oldbiospass}
 
                 # Change password
                 response_change_password = REDFISH_OBJ.post(change_password_url, body=requestbody)
