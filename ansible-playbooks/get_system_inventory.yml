@@ -13,7 +13,7 @@
     include_tasks: create_output_file.yml
 
   - name: Get system inventory
-    redfish_facts:
+    redfish_info:
       category: Systems
       command: GetSystemInventory
       baseuri: "{{ baseuri }}"
@@ -22,7 +22,7 @@
       timeout: 20
     register: result
 
-  - name: Copy results to output file
+  - name: Copy results to output file   
     copy:
       content: "{{ result | to_nice_json }}"
       dest: "{{ template }}.json"

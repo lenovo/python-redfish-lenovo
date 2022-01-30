@@ -13,7 +13,7 @@
     include_tasks: create_output_file.yml
 
   - name: Get firmware inventory
-    redfish_facts:
+    redfish_info:
       category: Update
       command: GetFirmwareInventory
       baseuri: "{{ baseuri }}"
