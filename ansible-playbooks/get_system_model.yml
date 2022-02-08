@@ -4,7 +4,7 @@
     when: system_model is undefined
 
   - name: Getting system inventory
-    redfish_facts:
+    redfish_info:
       category: Systems
       command: GetSystemInventory
       baseuri: "{{ baseuri }}"
@@ -15,4 +15,4 @@
 
   - name: Get Model from system inventory
     set_fact:
-      system_model: "{{ result.ansible_facts.redfish_facts.system.entries[0][1].Model }}"
+      system_model: "{{ result.redfish_facts.system.entries[0][1].Model }}"
