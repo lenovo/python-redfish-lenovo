@@ -115,11 +115,9 @@ def lenovo_import_ssh_pubkey(ip, login_account, login_password, user_name, pb_co
                             result = {"ret":True, "msg":"The ssh public key has already imported"}
                             return result
                         for index in range(len(pubkeys)):
-                            if pubkeys[index] == '':
-                                if sshpubkey in pubkeys:
-                                    pubkeys[index] = None
-                                else:
-                                    pubkeys[index] = sshpubkey
+                            if pubkeys[index] == '' or pubkeys[index] == None:
+                                pubkeys[index] = sshpubkey
+                                break
                         if sshpubkey not in pubkeys:
                             result = {"ret":True, "msg":"The ssh public key for this user is full, only 4 keys are allowed"}
                             return result
