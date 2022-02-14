@@ -161,6 +161,8 @@ def lenovo_set_bios_boot_order(ip, login_account, login_password, system_id, boo
                 new_boot_order_struct_string = ''
                 for item in new_boot_order_struct_list:
                     new_boot_order_struct_string = new_boot_order_struct_string + item + ';'
+                if new_boot_order_struct_string.endswith(";;"):
+                    new_boot_order_struct_string = new_boot_order_struct_string[:-1]
                 body = {"Attributes": {attribute_name: new_boot_order_struct_string}}
                 headers = {"If-Match": '*'}
 
