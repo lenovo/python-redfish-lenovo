@@ -211,3 +211,4 @@ if __name__ == '__main__':
             parsed_args.func(parsed_args, parsed_parameter_info)
     else:
         sys.stderr.write('error: too few arguments. use -h to get help information')
+        sys.exit(1)
