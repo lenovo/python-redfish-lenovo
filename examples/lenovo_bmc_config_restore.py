@@ -35,6 +35,7 @@ def getDocSize(path):
         return size/1024
     except Exception as err:
         sys.stderr.write(err)
+        sys.exit(1)
 
 
 def check_whether_new_schema(odatatype, REDFISH_OBJ):
@@ -365,3 +366,4 @@ if __name__ == '__main__':
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
     else:
         sys.stderr.write(result['msg'] + '\n')
+        sys.exit(1)

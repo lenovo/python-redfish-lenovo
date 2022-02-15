@@ -164,3 +164,4 @@ if __name__ == '__main__':
         sys.stdout.write(json.dumps(result['metric_inventory'], sort_keys=True, indent=2) + '\n')
     else:
         sys.stderr.write(result['msg'] + '\n')
+        sys.exit(1)

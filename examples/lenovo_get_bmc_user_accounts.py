@@ -169,3 +169,4 @@ if __name__ == '__main__':
         sys.stdout.write(json.dumps(result['entries'],indent=2))
     else:
         sys.stderr.write(result['msg'] + '\n')
+        sys.exit(1)

@@ -34,6 +34,7 @@ def getDocSize(path):
         return size/1024
     except Exception as err:
         sys.stderr.write(err)
+        sys.exit(1)
 
 def lenovo_bmc_config_backup(ip, login_account, login_password, backup_password, backup_file, httpip, httpport, httpdir):
     """BMC configuration backup
@@ -319,3 +320,4 @@ if __name__ == '__main__':
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
     else:
         sys.stderr.write(result['msg'] + '\n')
+        sys.exit(1)

@@ -118,3 +118,4 @@ if __name__ == '__main__':
         sys.stdout.write(json.dumps(result['sessions_details'], sort_keys=True, indent=2))
     else:
         sys.stderr.write(result['msg'])
+        sys.exit(1)
