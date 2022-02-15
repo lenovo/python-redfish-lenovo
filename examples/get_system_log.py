@@ -110,13 +110,20 @@ def get_system_log(ip, login_account, login_password, system_id, type):
                 return result
             if 'Entries' not in response_log_url.dict:
                 continue
-            entries_url = response_log_url.dict['Entries']['@odata.id']
+            if 'Entries' in response_log_url.dict.keys():
+                entries_url = response_log_url.dict['Entries']['@odata.id']
+            elif '@odata.id' in response_log_url.dict.keys():
+                entries_url = response_log_url.dict['@odata.id']
+            else:
+                continue
             response_entries_url = REDFISH_OBJ.get(entries_url, None)
             if response_entries_url.status != 200:
                 result = {'ret': False, 'msg': "response members url Error code %s" % response_entries_url.status}
                 REDFISH_OBJ.logout()
                 return result
             # description = response_entries_url.dict['Description']
+            if 'Members' not in response_entries_url.dict.keys():
+                continue
             for logEntry in response_entries_url.dict['Members']:
                 entry = {}
                 for log_property in ['Id', 'Name', 'Created', 'Message', 'MessageId', 'Severity',
@@ -232,3 +239,4 @@ if __name__ == '__main__':
         sys.stdout.write(json.dumps(filtered_entries, sort_keys=True, indent=2))
     else:
         sys.stderr.write(result['msg'])
+        sys.exit(1)
