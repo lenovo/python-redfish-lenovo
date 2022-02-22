@@ -213,11 +213,11 @@ def lenovo_mount_virtual_media(ip, login_account, login_password, image, mountty
                 if mounttype == "Network":
                     # for 19A, XCC predefined 10 members, so call mount function for 19A. otherwise, call function for 18D.
                     if len(members_list) == 10:
-                        if fsprotocol in ["NFS", "HTTP", "CIFS"]:
+                        if fsprotocol in ["NFS", "HTTP", "CIFS", "HTTPS"]:
                             result = mount_virtual_media(REDFISH_OBJ, members_list, protocol, fsip, fsport, fsdir, image, writeprotocol, inserted, fsusername, fspassword)
                             return result
                         else:
-                            result = {"ret": False, "msg": "For remote mounts, only HTTP, NFS(no credential required) and CIFS protocols are supported."}
+                            result = {"ret": False, "msg": "For remote mounts, only HTTP, HTTPS, NFS(no credential required) and CIFS protocols are supported."}
                             return result
                     elif len(members_list) == 4:
                         if fsprotocol in ["NFS", "CIFS"]:
@@ -341,7 +341,10 @@ def mount_virtual_media(REDFISH_OBJ, members_list, protocol, fsip, fsport, fsdir
                     body = {"Image": image_uri, "WriteProtected": bool(writeprotocol), "Inserted": bool(inserted)}
                 response = REDFISH_OBJ.patch(members_url, body=body)
                 if response.status in [200, 204]:
-                    result = {'ret': True, 'msg': "'%s' mount successfully" % image}
+                    result = {'ret': True, 'msg': "'%s' mount successfully." % image}
+                    if protocol == "https":
+                        result = {'ret': True, 'msg': "'%s' mount successfully. %s" %
+                                  (image, response.dict['@Message.ExtendedInfo'][0]['Message'])}
                     return result
                 else:
                     error_message = utils.get_extended_error(response)
@@ -362,6 +365,12 @@ def mount_virtual_media_from_rdoc(REDFISH_OBJ, remotecontrol_url, remotemap_url,
     # Upload the mount image via file server
     response_remotecontrol_url = REDFISH_OBJ.get(remotecontrol_url, None)
     if response_remotecontrol_url.status == 200:
+        # Get AllowableValues of protocol
+        allow_protocols = response_remotecontrol_url.dict['Actions']['#LenovoRemoteControlService.UploadFromURL']['Type@Redfish.AllowableValues']
+        if fsprotocol not in allow_protocols:
+            result = {"ret": False,
+                      "msg": "For remote mounting of RDOC images, supported protocol list: %s."%allow_protocols}
+            return result
         # Get upload media iso url from remoto control resource instance
         upload_url = response_remotecontrol_url.dict['Actions']['#LenovoRemoteControlService.UploadFromURL']['target']
         body = {"sourceURL": source_url, "Username": fsusername, "Password": fspassword, "Type": fsprotocol,
@@ -467,9 +476,9 @@ def add_helpmessage(argget):
     argget.add_argument('--image', type=str, required=True, help='Mount virtual media name')
     argget.add_argument('--mounttype', type=str, default="Network", choices=["Network", "RDOC"], help="Types of mount virtual media.")
 
-    argget.add_argument('--fsprotocol', type=str, nargs='?',choices=["Samba", "NFS", "CIFS", "HTTP", "SFTP", "FTP"],
+    argget.add_argument('--fsprotocol', type=str, nargs='?',choices=["Samba", "NFS", "CIFS", "HTTP", "HTTPS", "SFTP", "FTP"],
                         help='Specifies the protocol prefix for uploading image or ISO. '
-                             'For SR635 / SR655 products, only support: ["NFS", "CIFS"], for other products, support:["Samba", "NFS", "CIFS", "HTTP", "SFTP", "FTP"]. ')
+                             'For SR635 / SR655 products, only support: ["NFS", "CIFS"], for other products, support:["Samba", "NFS", "CIFS", "HTTP", "HTTPS", "SFTP", "FTP"]. ')
     argget.add_argument('--fsip', type=str, nargs='?', help='Specify the file server ip')
     argget.add_argument('--fsport', type=str, default='', help='Specify the file server port')
     argget.add_argument('--fsusername', type=str, nargs='?',
