@@ -107,7 +107,7 @@ def set_bios_bootmode_uefi(ip, login_account, login_password, system_id):
                     locations = response_bios_registry_url.dict['Location']
                     bios_regjson_url = None
                     for location in locations:
-                        if location['Language'] == 'en':
+                        if 'en' in location['Language']:
                             bios_regjson_url = location['Uri']
                             break
                     if bios_regjson_url:
