@@ -49,7 +49,8 @@ def lenovo_delete_raid_volume(ip, login_account, login_password, system_id, raid
         # Connect using the BMC address, account name, and password
         # Create a REDFISH object
         REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account, timeout=utils.g_timeout,
-                                             password=login_password, default_prefix='/redfish/v1', cafile=utils.g_CAFILE)
+                                             password=login_password, default_prefix='/redfish/v1',
+                                             cafile=utils.g_CAFILE)
         # Login into the server and create a session
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except:
@@ -75,7 +76,7 @@ def lenovo_delete_raid_volume(ip, login_account, login_password, system_id, raid
             return result
 
         if "Storage" not in response_system_url.dict:
-            continue #skip the invalid ComputeSystem that has no storage resource
+            continue  # skip the invalid ComputeSystem that has no storage resource
 
         # GET the Storage resources from the ComputerSystem resource
         storage_url = response_system_url.dict["Storage"]["@odata.id"]
@@ -86,12 +87,13 @@ def lenovo_delete_raid_volume(ip, login_account, login_password, system_id, raid
 
         storage_count = response_storage_url.dict["Members@odata.count"]
         if storage_count == 0:
-            continue #skip the invalid ComputeSystem that has no storage resource
+            continue  # skip the invalid ComputeSystem that has no storage resource
 
         # Collect all storage info first
         list_raid_id = []
         list_raid_volume_names = []
         list_raid_volume_urls = []
+        list_raid_volume_ids = []
         for raid_index in range(0, storage_count):
             storage_x_url = response_storage_url.dict["Members"][raid_index]["@odata.id"]
             response_storage_x_url = REDFISH_OBJ.get(storage_x_url, None)
@@ -106,16 +108,13 @@ def lenovo_delete_raid_volume(ip, login_account, login_password, system_id, raid
 
             if (raidid is not None):
                 if (raidid != Storage_id) and (raidid != Name):
-                    continue # skip if not match
- 
+                    continue  # skip if not match
+
             volumes_url = response_storage_x_url.dict["Volumes"]["@odata.id"]
             response_volumes_url = REDFISH_OBJ.get(volumes_url, None)
             if response_volumes_url.status != 200:
                 error_message = utils.get_extended_error(response_volumes_url)
-                result = {'ret': False,
-                          'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                              volumes_url, response_volumes_url.status,
-                              error_message)}
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (volumes_url, response_volumes_url.status, error_message)}
                 return result
 
             volume_num = len(response_volumes_url.dict["Members"])
@@ -128,26 +127,46 @@ def lenovo_delete_raid_volume(ip, login_account, login_password, system_id, raid
                     return result
                 list_raid_volume_names.append(response_volume_url.dict["Name"])
                 list_raid_volume_urls.append(volume_url)
+                list_raid_volume_ids.append(response_volume_url.dict["Id"])
 
-        # Check collected info
+        # Check collected info to match volume name
+        flag_multi_match_name = False
         for index in range(0, len(list_raid_volume_names)):
             if volume_name == list_raid_volume_names[index]:
                 if target_raid_volumes_url is None:
                     target_raid_volumes_url = list_raid_volume_urls[index]
                 else:
-                    result = {'ret': False, 'msg': "There are multi-volume matched. Please specified the raidid. raidid list: %s" %(str(list_raid_id))}
-                    REDFISH_OBJ.logout()
-                    return result
+                    flag_multi_match_name = True
+
+        if flag_multi_match_name and (volume_name == "" or storage_count == 1):
+            result = {'ret': False, 'msg': "There are multi-volume matched. Please specify volume id instead, volume id list: %s" % (str(list_raid_volume_ids))}
+            REDFISH_OBJ.logout()
+            return result
+
+        flag_multi_match_id = False
+        if target_raid_volumes_url is None:
+            # Check collected info to match volume id
+            for index in range(0, len(list_raid_volume_ids)):
+                if volume_name == str(list_raid_volume_ids[index]):
+                    if target_raid_volumes_url is None:
+                        target_raid_volumes_url = list_raid_volume_urls[index]
+                    else:
+                        flag_multi_match_id = True
+
+        if flag_multi_match_name or flag_multi_match_id:
+            result = {'ret': False, 'msg': "There are multi-volume matched. Please specify the raidid. raidid list: %s" % (str(list_raid_id))}
+            REDFISH_OBJ.logout()
+            return result
 
         if target_raid_volumes_url is None:
-            result = {'ret': False, 'msg': "Failed to found volume to delete"}
+            result = {'ret': False, 'msg': "Failed to found volume to delete. Volume name list: %s, volume id list: %s" % (str(list_raid_volume_names), str(list_raid_volume_ids))}
             REDFISH_OBJ.logout()
             return result
 
         # USE DELETE to delete a volume
         response_delete_volume = REDFISH_OBJ.delete(target_raid_volumes_url, None)
         if response_delete_volume.status in [200, 204]:
-            result = {"ret":True,"msg":"Delete volume successfully"}
+            result = {"ret": True, "msg": "Delete volume successfully"}
             try:
                 REDFISH_OBJ.logout()
             except:
@@ -155,8 +174,7 @@ def lenovo_delete_raid_volume(ip, login_account, login_password, system_id, raid
             return result
         else:
             error_message = utils.get_extended_error(response_delete_volume)
-            result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                target_raid_volumes_url, response_delete_volume.status, error_message)}
+            result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (target_raid_volumes_url, response_delete_volume.status, error_message)}
             REDFISH_OBJ.logout()
             return result
 
@@ -169,10 +187,9 @@ def lenovo_delete_raid_volume(ip, login_account, login_password, system_id, raid
 
 
 def add_helpmessage(argget):
-    argget.add_argument('--raidid', type=str, required=False,
-                        help="Specify the storage id when multi storage exist")
-    argget.add_argument('--name', type=str, required=True,
-                        help="virtual drive(VD)'s name")
+    argget.add_argument('--raidid', type=str, required=False, help="Specify the storage id when multi storage exist")
+    argget.add_argument('--name', type=str, required=True, help="virtual drive(VD)'s name or id. Use get_storage_inventory.py script to get volume details if needed")
+
 
 def add_parameter():
     """Add delete volume parameter"""
@@ -192,13 +209,13 @@ Example:
 if __name__ == '__main__':
     # Get parameters from config.ini and/or command line
     parameter_info = add_parameter()
-    
+
     # Get connection info from the parameters user specified
     ip = parameter_info['ip']
     login_account = parameter_info["user"]
     login_password = parameter_info["passwd"]
     system_id = parameter_info['sysid']
-    
+
     # delete raid volume and check result
     result = lenovo_delete_raid_volume(ip, login_account, login_password, system_id, parameter_info["raidid"], parameter_info["name"])
     if result['ret'] is True:
@@ -206,4 +223,3 @@ if __name__ == '__main__':
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
     else:
         sys.stderr.write(result['msg'] + '\n')
-        sys.exit(1)
