@@ -33,7 +33,7 @@ def set_networkprotocol(ip, login_account, login_password, service, enabled, por
         :type login_account: string
         :params login_password: BMC user password
         :type login_password: string
-        :params service: Specify service information supported by BMC. Support:["HTTPS","SSDP","SSH","SNMP","IPMI","VirtualMedia"]
+        :params service: Specify service information supported by BMC. Support:["HTTPS","SSDP","SSH","SNMP","IPMI","VirtualMedia","SFTP"]
         :type service: string
         :params enabled: Disable(0) or enable(1) the BMC service
         :type enabled: int
@@ -98,12 +98,16 @@ def set_networkprotocol(ip, login_account, login_password, service, enabled, por
 
 
                 # Build request body for modify network protocol
-                if service in ["IPMI", "SSDP"]:
+                if service in ["IPMI", "SSDP", "SFTP"]:
                     body = {service:{"ProtocolEnabled":bool(int(enabled))}}
+                    if service == "SFTP":
+                        if ('Oem' in response_network_protocol_url.dict and 'Lenovo' in response_network_protocol_url.dict['Oem']
+                        and 'SFTP' in response_network_protocol_url.dict['Oem']['Lenovo']):
+                            body = {"Oem":{"Lenovo":{service:{"ProtocolEnabled":bool(int(enabled))}}}}
                 elif service in ["SSH", "HTTPS", "SNMP", "VirtualMedia"]:
                     body = {service:{"ProtocolEnabled":bool(int(enabled)),"Port":port}}
                 else:
-                    result = {'ret': False, 'msg': "Please check the BMC service name is in the [HTTPS,HTTP,SSDP,SSH,SNMP,IPMI,VirtualMedia]"}
+                    result = {'ret': False, 'msg': "Please check the BMC service name is in the [HTTPS,HTTP,SSDP,SSH,SNMP,IPMI,VirtualMedia,SFTP]"}
                     return result
 
                 # Send Patch Request to Modify Network Port
@@ -136,8 +140,8 @@ def set_networkprotocol(ip, login_account, login_password, service, enabled, por
 
 
 def add_helpmessage(parser):
-    parser.add_argument('--service', type=str, choices=["HTTPS","SSDP","SSH","SNMP","IPMI","VirtualMedia"], required=True,
-                        help='Specify service information supported by BMC. Support:["HTTPS","SSDP","SSH","SNMP","IPMI","VirtualMedia"]')
+    parser.add_argument('--service', type=str, choices=["HTTPS","SSDP","SSH","SNMP","IPMI","VirtualMedia","SFTP"], required=True,
+                        help='Specify service information supported by BMC. Support:["HTTPS","SSDP","SSH","SNMP","IPMI","VirtualMedia","SFTP"]')
     parser.add_argument('--enabled', type=int, default=1,choices=[0, 1], help='Disable(0) or enable(1) the BMC service. default is 1')
     parser.add_argument('--port', type=int, help='The value of this property shall contain the port assigned for the protocol.'
                                                  'These ports "IPMI:623","SLP:427" and "SSDP:1900" are reserved and can only be used for the corresponding services.')
