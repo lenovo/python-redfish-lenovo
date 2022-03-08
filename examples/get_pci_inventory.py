@@ -20,7 +20,6 @@
 ###
 
 
-
 import sys
 import json
 import redfish
@@ -29,7 +28,7 @@ import lenovo_utils as utils
 
 
 def get_pci_inventory(ip, login_account, login_password, system_id):
-    """Get pci inventory    
+    """Get pci inventory
     :params ip: BMC IP address
     :type ip: string
     :params login_account: BMC user name
@@ -46,7 +45,8 @@ def get_pci_inventory(ip, login_account, login_password, system_id):
         # Connect using the BMC address, account name, and password
         # Create a REDFISH object
         REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account, timeout=utils.g_timeout,
-                                             password=login_password, default_prefix='/redfish/v1', cafile=utils.g_CAFILE)
+                                             password=login_password, default_prefix='/redfish/v1',
+                                             cafile=utils.g_CAFILE)
         # Login into the server and create a session
         REDFISH_OBJ.login(auth=utils.g_AUTH)
     except Exception as e:
@@ -97,7 +97,8 @@ def get_pci_inventory(ip, login_account, login_password, system_id):
             members_url = pcidevices_collection[i]['@odata.id']
             response_members_url = REDFISH_OBJ.get(members_url, None)
             if response_members_url.status != 200:
-                result = {'ret': False, 'msg': "Access url %s failed. Error code %s" % (members_url, response_members_url.status)}
+                result = {'ret': False,
+                          'msg': "Access url %s failed. Error code %s" % (members_url, response_members_url.status)}
                 REDFISH_OBJ.logout()
                 return result
 
@@ -107,20 +108,30 @@ def get_pci_inventory(ip, login_account, login_password, system_id):
 
             # Get PCIeFunctions
             pci['PCIeFunctions'] = []
-            if 'Links' in response_members_url.dict and 'PCIeFunctions' in response_members_url.dict['Links']:
-                for pciefunc_entry in response_members_url.dict['Links']['PCIeFunctions']:
-                    pciefunc = {}
-                    response_pciefunc = REDFISH_OBJ.get(pciefunc_entry['@odata.id'], None)
-                    if response_pciefunc.status != 200:
-                        result = {'ret': False, 'msg': "Access url %s failed. Error code %s" % (pciefunc_entry['@odata.id'], response_pciefunc.status)}
-                        REDFISH_OBJ.logout()
-                        return result
-                    for property in ['Id', 'VendorId', 'DeviceId', 'SubsystemId', 'SubsystemVendorId', 'DeviceClass', 'FunctionId', 'FunctionType']:
-                        if property in response_pciefunc.dict:
-                            pciefunc[property] = response_pciefunc.dict[property]
+            members = []
 
-                    pci['PCIeFunctions'].append(pciefunc)
+            if 'PCIeFunctions' in response_members_url.dict and '@odata.id' in response_members_url.dict[
+                'PCIeFunctions'] and response_members_url.dict['PCIeFunctions']['@odata.id'] is not None:
+                response_pciefunc = REDFISH_OBJ.get(response_members_url.dict['PCIeFunctions']['@odata.id'], None)
+                if response_pciefunc.status != 200:
+                    result = {'ret': False, 'msg': "Access url %s failed. Error code %s" % (response_members_url.dict['PCIeFunctions']['@odata.id'], response_pciefunc.status)}
+                    REDFISH_OBJ.logout()
+                    return result
+                for member in response_pciefunc.dict['Members']:
+                    members.append(member)
+            else:
+                if 'Links' in response_members_url.dict and 'PCIeFunctions' in response_members_url.dict[
+                    'Links'] and '@odata.id' in response_members_url['Links']['PCIeFunctions'] and response_members_url.dict['Links']['PCIeFunctions']['@odata.id'] is not None:
+                    for pciefunc_entry in response_members_url.dict['Links']['PCIeFunctions']['@odata.id']:
+                        members.append(pciefunc_entry)
 
+            for member_url in members:
+                pciefunc = {}
+                response_pciefunc_member = REDFISH_OBJ.get(member_url['@odata.id'], None)
+                for property in ['Id', 'VendorId', 'DeviceId', 'SubsystemId', 'SubsystemVendorId', 'DeviceClass', 'FunctionId', 'FunctionType']:
+                    if property in response_pciefunc_member.dict:
+                        pciefunc[property] = response_pciefunc_member.dict[property]
+                pci['PCIeFunctions'].append(pciefunc)
             pci_details.append(pci)
 
     result['ret'] = True
@@ -138,13 +149,13 @@ if __name__ == '__main__':
     argget = utils.create_common_parameter_list()
     args = argget.parse_args()
     parameter_info = utils.parse_parameter(args)
-    
+
     # Get connection info from the parameters user specified
     ip = parameter_info['ip']
     login_account = parameter_info["user"]
     login_password = parameter_info["passwd"]
     system_id = parameter_info['sysid']
-    
+
     # Get pci inventory and check result
     result = get_pci_inventory(ip, login_account, login_password, system_id)
     if result['ret'] is True:
@@ -153,4 +164,3 @@ if __name__ == '__main__':
     else:
         sys.stderr.write(result['msg'] + '\n')
         sys.exit(1)
-
