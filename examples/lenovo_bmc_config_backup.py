@@ -33,8 +33,8 @@ def getDocSize(path):
         size = os.path.getsize(path)
         return size/1024
     except Exception as err:
-        sys.stderr.write(err)
-        sys.exit(1)
+        result = {'ret': False, 'msg': "Failed to get file size %s. " % path + str(err)}
+        return result
 
 def lenovo_bmc_config_backup(ip, login_account, login_password, backup_password, backup_file, httpip, httpport, httpdir):
     """BMC configuration backup
@@ -136,13 +136,16 @@ def lenovo_bmc_config_backup(ip, login_account, login_password, backup_password,
                     json.dump(response_backup_url.dict["data"], back_file, separators=(',',':'))
                     back_file.close()
                     size = getDocSize(backup_file)
-                    if(size <= 255):
-                        result = {'ret': True,
-                                  'msg': "BMC configuration backup successfully, backup file is:" + backup_file}
+                    if not isinstance(size, dict):
+                        if(size <= 255):
+                            result = {'ret': True,
+                                    'msg': "BMC configuration backup successfully, backup file is:" + backup_file}
+                        else:
+                            os.remove(backup_file)
+                            result = {'ret': False,
+                                    'msg': "Failed to back up the configuration because the size of configuration data is over 255KB."}
                     else:
-                        os.remove(backup_file)
-                        result = {'ret': False,
-                                  'msg': "Failed to back up the configuration because the size of configuration data is over 255KB."}
+                        result = size
                     REDFISH_OBJ.logout()
                     return result
                 else:

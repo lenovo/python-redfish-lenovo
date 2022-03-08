@@ -34,8 +34,8 @@ def getDocSize(path):
         size = os.path.getsize(path)
         return size/1024
     except Exception as err:
-        sys.stderr.write(err)
-        sys.exit(1)
+        result = {'ret': False, 'msg': "Failed to get file size %s. " % path + str(err)}
+        return result
 
 
 def check_whether_new_schema(odatatype, REDFISH_OBJ):
@@ -111,10 +111,15 @@ def lenovo_bmc_config_restore(ip, login_account, login_password, backup_password
             result = {'ret': False, 'msg': "Failed to open file %s,Please check your backup file path" % backup_file}
             return result
         #check backup file size
-        if(getDocSize(backup_file) > 255):
-            result = {'ret': False,
-                      'msg': "Failed to restore the configuration because the size of configuration data is over 255KB."}
-            return result
+        size = getDocSize(backup_file)
+        if not isinstance(size, dict):
+            if(size > 255):
+                result = {'ret': False,
+                        'msg': "Failed to restore the configuration because the size of configuration data is over 255KB."}
+                return result
+        else:
+            return size
+
 
     login_host = "https://" + ip
 
