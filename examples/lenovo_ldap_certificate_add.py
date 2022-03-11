@@ -77,13 +77,50 @@ def lenovo_ldap_certificate_add(ip, login_account, login_password, certfile):
             result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
                 request_url, response_url.status, error_message)}
             return result
+        
+        if "Oem" in response_url.dict and "Ami" in response_url.dict["Oem"]:
+            flag_SR635_SR655 = True
+
         if '/redfish/v1/AccountService/LDAP/Certificates' in str(response_url.dict):
             request_url = '/redfish/v1/AccountService/LDAP/Certificates'
+            if flag_SR635_SR655:
+                certificates_response = REDFISH_OBJ.get(request_url, None)
+                if certificates_response.status != 200:
+                    error_message = utils.get_extended_error(certificates_response)
+                    result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                        request_url, certificates_response.status, error_message)}
+                    return result
+                
+                # The LDAP certificate is already available in BMC, Replace Certificate' 
+                if "Members@odata.count" in certificates_response.dict and \
+                    certificates_response.dict["Members@odata.count"] > 0:
+                    replace_url = '/redfish/v1/CertificateService/Actions/CertificateService.ReplaceCertificate'
+                    CertificateUri = certificates_response.dict["Members"][0]["@odata.id"]
+                            
+                    request_body = {}
+                    request_body['CertificateString'] = read_cert_file_pem(certfile)
+                    if request_body['CertificateString'] is None:
+                        result = {'ret': False,
+                                'msg':"Target server required certificate format should be PEM. Please specify correct certificate file."}
+                        return result
+                    request_body['CertificateType'] = 'PEM'
+                    request_body['CertificateUri'] = {'@odata.id': CertificateUri}
+                     # Perform post to add the certificate
+                    response_url = REDFISH_OBJ.post(replace_url, body=request_body)
+                    if response_url.status not in [200, 201, 202, 204]:
+                        error_message = utils.get_extended_error(response_url)
+                        result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                            request_url, response_url.status, error_message)}
+                    else:
+                        result = {'ret': True,
+                                'msg':"The certificate has been added successfully."}
+                    return result
+
             request_body = {'CertificateType':'PEM'}
             request_body['CertificateString'] = read_cert_file_pem(certfile)
             if request_body['CertificateString'] is None:
                 result = {'ret': False,
-                          'msg':"Target server required certificate format should be PEM. Please specify correct certificate file."}
+                        'msg':"Target server required certificate format should be PEM. Please specify correct certificate file."}
                 return result
 
             # Perform post to add the certificate
@@ -94,14 +131,47 @@ def lenovo_ldap_certificate_add(ip, login_account, login_password, certfile):
                     request_url, response_url.status, error_message)}
             else:
                 result = {'ret': True,
-                          'msg':"The certificate has been added successfully."}
+                        'msg':"The certificate has been added successfully."}
             return result
-        elif "Oem" in response_url.dict and "Ami" in response_url.dict["Oem"]:
-            flag_SR635_SR655 = True
 
         # Add(import) certificate for SR635/SR655 using standard API with some oem properties
         if flag_SR635_SR655:
             request_url = '/redfish/v1/Managers/Self/RemoteAccountService/LDAP/Certificates'
+
+            certificates_response = REDFISH_OBJ.get(request_url, None)
+            if certificates_response.status != 200:
+                error_message = utils.get_extended_error(certificates_response)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                    request_url, certificates_response.status, error_message)}
+                return result
+            
+            # The LDAP certificate is already available in BMC, Replace Certificate' 
+            if "Members@odata.count" in certificates_response.dict and \
+                certificates_response.dict["Members@odata.count"] > 0:
+                replace_url = '/redfish/v1/CertificateService/Actions/CertificateService.ReplaceCertificate'
+                CertificateUri = certificates_response.dict["Members"][0]["@odata.id"]
+                        
+                request_body = {}
+                request_body['CertificateString'] = read_cert_file_pem(certfile)
+                if request_body['CertificateString'] is None:
+                    result = {'ret': False,
+                            'msg':"Target server required certificate format should be PEM. Please specify correct certificate file."}
+                    return result
+                request_body['CertificateType'] = 'PEM'
+                request_body['CertificateUri'] = {'@odata.id': CertificateUri}
+
+                # Perform post to add the certificate
+                response_url = REDFISH_OBJ.post(replace_url, body=request_body)
+                if response_url.status not in [200, 201, 202, 204]:
+                    error_message = utils.get_extended_error(response_url)
+                    result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                        request_url, response_url.status, error_message)}
+                else:
+                    result = {'ret': True,
+                            'msg':"The certificate has been added successfully."}
+                return result
+
+            # For the first time to upload 
             request_body = {}
             request_body['CertificateString'] = read_cert_file_pem(certfile)
             if request_body['CertificateString'] is None:
