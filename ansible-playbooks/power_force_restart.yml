@@ -6,7 +6,7 @@
 
   tasks:
 
-  - name: Restart system power forcely
+  - name: Restart system power forcefully
     redfish_command:
       category: Systems
       command: PowerForceRestart
