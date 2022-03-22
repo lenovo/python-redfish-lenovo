@@ -88,6 +88,15 @@ def lenovo_update_firmware(ip, login_account, login_password, image, targets, fs
             # For SR635/655
             if "Oem" in response_update_service_url.dict['Actions']:
                 # Check whether the firmware is BMC or UEFI
+                if not targets:
+                    if image.index('bmc') != -1:
+                        targets = ["BMC"]
+                    elif image.index('uefi') != -1:
+                        targets = ["UEFI"]
+                    else:
+                        result = {'ret': False,
+                                  'msg': "For SR635/SR655 products, please specify targets(BMC or UEFI) to update firmware."}
+                        return result
                 if targets[0].upper() not in ["BMC", "UEFI"]:
                     result = {'ret': False,
                               'msg': "SR635/SR655 products only supports specifying BMC or UEFI to refresh."}
@@ -139,12 +148,12 @@ def lenovo_update_firmware(ip, login_account, login_password, image, targets, fs
                     # for SR635/SR655 products, refresh the firmware with OEM action
                     Oem_dict = response_update_service_url.dict['Actions']['Oem']
                     if "#UpdateService.HPMUpdate" in Oem_dict and targets[0].upper() == "BMC":
-                        firmware_update_url = response_update_service_url.dict['Actions']['Oem']['#UpdateService.HPMUpdate']['target']
+                        firmware_update_url = Oem_dict['#UpdateService.HPMUpdate']['target']
                     elif "#UpdateService.UEFIUpdate" in Oem_dict and targets[0].upper() == "UEFI":
-                        firmware_update_url = response_update_service_url.dict['Actions']['Oem']["#UpdateService.UEFIUpdate"]['target']
+                        firmware_update_url = Oem_dict["#UpdateService.UEFIUpdate"]['target']
                     else:
                         result = {'ret': False,
-                                  'msg':"Check whether the BMC of SR635/655 is a version before V1.88 (BUILD ID:AMBT08R). If yes, update firmware with HTTP protocol is not supported."}
+                                  'msg':"Update firmware with HTTP protocol is not supported."}
                         return result
 
                     if fsprotocol.upper() != "HTTP":
