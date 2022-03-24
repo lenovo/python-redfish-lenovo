@@ -158,6 +158,9 @@ def mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsp
                             return result
                     # Mount virtual media via action
                     elif "Actions" in response_members.dict:
+                        if not image.endswith(".iso") and not image.endswith(".nrg"):
+                            result = {'ret': False, 'msg': "For SR635/SR655 products, the supported CD/DVD media file types:(*.iso), (*.nrg)."}
+                            return result
                         if "#VirtualMedia.InsertMedia" in response_members.dict["Actions"]:
                             action_url = response_members.dict['Actions']['#VirtualMedia.InsertMedia']['@Redfish.ActionInfo']
                             response_action = REDFISH_OBJ.get(action_url, None)
