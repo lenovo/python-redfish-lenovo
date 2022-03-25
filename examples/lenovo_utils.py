@@ -22,6 +22,7 @@ import argparse
 import configparser
 import redfish
 import traceback
+import time
 
 
 # Define global variable
@@ -227,3 +228,71 @@ def parse_parameter(args):
         sys.exit(1)
         
     return config_ini_info
+
+
+def flush(percent):
+    list = ['|', '\\', '-', '/']
+    for i in list:
+        sys.stdout.write(' ' * 100 + '\r')
+        sys.stdout.flush()
+        sys.stdout.write(i + (('          PercentComplete: %d' %percent) if percent > 0 else '') + '\r')
+        sys.stdout.flush()
+        time.sleep(0.1)
+
+
+def task_monitor(REDFISH_OBJ, task_uri):
+    """Monitor task status"""
+    RUNNING_TASK_STATE = ["New", "Pending", "Service", "Starting", "Stopping", "Running", "Cancelling", "Verifying"]
+    END_TASK_STATE = ["Cancelled", "Completed", "Exception", "Killed", "Interrupted", "Suspended"]
+    current_state = ""
+    messages = []
+    percent = 0
+
+    while True:
+        response_task_uri = REDFISH_OBJ.get(task_uri, None)
+        if response_task_uri.status == 200:
+            task_state = response_task_uri.dict["TaskState"]
+            if 'Messages' in response_task_uri.dict:
+                messages = response_task_uri.dict['Messages']
+            if 'PercentComplete' in response_task_uri.dict:
+                percent = response_task_uri.dict['PercentComplete']
+            if task_state in RUNNING_TASK_STATE:
+                if task_state != current_state:
+                    current_state = task_state
+                    print('Task state is %s, wait a minute' % current_state)
+                    continue
+                else:
+                    flush(percent)
+            elif task_state.startswith("Downloading"):
+                sys.stdout.write(' ' * 100 + '\r')
+                sys.stdout.flush()
+                sys.stdout.write(task_state + '\r')
+                sys.stdout.flush()
+                continue
+            elif task_state.startswith("Update"):
+                sys.stdout.write(' ' * 100 + '\r')
+                sys.stdout.flush()
+                sys.stdout.write(task_state + '\r')
+                sys.stdout.flush()
+                continue
+            elif task_state in END_TASK_STATE:
+                sys.stdout.write(' ' * 100 + '\r')
+                sys.stdout.flush()
+                print("End of the task")
+                result = {'ret': True, 'task_state': task_state,
+                          'msg': ' Messages: %s' % str(messages) if messages != [] else ''}
+                return result
+            else:
+                result = {'ret': False, 'task_state': task_state}
+                result['msg'] = ('Unknown TaskState %s. ' % task_state) + 'Task Not conforming to Schema Specification. ' + (
+                                    'Messages: %s' % str(messages) if messages != [] else '')
+                return result
+        else:
+            task_state = None
+            if response_task_uri.status == 401:
+                task_state = 401
+            message = get_extended_error(response_task_uri)
+            result = {'ret': False, 'task_state': task_state,
+                      'msg': "Url '%s' response Error code %s, \nError message :%s" % (
+                          task_uri, response_task_uri.status, message)}
+            return result
