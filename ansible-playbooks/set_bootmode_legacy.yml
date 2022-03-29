@@ -10,6 +10,9 @@
 
   tasks:
 
+  - shell: 'ansible --version'
+    register: ansible_version
+
   - name: Get system model
     include_tasks: get_system_model.yml
 
@@ -19,24 +22,56 @@
       attribute_value: Legacy_only
     when: system_model == "ThinkSystem SR635" or system_model == "ThinkSystem SR655"
 
-  - name: Set {{ attribute_name }} to {{ attribute_value }}
-    redfish_config:
-      category: Systems
-      command: SetBiosAttributes
-      bios_attribute_name: "{{ attribute_name }}"
-      bios_attribute_value: "{{ attribute_value }}"
-      baseuri: "{{ baseuri }}"
-      username: "{{ username }}"
-      password: "{{ password }}"
-      timeout: 20
-    register: bios_attribute
- 
+  - block:
+    - name: Set {{ attribute_name }} to {{ attribute_value }} for ansible version less than 2.10.0
+      redfish_config:
+        category: Systems
+        command: SetBiosAttributes
+        bios_attribute_name: "{{ attribute_name }}"
+        bios_attribute_value: "{{ attribute_value }}"
+        baseuri: "{{ baseuri }}"
+        username: "{{ username }}"
+        password: "{{ password }}"
+        timeout: 20
+      register: bios_attribute_less
+    when: ansible_version['full'] is version('2.10.0', '<')
+
+  - block:
+    - name: Set {{ attribute_name }} to {{ attribute_value }} for ansible version greater than 2.10.0 and not AMD1P
+      redfish_config:
+        category: Systems
+        command: SetBiosAttributes
+        bios_attributes:
+          BootModes_SystemBootMode: "{{ attribute_value }}"     
+        baseuri: "{{ baseuri }}"
+        username: "{{ username }}"
+        password: "{{ password }}"
+        timeout: 20
+      register: bios_attribute_XCC
+    when: ansible_version['full'] is version('2.10.0', '>') and system_model != "ThinkSystem SR635" and system_model != "ThinkSystem SR655"
+
+  - block:
+    - name: Set {{ attribute_name }} to {{ attribute_value }} for ansible version greater than 2.10.0 and AMD1P
+      redfish_config:
+        category: Systems
+        command: SetBiosAttributes
+        bios_attributes:
+          Q00001_Boot_Mode: "{{ attribute_value }}"     
+        baseuri: "{{ baseuri }}"
+        username: "{{ username }}"
+        password: "{{ password }}"
+        timeout: 20
+      register: bios_attribute_AMD
+    when: ansible_version['full'] is version('2.10.0', '>') and (system_model == "ThinkSystem SR635" or system_model == "ThinkSystem SR655")
+
   - name: Reboot system to apply new BIOS settings
     redfish_command:
       category: Systems
-      command: PowerReboot
+      command: PowerForceRestart
       baseuri: "{{ baseuri }}"
       username: "{{ username }}"
       password: "{{ password }}"
       timeout: 20
-    when: bios_attribute.changed
+    register: power
+    when: bios_attribute_less.changed or bios_attribute_XCC.changed or bios_attribute_AMD.changed
+    ignore_errors: yes
