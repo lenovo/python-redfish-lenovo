@@ -233,6 +233,7 @@ def lenovo_create_bmc_user(ip, login_account, login_password, username, password
                 #create new user account
                 headers = None
                 parameter = {
+                    "Enabled": True,
                     "Password": password,
                     "Name": username,
                     "UserName": username,
