@@ -132,6 +132,8 @@ def lenovo_set_bios_boot_order(ip, login_account, login_password, system_id, boo
                 # Get supported boot order list
                 boot_order_supported = list()
                 org_boot_order_struct_list = attribute_value.split(';')
+                if org_boot_order_struct_list[-1] == "":
+                    org_boot_order_struct_list = org_boot_order_struct_list[:-1]
                 for boot_order_struct in org_boot_order_struct_list:
                     boot_order_name = boot_order_struct.split(',')[0]
                     boot_order_supported.append(boot_order_name)
