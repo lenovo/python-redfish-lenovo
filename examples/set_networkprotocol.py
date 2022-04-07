@@ -25,6 +25,7 @@ import json
 import lenovo_utils as utils
 import traceback
 
+
 def set_networkprotocol(ip, login_account, login_password, service, enabled, port):
     """This feature provides abilities to enable or disable a BMC service and to change port numbers
         :params ip: BMC IP address
@@ -74,7 +75,7 @@ def set_networkprotocol(ip, login_account, login_password, service, enabled, por
             for request in response_managers_url.dict['Members']:
                 request_url = request['@odata.id']
                 response_url = REDFISH_OBJ.get(request_url, None)
-                #Get Network Protocol url from the manager url response
+                # Get Network Protocol url from the manager url response
                 if response_url.status == 200:
                     network_protocol_url = response_url.dict["NetworkProtocol"]['@odata.id']
                 else:
@@ -96,21 +97,23 @@ def set_networkprotocol(ip, login_account, login_password, service, enabled, por
                     etag = ""
                 headers = {"If-Match": etag}
 
-
                 # Build request body for modify network protocol
-                if service in ["IPMI", "SSDP"]:
-                    body = {service:{"ProtocolEnabled":bool(int(enabled))}}
-                elif service in ["SSH", "HTTPS", "SNMP", "VirtualMedia"]:
-                    body = {service:{"ProtocolEnabled":bool(int(enabled)),"Port":port}}
+                if service in ["SSDP","IPMI"]:
+                    body = {service: {"ProtocolEnabled": bool(int(enabled))}}
+                elif service in ["SSH", "SNMP", "VirtualMedia","HTTPS"]:
+                    if service == "HTTPS":
+                        enabled = 1
+                    body = {service: {"ProtocolEnabled": bool(int(enabled)), "Port": port}}
                 else:
-                    result = {'ret': False, 'msg': "Please check the BMC service name is in the [HTTPS,HTTP,SSDP,SSH,SNMP,IPMI,VirtualMedia]"}
+                    result = {'ret': False,
+                              'msg': "Please check the BMC service name is in the [HTTPS,HTTP,SSDP,SSH,SNMP,IPMI,VirtualMedia]"}
                     return result
 
                 # Send Patch Request to Modify Network Port
                 response_network_protocol_url = REDFISH_OBJ.patch(network_protocol_url, body=body, headers=headers)
-                if response_network_protocol_url.status in [200,204]:
+                if response_network_protocol_url.status in [200, 204]:
                     result = {'ret': True,
-                              'msg': "Set BMC service %s successfully" %service}
+                              'msg': "Set BMC service %s successfully" % service}
                     return result
                 else:
                     error_message = utils.get_extended_error(response_network_protocol_url)
@@ -136,11 +139,14 @@ def set_networkprotocol(ip, login_account, login_password, service, enabled, por
 
 
 def add_helpmessage(parser):
-    parser.add_argument('--service', type=str, choices=["HTTPS","SSDP","SSH","SNMP","IPMI","VirtualMedia"], required=True,
+    parser.add_argument('--service', type=str, choices=["HTTPS", "SSDP", "SSH", "SNMP", "IPMI", "VirtualMedia"],
+                        required=True,
                         help='Specify service information supported by BMC. Support:["HTTPS","SSDP","SSH","SNMP","IPMI","VirtualMedia"]')
-    parser.add_argument('--enabled', type=int, default=1,choices=[0, 1], help='Disable(0) or enable(1) the BMC service. default is 1')
-    parser.add_argument('--port', type=int, help='The value of this property shall contain the port assigned for the protocol.'
-                                                 'These ports "IPMI:623","SLP:427" and "SSDP:1900" are reserved and can only be used for the corresponding services.')
+    parser.add_argument('--enabled', type=int, default=1, choices=[0, 1],
+                        help='Disable(0) or enable(1) the BMC service. default is 1')
+    parser.add_argument('--port', type=int,
+                        help='The value of this property shall contain the port assigned for the protocol.'
+                             'These ports "IPMI:623","SLP:427" and "SSDP:1900" are reserved and can only be used for the corresponding services.')
 
 
 def add_parameter():
@@ -175,7 +181,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     # set service port and check result
-    result = set_networkprotocol(ip, login_account, login_password,service, enabled, port)
+    result = set_networkprotocol(ip, login_account, login_password, service, enabled, port)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
