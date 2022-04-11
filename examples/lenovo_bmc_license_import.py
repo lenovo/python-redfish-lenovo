@@ -22,6 +22,7 @@
 import sys, os, json, struct
 import redfish
 import traceback
+import base64
 import lenovo_utils as utils
 
 
@@ -66,77 +67,119 @@ def lenovo_bmc_license_import(ip, login_account, login_password, license_file):
             '/redfish/v1', response_base_url.status, error_message)}
         REDFISH_OBJ.logout()
         return result
-
-    # Get Manager collection resource
-    manager_url = response_base_url.dict['Managers']['@odata.id']
-    response_manager_url = REDFISH_OBJ.get(manager_url, None)
-    if response_manager_url.status != 200:
-        error_message = utils.get_extended_error(response_manager_url)
-        result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-            manager_url, response_manager_url.status, error_message)}
-        REDFISH_OBJ.logout()
-        return result
-
-    # Get Manager resource
-    for request in response_manager_url.dict['Members']:
-        request_url = request['@odata.id']
-        response_url = REDFISH_OBJ.get(request_url, None)
-        if response_url.status != 200:
-            error_message = utils.get_extended_error(response_url)
+    
+    # Get LicenseService resource
+    if 'LicenseService' in response_base_url.dict:
+        licenseService_url = response_base_url.dict['LicenseService']['@odata.id']
+        response_licenseService_url = REDFISH_OBJ.get(licenseService_url, None)       
+        if response_licenseService_url.status != 200:
+            error_message = utils.get_extended_error(response_licenseService_url)
             result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                request_url, response_url.status, error_message)}
+                licenseService_url, response_licenseService_url.status, error_message)}
             REDFISH_OBJ.logout()
             return result
 
-        # Get bmc license url
-        if 'Oem' in response_url.dict and 'Lenovo' in response_url.dict['Oem'] and 'FoD' in response_url.dict['Oem']['Lenovo']:
-            request_url = response_url.dict['Oem']['Lenovo']['FoD']['@odata.id']
-        else:
-            break
+        if 'Licenses' in response_licenseService_url.dict:
+            licenses_url = response_licenseService_url.dict['Licenses']['@odata.id']
+            
+            # Get data from license file
+            try:
+                with open(license_file, 'rb') as f1:
+                    base64_b = base64.b64encode(f1.read())
+                    base64_str = base64_b.decode('utf-8') 
+            except Exception as e:
+                traceback.print_exc()
+                result = {'ret': False, 'msg': "Failed to open file %s. %s" % (license_file, str(e))}
+                REDFISH_OBJ.logout()
+                return result
+            
+            request_body = {'LicenseString': src}  
 
-        response_url = REDFISH_OBJ.get(request_url, None)
-        if response_url.status != 200:
-            error_message = utils.get_extended_error(response_url)
+            # Perform post to import license key
+            response_url = REDFISH_OBJ.post(licenses_url, body=request_body)
+            if response_url.status not in [200, 201, 202, 204]:
+                error_message = utils.get_extended_error(response_url)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                    request_url, response_url.status, error_message)}
+            else:
+                result = {'ret': True,
+                        'msg':"BMC license import successfully"}
+            try:
+                REDFISH_OBJ.logout()
+            except:
+                pass
+            return result
+    else:
+        # Get Manager collection resource
+        manager_url = response_base_url.dict['Managers']['@odata.id']
+        response_manager_url = REDFISH_OBJ.get(manager_url, None)
+        if response_manager_url.status != 200:
+            error_message = utils.get_extended_error(response_manager_url)
             result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                request_url, response_url.status, error_message)}
+                manager_url, response_manager_url.status, error_message)}
             REDFISH_OBJ.logout()
             return result
 
-        if 'Keys' not in response_url.dict:
-            break
+        # Get Manager resource
+        for request in response_manager_url.dict['Members']:
+            request_url = request['@odata.id']
+            response_url = REDFISH_OBJ.get(request_url, None)
+            if response_url.status != 200:
+                error_message = utils.get_extended_error(response_url)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                    request_url, response_url.status, error_message)}
+                REDFISH_OBJ.logout()
+                return result
 
-        # Get data from license file
-        try:
-            size = os.path.getsize(license_file)
-            license_fhandle = open(license_file, 'rb')
-        except Exception as e:
-            traceback.print_exc()
-            result = {'ret': False, 'msg': "Failed to open file %s. %s" % (license_file, str(e))}
-            REDFISH_OBJ.logout()
+            # Get bmc license url
+            if 'Oem' in response_url.dict and 'Lenovo' in response_url.dict['Oem'] and 'FoD' in response_url.dict['Oem']['Lenovo']:
+                request_url = response_url.dict['Oem']['Lenovo']['FoD']['@odata.id']
+            else:
+                break
+
+            response_url = REDFISH_OBJ.get(request_url, None)
+            if response_url.status != 200:
+                error_message = utils.get_extended_error(response_url)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                    request_url, response_url.status, error_message)}
+                REDFISH_OBJ.logout()
+                return result
+
+            if 'Keys' not in response_url.dict:
+                break
+
+            # Get data from license file
+            try:
+                size = os.path.getsize(license_file)
+                license_fhandle = open(license_file, 'rb')
+            except Exception as e:
+                traceback.print_exc()
+                result = {'ret': False, 'msg': "Failed to open file %s. %s" % (license_file, str(e))}
+                REDFISH_OBJ.logout()
+                return result
+            bytelist = list()
+            for i in range(size):
+                data = license_fhandle.read(1)
+                elem = struct.unpack("B", data)[0]
+                bytelist.append(elem)
+            license_fhandle.close()
+            request_body = {'Bytes': bytelist}
+
+            # Perform post to import license key
+            request_url = response_url.dict['Keys']['@odata.id']
+            response_url = REDFISH_OBJ.post(request_url, body=request_body)
+            if response_url.status not in [200, 201, 202, 204]:
+                error_message = utils.get_extended_error(response_url)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                    request_url, response_url.status, error_message)}
+            else:
+                result = {'ret': True,
+                        'msg':"BMC license import successfully"}
+            try:
+                REDFISH_OBJ.logout()
+            except:
+                pass
             return result
-        bytelist = list()
-        for i in range(size):
-            data = license_fhandle.read(1)
-            elem = struct.unpack("B", data)[0]
-            bytelist.append(elem)
-        license_fhandle.close()
-        request_body = {'Bytes': bytelist}
-
-        # Perform post to import license key
-        request_url = response_url.dict['Keys']['@odata.id']
-        response_url = REDFISH_OBJ.post(request_url, body=request_body)
-        if response_url.status not in [200, 201, 202, 204]:
-            error_message = utils.get_extended_error(response_url)
-            result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                request_url, response_url.status, error_message)}
-        else:
-            result = {'ret': True,
-                      'msg':"BMC license import successfully"}
-        try:
-            REDFISH_OBJ.logout()
-        except:
-            pass
-        return result
 
     result = {'ret': False, 'msg': "Not support license via Redfish."}
     try:
@@ -147,7 +190,7 @@ def lenovo_bmc_license_import(ip, login_account, login_password, license_file):
 
 
 def add_helpmessage(parser):
-    parser.add_argument('--licensefile', type=str, required=True, help='An file that contains the license key you want to import')
+    parser.add_argument('--licensefile', type=str, required=True, help='A file that contains the license key you want to import')
 
 
 def add_parameter():
