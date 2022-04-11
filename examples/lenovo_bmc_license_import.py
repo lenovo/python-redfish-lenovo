@@ -93,7 +93,7 @@ def lenovo_bmc_license_import(ip, login_account, login_password, license_file):
                 REDFISH_OBJ.logout()
                 return result
             
-            request_body = {'LicenseString': src}  
+            request_body = {'LicenseString': base64_str}  
 
             # Perform post to import license key
             response_url = REDFISH_OBJ.post(licenses_url, body=request_body)
@@ -103,7 +103,7 @@ def lenovo_bmc_license_import(ip, login_account, login_password, license_file):
                     request_url, response_url.status, error_message)}
             else:
                 result = {'ret': True,
-                        'msg':"BMC license import successfully"}
+                          'msg':"BMC license import successfully"}
             try:
                 REDFISH_OBJ.logout()
             except:
@@ -174,7 +174,7 @@ def lenovo_bmc_license_import(ip, login_account, login_password, license_file):
                     request_url, response_url.status, error_message)}
             else:
                 result = {'ret': True,
-                        'msg':"BMC license import successfully"}
+                          'msg':"BMC license import successfully"}
             try:
                 REDFISH_OBJ.logout()
             except:
