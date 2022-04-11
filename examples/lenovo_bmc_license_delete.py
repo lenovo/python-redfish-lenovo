@@ -164,7 +164,7 @@ def lenovo_bmc_license_delete(ip, login_account, login_password, key_id):
                 request_delete_url, response_url.status, error_message)}
         else:
             result = {'ret': True,
-                    'msg':"BMC license delete successfully"}
+                      'msg':"BMC license delete successfully"}
         try:
             REDFISH_OBJ.logout()
         except:
