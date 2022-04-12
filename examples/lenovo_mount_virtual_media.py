@@ -294,6 +294,25 @@ def mount_virtual_media_from_cd(REDFISH_OBJ, members_list, protocol, fsip, fspor
             if response.status in [200, 204]:
                 result = {'ret': True, 'msg': "'%s' mount successfully" % image}
                 return result
+            elif response.status == 202:
+                task_uri = response.dict['@odata.id']
+                result = utils.task_monitor(REDFISH_OBJ, task_uri)
+                # Delete the task when the task state is completed without any warning
+                severity = ''
+                if result["ret"] is True and "Completed" == result["task_state"] and result['msg'] != '':
+                    result_json = json.loads(result['msg'].replace("Messages:", "").replace("'", "\""))
+                    if "Severity" in result_json[0]:
+                        severity = result_json[0]["Severity"]
+                if result["ret"] is True and "Completed" == result["task_state"] and (result['msg'] == '' or severity == 'OK'):
+                    REDFISH_OBJ.delete(task_uri, None)
+                if result["ret"] is True:
+                    task_state = result["task_state"]
+                    if task_state == "Completed":
+                        result['msg'] = "'%s' mount successfully. %s" % (image, result['msg'])
+                    else:
+                        result['ret'] = False
+                        result['msg'] = "'%s' mount failed. %s" % (image, result['msg'])
+                return result
             else:
                 error_message = utils.get_extended_error(response)
                 result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (

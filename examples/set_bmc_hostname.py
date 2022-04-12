@@ -22,6 +22,7 @@
 
 import sys
 import json
+import time
 import redfish
 import traceback
 import lenovo_utils as utils
@@ -124,6 +125,39 @@ def set_bmc_hostname(ip, login_account, login_password, hostname):
     if response_host_name_url.status in [200, 204]:
         result = {'ret': True,
                   'msg': "Set BMC host name %s successfully" % hostname}
+    elif response_host_name_url.status == 202:
+        task_uri = response_host_name_url.dict['@odata.id']
+        while True:
+            result = utils.task_monitor(REDFISH_OBJ, task_uri)
+            if result["ret"] is False and result["task_state"] == 401:
+                while True:
+                    response_base_url = REDFISH_OBJ.get('/redfish/v1', None)
+                    if response_base_url.status == 200:
+                        REDFISH_OBJ = redfish.redfish_client(base_url=login_host, username=login_account, timeout=utils.g_timeout,
+                                                             password=login_password, default_prefix='/redfish/v1', cafile=utils.g_CAFILE)
+                        REDFISH_OBJ.login(auth=utils.g_AUTH)
+                        break
+                    else:
+                        time.sleep(1)
+                        continue
+                continue
+            break
+        # Delete the task when the task state is completed without any warning
+        severity = ''
+        if result["ret"] is True and "Completed" == result["task_state"] and result['msg'] != '':
+            result_json = json.loads(result['msg'].replace("Messages:","").replace("'","\""))
+            if "Severity" in result_json[0]:
+                severity = result_json[0]["Severity"]
+        if result["ret"] is True and "Completed" == result["task_state"] and (result['msg'] == '' or severity == 'OK'):
+            REDFISH_OBJ.delete(task_uri, None)
+        if result["ret"] is True:
+            task_state = result["task_state"]
+            if task_state == "Completed":
+                result['msg'] = "Set BMC host name %s successfully. %s" % (hostname, result['msg'])
+            else:
+                result['ret'] = False
+                result['msg'] = "Failed to set BMC host name %s. %s" % (hostname, result['msg'])
+        return result
     else:
         error_message = utils.get_extended_error(response_host_name_url)
         result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" %

@@ -98,9 +98,28 @@ def restart_bmc(ip, login_account, login_password):
                     response_restart = REDFISH_OBJ.post(restart_manager_url, headers=headers, body=body)
                     if response_restart.status in [200, 204]:  
                         result = {'ret': True, 'msg': "Restart BMC Successfully"}
+                    elif response_restart.status == 202:
+                        task_uri = response_restart.dict['@odata.id']
+                        result = utils.task_monitor(REDFISH_OBJ, task_uri)
+                        # Delete the task when the task state is completed without any warning
+                        severity = ''
+                        if result["ret"] is True and "Completed" == result["task_state"] and result['msg'] != '':
+                            result_json = json.loads(result['msg'].replace("Messages:", "").replace("'", "\""))
+                            if "Severity" in result_json[0]:
+                                severity = result_json[0]["Severity"]
+                        if result["ret"] is True and "Completed" == result["task_state"] and (result['msg'] == '' or severity == 'OK'):
+                            REDFISH_OBJ.delete(task_uri, None)
+                        if result["ret"] is True:
+                            task_state = result["task_state"]
+                            if task_state == "Completed":
+                                result['msg'] = "Restart BMC successfully. %s" % (result['msg'])
+                            else:
+                                result['ret'] = False
+                                result['msg'] = "Failed to restart BMC. %s" % (result['msg'])
+                        return result
                     else:
                         error_message = utils.get_extended_error(response_restart)
-                        result = {'ret': False, 'msg': "Restart BMC Falied, Url '%s' response Error code%s \nerror_message: %s" % (restart_manager_url, response_restart.status, error_message)}
+                        result = {'ret': False, 'msg': "Failed to restart BMC, Url '%s' response Error code%s \nerror_message: %s" % (restart_manager_url, response_restart.status, error_message)}
                         return result
                 else:
                     error_message = utils.get_extended_error(response_manager_url)
