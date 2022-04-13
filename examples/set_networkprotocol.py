@@ -101,6 +101,8 @@ def set_networkprotocol(ip, login_account, login_password, service, enabled, por
                 if service in ["IPMI", "SSDP"]:
                     body = {service:{"ProtocolEnabled":bool(int(enabled))}}
                 elif service in ["SSH", "HTTPS", "SNMP", "VirtualMedia"]:
+                    if service == "HTTPS":
+                        enabled = 1
                     body = {service:{"ProtocolEnabled":bool(int(enabled)),"Port":port}}
                 else:
                     result = {'ret': False, 'msg': "Please check the BMC service name is in the [HTTPS,HTTP,SSDP,SSH,SNMP,IPMI,VirtualMedia]"}
