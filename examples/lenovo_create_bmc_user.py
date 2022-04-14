@@ -404,8 +404,8 @@ def add_helpmessage(argget):
     help_str += "[UserAccountManagement, RemoteConsoleAccess, RemoteConsoleAndVirtualMediaAccess, RemoteServerPowerRestartAccess, AbilityClearEventLogs, AdapterConfiguration_Basic, AdapterConfiguration_NetworkingAndSecurity, AdapterConfiguration_Advanced]"
     argget.add_argument('--authority', nargs='*', default=["Supervisor"], help=help_str)
 
-    help_str1 = "This parameter specify user's AccountTypes. This parameter is only for ThinkSystem SR630 V3/SR650 V3."
-    help_str1 += "you can choose one or more values in this list: [Redfish, WebUI, ManagerConsole, SNMP, IPMI]"
+    help_str1 = "This parameter specify user's AccountTypes. This parameter is only for ThinkSystem SR630 V3/SR650 V3. "
+    help_str1 += "You can choose one or more values in this list: [Redfish, WebUI, ManagerConsole, SNMP, IPMI]"
     argget.add_argument('--accounttypes', nargs='*', default=["Redfish", "WebUI", "ManagerConsole"], help=help_str1)
 
 def add_parameter():
@@ -413,7 +413,7 @@ def add_parameter():
     parameter_info = {}
     argget = utils.create_common_parameter_list(example_string='''
 Example:
-  "python lenovo_create_bmc_user.py -i 10.10.10.10 -u USERID -p PASSW0RD --newusername testuser --newuserpasswd Test123_pass --authority Supervisor --accounttypes Redfish
+  "python lenovo_create_bmc_user.py -i 10.10.10.10 -u USERID -p PASSW0RD --newusername testuser --newuserpasswd Test123_pass --authority Supervisor --accounttypes Redfish"
 ''')
     add_helpmessage(argget)
     args = argget.parse_args()
