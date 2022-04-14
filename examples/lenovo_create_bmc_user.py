@@ -146,7 +146,7 @@ def set_tsm_privileges(ip, login_account, login_password, username, kvm, vm):
         return result
 
 
-def lenovo_create_bmc_user(ip, login_account, login_password, username, password, authority):
+def lenovo_create_bmc_user(ip, login_account, login_password, username, password, authority, accounttypes):
     """create bmc user
     :params ip: BMC IP address
     :type ip: string
@@ -160,6 +160,8 @@ def lenovo_create_bmc_user(ip, login_account, login_password, username, password
     :type password: string
     :params authority: user authority by user specified
     :type authority: list
+    :params accounttypes: user accounttypes by user specified
+    :type accounttypes: list
     :returns: returns update user password result when succeeded or error message when failed
     """
     result = {}
@@ -205,10 +207,28 @@ def lenovo_create_bmc_user(ip, login_account, login_password, username, password
                 accounts_url, response_accounts_url.status, error_message)}
             return result
 
+        # Check allow account types
+        one_account_url = response_accounts_url.dict['Members'][0]['@odata.id']
+        response_one_account_url = REDFISH_OBJ.get(one_account_url, None)
+        if response_one_account_url.status != 200:
+            error_message = utils.get_extended_error(response_one_account_url)
+            result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                one_account_url, response_one_account_url.status, error_message)}
+            return result
+
+        is_support_account_type = 0
+        if "AccountTypes" in response_one_account_url.dict and "AccountTypes@Redfish.AllowableValues" in response_one_account_url.dict:
+            is_support_account_type = 1
+            allow_account_types = response_one_account_url.dict["AccountTypes@Redfish.AllowableValues"]
+
+            result = check_parameter(allow_account_types, accounttypes)
+            if result["ret"] is False:
+                return result
+
         # Check user create mode
         create_mode = "POST_Action"
-        if response_accounts_url.dict["Members@odata.count"] in [9, 12]:
-             create_mode = "PATCH_Action"
+        if "POST" not in response_accounts_url.getheader("Allow"):
+            create_mode = "PATCH_Action"
 
         if create_mode == "POST_Action":
                 # Set user privilege
@@ -232,13 +252,23 @@ def lenovo_create_bmc_user(ip, login_account, login_password, username, password
 
                 #create new user account
                 headers = None
-                parameter = {
-                    "Enabled": True,
-                    "Password": password,
-                    "Name": username,
-                    "UserName": username,
-                    "RoleId":rolename
-                }
+                if is_support_account_type:
+                    parameter = {
+                        "Enabled": True,
+                        "Password": password,
+                        "Name": username,
+                        "UserName": username,
+                        "RoleId":rolename,
+                        "AccountTypes":accounttypes
+                    }
+                else:
+                    parameter = {
+                        "Enabled": True,
+                        "Password": password,
+                        "Name": username,
+                        "UserName": username,
+                        "RoleId":rolename
+                    }
                 response_create_url = REDFISH_OBJ.post(accounts_url, body=parameter, headers=headers)
                 if response_create_url.status == 200 or response_create_url.status == 201 or response_create_url.status == 204:
                     result = {'ret': True, 'msg': "create new user successful."}
@@ -349,6 +379,21 @@ def lenovo_create_bmc_user(ip, login_account, login_password, username, password
             pass
 
 
+def check_parameter(allow_account_types, accounttypes):
+    if accounttypes is not None:
+        if len(accounttypes) > len(allow_account_types):
+            result = {"ret": False, "msg": "Users can only specify up to %d account types." % len(allow_account_types)}
+            return result
+
+        # supported_types = ["Redfish", "WebUI", "ManagerConsole", "SNMP", "IPMI"]
+        for type in accounttypes:
+            if type not in allow_account_types:
+                result = {'ret': False, 'msg': "Invalid account type %s. You can specify one or more account types form list:%s" %(type, allow_account_types)}
+                return result
+
+    result = {"ret": True}
+    return result
+
 import argparse
 def add_helpmessage(argget):
     argget.add_argument('--newusername', type=str, required=True, help='Input name of new user')
@@ -359,13 +404,16 @@ def add_helpmessage(argget):
     help_str += "[UserAccountManagement, RemoteConsoleAccess, RemoteConsoleAndVirtualMediaAccess, RemoteServerPowerRestartAccess, AbilityClearEventLogs, AdapterConfiguration_Basic, AdapterConfiguration_NetworkingAndSecurity, AdapterConfiguration_Advanced]"
     argget.add_argument('--authority', nargs='*', default=["Supervisor"], help=help_str)
 
+    help_str1 = "This parameter specify user's AccountTypes. This parameter is only for ThinkSystem SR630 V3/SR650 V3."
+    help_str1 += "you can choose one or more values in this list: [Redfish, WebUI, ManagerConsole, SNMP, IPMI]"
+    argget.add_argument('--accounttypes', nargs='*', default=["Redfish", "WebUI", "ManagerConsole"], help=help_str1)
 
 def add_parameter():
     """Add create bmc user parameter"""
     parameter_info = {}
     argget = utils.create_common_parameter_list(example_string='''
 Example:
-  "python lenovo_create_bmc_user.py -i 10.10.10.10 -u USERID -p PASSW0RD --newusername testuser --newuserpasswd Test123_pass --authority Supervisor"
+  "python lenovo_create_bmc_user.py -i 10.10.10.10 -u USERID -p PASSW0RD --newusername testuser --newuserpasswd Test123_pass --authority Supervisor --accounttypes Redfish
 ''')
     add_helpmessage(argget)
     args = argget.parse_args()
@@ -373,6 +421,7 @@ Example:
     parameter_info["newusername"] = args.newusername
     parameter_info["newuserpasswd"] = args.newuserpasswd
     parameter_info["authority"] = args.authority
+    parameter_info["accounttypes"] = args.accounttypes
     return parameter_info
 
 if __name__ == '__main__':
@@ -389,12 +438,13 @@ if __name__ == '__main__':
         username = parameter_info['newusername']
         password = parameter_info['newuserpasswd']
         authority = parameter_info['authority']
+        accounttypes = parameter_info['accounttypes']
     except:
         sys.stderr.write("Please run the command 'python %s -h' to view the help info" % sys.argv[0])
         sys.exit(1)
 
     # create bmc user result and check result
-    result = lenovo_create_bmc_user(ip, login_account, login_password, username, password,authority)
+    result = lenovo_create_bmc_user(ip, login_account, login_password, username, password,authority, accounttypes)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
