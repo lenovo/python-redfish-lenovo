@@ -119,10 +119,9 @@ def get_pci_inventory(ip, login_account, login_password, system_id):
                 for member in response_pciefunc.dict['Members']:
                     members.append(member)
             else:
-                if 'Links' in response_members_url.dict and 'PCIeFunctions' in response_members_url.dict['Links'] \
-                        and '@odata.id' in response_members_url.dict['Links']['PCIeFunctions'] \
-                        and response_members_url.dict['Links']['PCIeFunctions']['@odata.id'] is not None:
-                    for pciefunc_entry in response_members_url.dict['Links']['PCIeFunctions']['@odata.id']:
+                if 'Links' in response_members_url.dict and 'PCIeFunctions' in response_members_url.dict['Links']:
+                    response_members = response_members_url.dict['Links']['PCIeFunctions']
+                    for pciefunc_entry in response_members:
                         members.append(pciefunc_entry)
 
             for member_url in members:
