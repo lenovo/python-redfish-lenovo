@@ -109,9 +109,8 @@ def get_pci_inventory(ip, login_account, login_password, system_id):
             # Get PCIeFunctions
             pci['PCIeFunctions'] = []
             members = []
-
-            if 'PCIeFunctions' in response_members_url.dict and '@odata.id' in response_members_url.dict[
-                'PCIeFunctions'] and response_members_url.dict['PCIeFunctions']['@odata.id'] is not None:
+            if 'PCIeFunctions' in response_members_url.dict and '@odata.id' in response_members_url.dict['PCIeFunctions'] \
+                    and response_members_url.dict['PCIeFunctions']['@odata.id'] is not None:
                 response_pciefunc = REDFISH_OBJ.get(response_members_url.dict['PCIeFunctions']['@odata.id'], None)
                 if response_pciefunc.status != 200:
                     result = {'ret': False, 'msg': "Access url %s failed. Error code %s" % (response_members_url.dict['PCIeFunctions']['@odata.id'], response_pciefunc.status)}
@@ -120,8 +119,9 @@ def get_pci_inventory(ip, login_account, login_password, system_id):
                 for member in response_pciefunc.dict['Members']:
                     members.append(member)
             else:
-                if 'Links' in response_members_url.dict and 'PCIeFunctions' in response_members_url.dict[
-                    'Links'] and '@odata.id' in response_members_url['Links']['PCIeFunctions'] and response_members_url.dict['Links']['PCIeFunctions']['@odata.id'] is not None:
+                if 'Links' in response_members_url.dict and 'PCIeFunctions' in response_members_url.dict['Links'] \
+                        and '@odata.id' in response_members_url.dict['Links']['PCIeFunctions'] \
+                        and response_members_url.dict['Links']['PCIeFunctions']['@odata.id'] is not None:
                     for pciefunc_entry in response_members_url.dict['Links']['PCIeFunctions']['@odata.id']:
                         members.append(pciefunc_entry)
 
