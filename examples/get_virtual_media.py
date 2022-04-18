@@ -54,8 +54,12 @@ def get_virtual_media(ip, login_account, login_password):
         # Get ComputerBase resource
         response_base_url = REDFISH_OBJ.get('/redfish/v1', None)
         # Get response_base_url
+        root_virtual_media_urls = []
         if response_base_url.status == 200:
             managers_url = response_base_url.dict['Managers']['@odata.id']
+            root_virtual_media_urls.append(managers_url)
+            systems_url = response_base_url.dict['Systems']['@odata.id']
+            root_virtual_media_urls.append(systems_url)
         else:
             error_message = utils.get_extended_error(response_base_url)
             result = {'ret': False, 'msg': "Url '/redfish/v1' response Error code %s \nerror_message: %s" % (
@@ -63,57 +67,61 @@ def get_virtual_media(ip, login_account, login_password):
             return result
 
         # Get response managers url resource
-        virtual_media_info_list = []
-        response_managers_url = REDFISH_OBJ.get(managers_url, None)
-        if response_managers_url.status == 200:
-            # Get the virtual media url
-            for i in range(response_managers_url.dict['Members@odata.count']):
-                manager_x_url = response_managers_url.dict['Members'][i]['@odata.id']
-                response_manager_x_url = REDFISH_OBJ.get(manager_x_url, None)
-                if response_manager_x_url.status == 200:
-                    virtual_media_url = response_manager_x_url.dict["VirtualMedia"]["@odata.id"]
-                else:
-                    error_message = utils.get_extended_error(response_manager_x_url)
-                    result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
-                        manager_x_url, response_manager_x_url.status, error_message)}
-                    return result
-
-                # Get the virtual media response resource
-                response_virtual_media = REDFISH_OBJ.get(virtual_media_url, None)
-                if response_virtual_media.status == 200:
-                    members_count = response_virtual_media.dict["Members@odata.count"]
-                    if members_count == 0:
-                        result = {"ret": True, "entries":"This server doesn't mount virtual media."}
+        for root in root_virtual_media_urls:
+            virtual_media_info_list = []
+            response_managers_url = REDFISH_OBJ.get(root, None)
+            if response_managers_url.status == 200:
+                # Get the virtual media url
+                for i in range(response_managers_url.dict['Members@odata.count']):
+                    manager_x_url = response_managers_url.dict['Members'][i]['@odata.id']
+                    response_manager_x_url = REDFISH_OBJ.get(manager_x_url, None)
+                    virtual_media_url = ""
+                    if response_manager_x_url.status == 200:
+                        if "VirtualMedia" in response_manager_x_url.dict.keys():
+                            virtual_media_url = response_manager_x_url.dict["VirtualMedia"]["@odata.id"]
+                    else:
+                        error_message = utils.get_extended_error(response_manager_x_url)
+                        result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                            manager_x_url, response_manager_x_url.status, error_message)}
                         return result
 
-                    # Loop all the virtual media members and get all the virtual media informations
-                    for i in range(members_count):
-                        virtual_media_info = {}
-                        virtual_media_x_url = response_virtual_media.dict["Members"][i]["@odata.id"]
-                        response_virtual_media_x_url = REDFISH_OBJ.get(virtual_media_x_url, None)
-                        if response_virtual_media_x_url.status == 200:
-                            for property in ['Id', 'Name', 'ConnectedVia', 'MediaTypes', 'Image', 'ImageName', 'WriteProtected']:
-                                if property in response_virtual_media_x_url.dict:
-                                    virtual_media_info[property] = response_virtual_media_x_url.dict[property]
-                            virtual_media_info_list.append(virtual_media_info)
+                    # Get the virtual media response resource
+                    if virtual_media_url != "":
+                        response_virtual_media = REDFISH_OBJ.get(virtual_media_url, None)
+                        if response_virtual_media.status == 200:
+                            members_count = response_virtual_media.dict["Members@odata.count"]
+                            if members_count == 0:
+                                result = {"ret": True, "entries":"This server doesn't mount virtual media."}
+                                return result
+
+                            # Loop all the virtual media members and get all the virtual media informations
+                            for i in range(members_count):
+                                virtual_media_info = {}
+                                virtual_media_x_url = response_virtual_media.dict["Members"][i]["@odata.id"]
+                                response_virtual_media_x_url = REDFISH_OBJ.get(virtual_media_x_url, None)
+                                if response_virtual_media_x_url.status == 200:
+                                    for property in ['Id', 'Name', 'ConnectedVia', 'MediaTypes', 'Image', 'ImageName', 'WriteProtected']:
+                                        if property in response_virtual_media_x_url.dict:
+                                            virtual_media_info[property] = response_virtual_media_x_url.dict[property]
+                                    virtual_media_info_list.append(virtual_media_info)
+                                else:
+                                    error_message = utils.get_extended_error(response_virtual_media_x_url)
+                                    result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                                        virtual_media_x_url, response_virtual_media_x_url.status, error_message)}
+                                    return result
+
+                        # Return error messages when the virtual media url response failed
                         else:
-                            error_message = utils.get_extended_error(response_virtual_media_x_url)
+                            error_message = utils.get_extended_error(response_virtual_media)
                             result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
-                                virtual_media_x_url, response_virtual_media_x_url.status, error_message)}
+                                virtual_media_url, response_virtual_media.status, error_message)}
                             return result
 
-                # Return error messages when the virtual media url response failed
-                else:
-                    error_message = utils.get_extended_error(response_virtual_media)
-                    result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
-                        virtual_media_url, response_virtual_media.status, error_message)}
-                    return result
-
-        # Return error messages when the managers url response failed
-        else:
-            error_message = utils.get_extended_error(response_managers_url)
-            result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (managers_url, response_managers_url.status, error_message)}
-            return result
+            # Return error messages when the managers url response failed
+            else:
+                error_message = utils.get_extended_error(response_managers_url)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (managers_url, response_managers_url.status, error_message)}
+                return result
 
         result['ret'] = True
         result['entries'] = virtual_media_info_list
