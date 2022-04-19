@@ -51,9 +51,9 @@ def get_virtual_media(ip, login_account, login_password):
         return result
 
     try:
-        # Get ComputerBase resource
+        # Get ServiceRoot resource
         response_base_url = REDFISH_OBJ.get('/redfish/v1', None)
-        # Get response_base_url
+        # Get base url response
         root_virtual_media_urls = []
         if response_base_url.status == 200:
             managers_url = response_base_url.dict['Managers']['@odata.id']
@@ -66,23 +66,23 @@ def get_virtual_media(ip, login_account, login_password):
             response_base_url.status, error_message)}
             return result
 
-        # Get response managers url resource
+        # Get managers/systems url resource
         for root in root_virtual_media_urls:
             virtual_media_info_list = []
-            response_managers_url = REDFISH_OBJ.get(root, None)
-            if response_managers_url.status == 200:
-                # Get the virtual media url
-                for i in range(response_managers_url.dict['Members@odata.count']):
-                    manager_x_url = response_managers_url.dict['Members'][i]['@odata.id']
-                    response_manager_x_url = REDFISH_OBJ.get(manager_x_url, None)
+            response_url = REDFISH_OBJ.get(root, None)
+            if response_url.status == 200:
+                for i in range(response_url.dict['Members@odata.count']):
+                    manager_x_url = response_url.dict['Members'][i]['@odata.id']
+                    response_x_url = REDFISH_OBJ.get(manager_x_url, None)
                     virtual_media_url = ""
-                    if response_manager_x_url.status == 200:
-                        if "VirtualMedia" in response_manager_x_url.dict.keys():
-                            virtual_media_url = response_manager_x_url.dict["VirtualMedia"]["@odata.id"]
+                    if response_x_url.status == 200:
+                        # Get the virtual media url
+                        if "VirtualMedia" in response_x_url.dict.keys():
+                            virtual_media_url = response_x_url.dict["VirtualMedia"]["@odata.id"]
                     else:
-                        error_message = utils.get_extended_error(response_manager_x_url)
+                        error_message = utils.get_extended_error(response_x_url)
                         result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
-                            manager_x_url, response_manager_x_url.status, error_message)}
+                            manager_x_url, response_x_url.status, error_message)}
                         return result
 
                     # Get the virtual media response resource
@@ -117,10 +117,12 @@ def get_virtual_media(ip, login_account, login_password):
                                 virtual_media_url, response_virtual_media.status, error_message)}
                             return result
 
-            # Return error messages when the managers url response failed
+                if len(virtual_media_info_list) > 0:
+                    break
+            # Return error messages when the managers/systems url response failed
             else:
-                error_message = utils.get_extended_error(response_managers_url)
-                result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (managers_url, response_managers_url.status, error_message)}
+                error_message = utils.get_extended_error(response_url)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (root, response_url.status, error_message)}
                 return result
 
         result['ret'] = True
