@@ -56,10 +56,10 @@ def get_virtual_media(ip, login_account, login_password):
         # Get base url response
         root_virtual_media_urls = []
         if response_base_url.status == 200:
-            managers_url = response_base_url.dict['Managers']['@odata.id']
-            root_virtual_media_urls.append(managers_url)
             systems_url = response_base_url.dict['Systems']['@odata.id']
             root_virtual_media_urls.append(systems_url)
+            managers_url = response_base_url.dict['Managers']['@odata.id']
+            root_virtual_media_urls.append(managers_url)
         else:
             error_message = utils.get_extended_error(response_base_url)
             result = {'ret': False, 'msg': "Url '/redfish/v1' response Error code %s \nerror_message: %s" % (
