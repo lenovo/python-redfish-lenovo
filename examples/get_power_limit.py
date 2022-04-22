@@ -74,27 +74,51 @@ def get_power_limit(ip, login_account, login_password):
                     if len(response_chassis_url.dict['Members']) > 1 and ("Links" not in response_url.dict or
                             "ComputerSystems" not in response_url.dict["Links"]):
                         continue
-                    # if no Power property, skip it
-                    if "Power" not in response_url.dict:
-                        continue
-                    power_url = response_url.dict["Power"]['@odata.id']
-                    response_power_url = REDFISH_OBJ.get(power_url, None)
-                    if response_power_url.status == 200:
-                        # if no PowerControl property, skip it
-                        if "PowerControl" not in response_power_url.dict:
-                            continue
-                        list_power_control = response_power_url.dict["PowerControl"]
-                        for control_item in list_power_control:
-                            if "PowerLimit" not in control_item:
-                                continue
-                            limit_item = {}
-                            limit_item = control_item["PowerLimit"]
-                            rt_list_limit.append(limit_item)
+                    if 'Controls' in response_url.dict:
+                        control_url = response_url.dict['Controls']['@odata.id']
+                        response_power = REDFISH_OBJ.get(control_url, None)
+                        if response_power.status == 200:
+                            for control in response_power.dict['Members']:
+                                power_limit_url = control['@odata.id']
+                                control_response = REDFISH_OBJ.get(power_limit_url, None)
+                                if control_response.status != 200:
+                                    error_message = utils.get_extended_error(control_response)
+                                    result = {'ret': False,
+                                              'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                                                  power_limit_url, control_response.status, error_message)}
+                                    return result
+                                limit_item = {}
+                                for key in control_response.dict:
+                                    if key not in ['RelatedItem', '@odata.id', '@odata.etag', 'Sensor', '@odata.type', '@odata.context']:
+                                        limit_item[key] = control_response.dict[key]
+                                rt_list_limit.append(limit_item)
+                        else:
+                            error_message = utils.get_extended_error(response_power)
+                            result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                                control_url, response_power.status, error_message)}
+                            return result
                     else:
-                        error_message = utils.get_extended_error(response_power_url)
-                        result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                            power_url, response_power_url.status, error_message)}
-                        return result
+                        # if no Power property, skip it
+                        if "Power" not in response_url.dict:
+                            continue
+                        power_url = response_url.dict["Power"]['@odata.id']
+                        response_power_url = REDFISH_OBJ.get(power_url, None)
+                        if response_power_url.status == 200:
+                            # if no PowerControl property, skip it
+                            if "PowerControl" not in response_power_url.dict:
+                                continue
+                            list_power_control = response_power_url.dict["PowerControl"]
+                            for control_item in list_power_control:
+                                if "PowerLimit" not in control_item:
+                                    continue
+                                limit_item = {}
+                                limit_item = control_item["PowerLimit"]
+                                rt_list_limit.append(limit_item)
+                        else:
+                            error_message = utils.get_extended_error(response_power_url)
+                            result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                                power_url, response_power_url.status, error_message)}
+                            return result
                 else:
                     error_message = utils.get_extended_error(response_url)
                     result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
