@@ -60,60 +60,84 @@ def lenovo_bmc_license_getinfo(ip, login_account, login_password):
             '/redfish/v1', response_base_url.status, error_message)}
         REDFISH_OBJ.logout()
         return result
-
-    # Get Manager collection resource
-    manager_url = response_base_url.dict['Managers']['@odata.id']
-    response_manager_url = REDFISH_OBJ.get(manager_url, None)
-    if response_manager_url.status != 200:
-        error_message = utils.get_extended_error(response_manager_url)
-        result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-            manager_url, response_manager_url.status, error_message)}
-        REDFISH_OBJ.logout()
-        return result
-
-    # Get Manager resource
-    for request in response_manager_url.dict['Members']:
-        request_url = request['@odata.id']
-        response_url = REDFISH_OBJ.get(request_url, None)
-        if response_url.status != 200:
-            error_message = utils.get_extended_error(response_url)
+        
+    # Get LicenseService resource
+    response_licenses_urls = []
+    if 'LicenseService' in response_base_url.dict:
+        licenseService_url = response_base_url.dict['LicenseService']['@odata.id']
+        response_licenseService_url = REDFISH_OBJ.get(licenseService_url, None)       
+        if response_licenseService_url.status != 200:
+            error_message = utils.get_extended_error(response_licenseService_url)
             result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                request_url, response_url.status, error_message)}
+                licenseService_url, response_licenseService_url.status, error_message)}
             REDFISH_OBJ.logout()
             return result
 
-        # Get bmc license url
-        if 'Oem' in response_url.dict and 'Lenovo' in response_url.dict['Oem'] and 'FoD' in response_url.dict['Oem']['Lenovo']:
-            request_url = response_url.dict['Oem']['Lenovo']['FoD']['@odata.id']
-        else:
-            break
-
-        response_url = REDFISH_OBJ.get(request_url, None)
-        if response_url.status != 200:
-            error_message = utils.get_extended_error(response_url)
+        if 'Licenses' in response_licenseService_url.dict:
+            licenses_url = response_licenseService_url.dict['Licenses']['@odata.id']
+            response_licenses_url = REDFISH_OBJ.get(licenses_url, None)
+            if response_licenses_url.status != 200:
+                error_message = utils.get_extended_error(response_licenses_url)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                    licenses_url, response_licenses_url.status, error_message)}
+                REDFISH_OBJ.logout()
+                return result 
+            response_licenses_urls.append(response_licenses_url)          
+    else:
+        # Get Manager collection resource
+        manager_url = response_base_url.dict['Managers']['@odata.id']
+        response_manager_url = REDFISH_OBJ.get(manager_url, None)
+        if response_manager_url.status != 200:
+            error_message = utils.get_extended_error(response_manager_url)
             result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                request_url, response_url.status, error_message)}
+                manager_url, response_manager_url.status, error_message)}
             REDFISH_OBJ.logout()
             return result
 
-        if 'Keys' not in response_url.dict:
-            break
+        # Get Manager resource
+        for request in response_manager_url.dict['Members']:
+            request_url = request['@odata.id']
+            response_url = REDFISH_OBJ.get(request_url, None)
+            if response_url.status != 200:
+                error_message = utils.get_extended_error(response_url)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                    request_url, response_url.status, error_message)}
+                REDFISH_OBJ.logout()
+                return result
 
-        # Get license key collection
-        request_url = response_url.dict['Keys']['@odata.id']
-        response_url = REDFISH_OBJ.get(request_url, None)
-        if response_url.status != 200:
-            error_message = utils.get_extended_error(response_url)
-            result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                request_url, response_url.status, error_message)}
-            REDFISH_OBJ.logout()
-            return result
+            # Get bmc license url
+            if 'Oem' in response_url.dict and 'Lenovo' in response_url.dict['Oem'] and 'FoD' in response_url.dict['Oem']['Lenovo']:
+                request_url = response_url.dict['Oem']['Lenovo']['FoD']['@odata.id']
+            else:
+                break
 
-        if 'Members' in response_url.dict:
-            keylink_collection = response_url.dict['Members']
-            for keylink in keylink_collection:
+            response_url = REDFISH_OBJ.get(request_url, None)
+            if response_url.status != 200:
+                error_message = utils.get_extended_error(response_url)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                    request_url, response_url.status, error_message)}
+                REDFISH_OBJ.logout()
+                return result
+
+            if 'Keys' not in response_url.dict:
+                break
+
+            # Get license key collection
+            request_url = response_url.dict['Keys']['@odata.id']
+            response_url = REDFISH_OBJ.get(request_url, None)
+            if response_url.status != 200:
+                error_message = utils.get_extended_error(response_url)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                    request_url, response_url.status, error_message)}
+                REDFISH_OBJ.logout()
+                return result
+            response_licenses_urls.append(response_url) 
+
+    for response_licenses_url in response_licenses_urls:
+        if 'Members' in response_licenses_url.dict:                
+            for request in response_licenses_url.dict['Members']:
                 license_detail = {}
-                request_url = keylink['@odata.id']
+                request_url = request['@odata.id']
                 response_url = REDFISH_OBJ.get(request_url, None)
                 if response_url.status != 200:
                     error_message = utils.get_extended_error(response_url)
@@ -121,10 +145,14 @@ def lenovo_bmc_license_getinfo(ip, login_account, login_password):
                         request_url, response_url.status, error_message)}
                     REDFISH_OBJ.logout()
                     return result
-                for property in ['Id', 'Name', 'Expires', 'Status', 'IdTypes', 'UseCount', 'DescTypeCode', 'Identifier', 'Description']:
-                    if property in response_url.dict:
+                
+                for property in ['Id', 'Name', 'Expires', 'Status', 'IdTypes', 'UseCount', 'RemainingUseCount', 'DescTypeCode', 'Identifier', 'Description', 'Manufacturer','Removable','EntitlementId']:
+                    if property in response_url.dict.keys():
                         license_detail[property] = response_url.dict[property]
+                    elif "Oem" in response_url.dict.keys() and "Lenovo" in response_url.dict["Oem"] and property in response_url.dict["Oem"]["Lenovo"]:
+                        license_detail[property] = response_url.dict["Oem"]["Lenovo"][property]
                 license_details.append(license_detail)
+
         result['ret'] = True
         result['entries'] = license_details
         try:
