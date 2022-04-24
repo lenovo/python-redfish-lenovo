@@ -68,88 +68,95 @@ def umount_virtual_media(ip, login_account, login_password, image):
         # Get ServiceRoot resource
         response_base_url = REDFISH_OBJ.get('/redfish/v1', None)
 
-        # Get Managers resource
+        # Get base url response
+        root_virtual_media_urls = []
         if response_base_url.status == 200:
+            systems_url = response_base_url.dict['Systems']['@odata.id']
+            root_virtual_media_urls.append(systems_url)
             managers_url = response_base_url.dict['Managers']['@odata.id']
+            root_virtual_media_urls.append(managers_url)
         else:
             error_message = utils.get_extended_error(response_base_url)
             result = {'ret': False, 'msg': " Url '/redfish/v1' response Error code %s \nerror_message: %s" % (
             response_base_url.status, error_message)}
             return result
-
-        response_managers_url = REDFISH_OBJ.get(managers_url, None)
-        if response_managers_url.status == 200:
-            # Get manager url form manager resource instance
-            count = response_managers_url.dict['Members@odata.count']
-            for i in range(count):
-                manager_url = response_managers_url.dict['Members'][i]['@odata.id']
-                response_manager_url = REDFISH_OBJ.get(manager_url, None)
-                if response_manager_url.status == 200:
-                    # Get the virtual media url from the manger response
-                    virtual_media_url = response_manager_url.dict['VirtualMedia']['@odata.id']
-                else:
-                    error_message = utils.get_extended_error(response_manager_url)
-                    result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
-                        manager_url, response_manager_url.status, error_message)}
-                    return result
-
-                # Get the mount virtual media list
-                # For the latest XCC Firmware(version is 2.5 and above), there are 10 predefined members
-                response_virtual_media = REDFISH_OBJ.get(virtual_media_url, None)
-                if response_virtual_media.status == 200:
-                    members_list = response_virtual_media.dict["Members"]
-                else:
-                    error_message = utils.get_extended_error(response_virtual_media)
-                    result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
-                        virtual_media_url, response_virtual_media.status, error_message)}
-                    return result
-
-                # Get the mount virtual media list
-                for members in members_list:
-                    members_url = members["@odata.id"]
-                    response_members = REDFISH_OBJ.get(members_url, None)
-                    if response_members.status == 200:
-                        image_name = response_members.dict["ImageName"]
+        # Get managers/systems url resource 
+        for root in root_virtual_media_urls:
+            response_url = REDFISH_OBJ.get(root, None)
+            if response_url.status == 200:
+                count = response_url.dict['Members@odata.count']
+                for i in range(count):
+                    manager_url = response_url.dict['Members'][i]['@odata.id']
+                    response_x_url = REDFISH_OBJ.get(manager_url, None)
+                    virtual_media_url = ""
+                    if response_x_url.status == 200:
+                        # Get the virtual media url
+                        if 'VirtualMedia' in response_x_url.dict.keys():
+                            virtual_media_url = response_x_url.dict['VirtualMedia']['@odata.id']
                     else:
-                        error_message = utils.get_extended_error(response_members)
+                        error_message = utils.get_extended_error(response_x_url)
                         result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
-                            members_url, response_members.status, error_message)}
+                            manager_url, response_x_url.status, error_message)}
                         return result
-                    if image_name != image:
-                        continue
-                    # Umount virtual media via action
-                    if "Actions" in response_members.dict:
-                        if "#VirtualMedia.EjectMedia" in response_members.dict["Actions"]:
-                            eject_media_url = response_members.dict["Actions"]["#VirtualMedia.EjectMedia"]["target"]
 
-                            body = {}
-                            response = REDFISH_OBJ.post(eject_media_url, body=body)
-                            if response.status == 204:
-                                result = {'ret': True, 'msg': "'%s' Umount successfully" % image}
-                                return result
-                            else:
-                                error_message = utils.get_extended_error(response)
-                                result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
-                                eject_media_url, response.status, error_message)}
-                                return result
-                    # Umount virtual media via patch
-                    else:
-                        body = {"Image": None}
-                        response = REDFISH_OBJ.patch(members_url, body=body)
-                        if response.status in [200,204]:
-                            result = {'ret': True, 'msg': "'%s' Umount successfully" % image}
-                            return result
+                    # Get the mount virtual media list
+                    # For the latest XCC Firmware(version is 2.5 and above), there are 10 predefined members
+                    if virtual_media_url != "":
+                        response_virtual_media = REDFISH_OBJ.get(virtual_media_url, None)
+                        if response_virtual_media.status == 200:
+                            members_list = response_virtual_media.dict["Members"]
                         else:
-                            error_message = utils.get_extended_error(response)
+                            error_message = utils.get_extended_error(response_virtual_media)
                             result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
-                                members_url, response.status, error_message)}
+                                virtual_media_url, response_virtual_media.status, error_message)}
                             return result
-                result = {"ret": False, "msg": "Please check the image name is correct and has been mounted."}
-                return result
-        else:
-            error_message = utils.get_extended_error(response_managers_url)
-            result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
-            managers_url, response_managers_url.status, error_message)}
+
+                        # Get the mount virtual media list
+                        for members in members_list:
+                            members_url = members["@odata.id"]
+                            response_members = REDFISH_OBJ.get(members_url, None)
+                            if response_members.status == 200:
+                                image_name = response_members.dict["ImageName"]
+                            else:
+                                error_message = utils.get_extended_error(response_members)
+                                result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                                    members_url, response_members.status, error_message)}
+                                return result
+                            if image_name != image:
+                                continue
+                            # Umount virtual media via action
+                            if "Actions" in response_members.dict:
+                                if "#VirtualMedia.EjectMedia" in response_members.dict["Actions"]:
+                                    eject_media_url = response_members.dict["Actions"]["#VirtualMedia.EjectMedia"]["target"]
+
+                                    body = {}
+                                    response = REDFISH_OBJ.post(eject_media_url, body=body)
+                                    if response.status == 204:
+                                        result = {'ret': True, 'msg': "'%s' Umount successfully" % image}
+                                        return result
+                                    else:
+                                        error_message = utils.get_extended_error(response)
+                                        result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                                        eject_media_url, response.status, error_message)}
+                                        return result
+                            # Umount virtual media via patch
+                            else:
+                                body = {"Image": None}
+                                response = REDFISH_OBJ.patch(members_url, body=body)
+                                if response.status in [200,204]:
+                                    result = {'ret': True, 'msg': "'%s' Umount successfully" % image}
+                                    return result
+                                else:
+                                    error_message = utils.get_extended_error(response)
+                                    result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                                        members_url, response.status, error_message)}
+                                    return result
+                        result = {"ret": False, "msg": "Please check the image name is correct and has been mounted."}
+                        return result
+            else:
+                error_message = utils.get_extended_error(response_url)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                root, response_url.status, error_message)}
     except Exception as e:
         traceback.print_exc()
         result = {'ret': False, 'msg': "error_message: %s" % (e)}

@@ -67,6 +67,11 @@ def lenovo_bmc_license_export(ip, login_account, login_password, license_file):
             '/redfish/v1', response_base_url.status, error_message)}
         REDFISH_OBJ.logout()
         return result
+    
+    if 'LicenseService' in response_base_url.dict:
+        result = {'ret': False,
+                  'msg': "Target server does not support exporting bmc license file."}
+        return result
 
     # Get Manager collection resource
     manager_url = response_base_url.dict['Managers']['@odata.id']
