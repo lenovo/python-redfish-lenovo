@@ -74,26 +74,61 @@ def get_fan_inventory(ip, login_account, login_password):
                     if len(response_chassis_url.dict['Members']) > 1 and ("Links" not in response_url.dict or
                             "ComputerSystems" not in response_url.dict["Links"]):
                         continue
-                    if "Thermal" not in response_url.dict:
-                        continue
-                    thermal_url = response_url.dict['Thermal']['@odata.id']
-                    response_thermal_url = REDFISH_OBJ.get(thermal_url, None)
-                    if response_thermal_url.status == 200:
-                        list_fan = response_thermal_url.dict["Fans"]
-                        for fan_item in list_fan:
-                            tmp_fan_item = {}
-                            for key in fan_item:
-                                if key == "Oem":
-                                    continue
-                                if key not in ["Description", "@odata.context", "@odata.id", "@odata.type",
-                                               "@odata.etag", "Links", "Actions", "RelatedItem"]:
-                                    tmp_fan_item[key] = fan_item[key]
-                            rt_list_fan.append(tmp_fan_item)
+                    if 'ThermalSubsystem' in response_url.dict and '@odata.id' in response_url.dict['ThermalSubsystem']:
+                        thermal_url = response_url.dict['ThermalSubsystem']['@odata.id']
+                        response_thermal_url = REDFISH_OBJ.get(thermal_url, None)
+                        if response_thermal_url.status != 200:
+                            error_message = utils.get_extended_error(response_thermal_url)
+                            result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                                thermal_url, response_thermal_url.status, error_message)}
+                            return result
+                        list_fan_url = response_thermal_url.dict["Fans"]['@odata.id']
+                        list_fan_response = REDFISH_OBJ.get(list_fan_url, None)
+                        if list_fan_response.status != 200:
+                            error_message = utils.get_extended_error(list_fan_response)
+                            result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                                list_fan_url, list_fan_response.status, error_message)}
+                            return result
+                        for list_fans in list_fan_response.dict['Members']:
+                            members_url = list_fans['@odata.id']
+                            fans_members = REDFISH_OBJ.get(members_url, None)
+                            if fans_members.status == 200:
+                                speed_percent_url = fans_members.dict['SpeedPercent']['DataSourceUri']
+                                response_speed_percent = REDFISH_OBJ.get(speed_percent_url, None)
+                                tmp_fan_item = {}
+                                for key in response_speed_percent.dict:
+                                    if key == "Oem":
+                                        continue
+                                    if key not in ["Description", "@odata.context", "@odata.id", "@odata.type",
+                                                   "@odata.etag", "Links", "Actions", "RelatedItem"]:
+                                        tmp_fan_item[key] = response_speed_percent.dict[key]
+                                rt_list_fan.append(tmp_fan_item)
+                            else:
+                                error_message = utils.get_extended_error(fans_members)
+                                result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                                    members_url, fans_members.status, error_message)}
+                                return result
                     else:
-                        error_message = utils.get_extended_error(response_thermal_url)
-                        result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                            thermal_url, response_thermal_url.status, error_message)}
-                        return result
+                        if "Thermal" not in response_url.dict:
+                            continue
+                        thermal_url = response_url.dict['Thermal']['@odata.id']
+                        response_thermal_url = REDFISH_OBJ.get(thermal_url, None)
+                        if response_thermal_url.status == 200:
+                            list_fan = response_thermal_url.dict["Fans"]
+                            for fan_item in list_fan:
+                                tmp_fan_item = {}
+                                for key in fan_item:
+                                    if key == "Oem":
+                                        continue
+                                    if key not in ["Description", "@odata.context", "@odata.id", "@odata.type",
+                                                   "@odata.etag", "Links", "Actions", "RelatedItem"]:
+                                        tmp_fan_item[key] = fan_item[key]
+                                rt_list_fan.append(tmp_fan_item)
+                        else:
+                            error_message = utils.get_extended_error(response_thermal_url)
+                            result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                                thermal_url, response_thermal_url.status, error_message)}
+                            return result
                 else:
                     error_message = utils.get_extended_error(response_url)
                     result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (

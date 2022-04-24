@@ -107,6 +107,10 @@ def lenovo_get_bmc_user_accounts(ip, login_account, login_password):
                     bmc_user['Enabled'] = Enabled
                     bmc_user['Locked'] = Locked
                     bmc_user['RoleId'] = response_account_x_url.dict['RoleId']
+                    if "AccountTypes" in response_account_x_url.dict:
+                        bmc_user['AccountTypes'] = response_account_x_url.dict['AccountTypes']
+                    if "SNMP" in response_account_x_url.dict:
+                        bmc_user['SNMP'] = response_account_x_url.dict['SNMP']
                     # Get account privileges
                     if "Links" in response_account_x_url.dict and "Role" in response_account_x_url.dict["Links"]:
                         accounts_role_url = response_account_x_url.dict["Links"]["Role"]["@odata.id"]
