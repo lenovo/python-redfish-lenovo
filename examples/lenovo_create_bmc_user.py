@@ -404,7 +404,7 @@ def add_helpmessage(argget):
     help_str += "[UserAccountManagement, RemoteConsoleAccess, RemoteConsoleAndVirtualMediaAccess, RemoteServerPowerRestartAccess, AbilityClearEventLogs, AdapterConfiguration_Basic, AdapterConfiguration_NetworkingAndSecurity, AdapterConfiguration_Advanced]"
     argget.add_argument('--authority', nargs='*', default=["Supervisor"], help=help_str)
 
-    help_str1 = "This parameter specify user's AccountTypes. This parameter is only for ThinkSystem SR630 V3/SR650 V3. "
+    help_str1 = "This parameter specify user's AccountTypes. This parameter is supported from ThinkSystem v3 products. "
     help_str1 += "You can choose one or more values in this list: [Redfish, WebUI, ManagerConsole, SNMP, IPMI]"
     argget.add_argument('--accounttypes', nargs='*', default=["Redfish", "WebUI", "ManagerConsole"], help=help_str1)
 
