@@ -125,6 +125,20 @@ def clear_system_log(ip, login_account, login_password, system_id, type):
                         response_clear_log = REDFISH_OBJ.post(clear_log_url, headers=headers, body=body)
                         if response_clear_log.status in [200, 204]:
                             result = {'ret': True, 'msg': "Clear log successfully"}
+                        elif response_clear_log.status == 202:
+                            task_uri = response_clear_log.dict['@odata.id']
+                            result = utils.task_monitor(REDFISH_OBJ, task_uri)
+                            # Delete the task when the task state is completed without any warning
+                            if result["ret"] is True and "Completed" == result["task_state"] and result['msg'] == '':
+                                REDFISH_OBJ.delete(task_uri, None)
+                            if result["ret"] is True:
+                                task_state = result["task_state"]
+                                if task_state == "Completed":
+                                    result['msg'] = "Clear log successfully. %s" % (result['msg'])
+                                else:
+                                    result['ret'] = False
+                                    result['msg'] = "Failed to clear log. %s" % (result['msg'])
+                            return result
                         else:
                             error_message = utils.get_extended_error(response_clear_log)
                             result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (clear_log_url, response_clear_log.status, error_message)}
