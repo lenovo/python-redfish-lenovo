@@ -61,61 +61,72 @@ def lenovo_umount_virtual_media(ip, login_account, login_password, image, mountt
 
         # Get response_account_service_url
         if response_base_url.status == 200:
-            account_managers_url = response_base_url.dict['Managers']['@odata.id']
+            root_virtual_media_urls = []
+            root_virtual_media_urls.append(response_base_url.dict['Systems']['@odata.id'])
+            root_virtual_media_urls.append(response_base_url.dict['Managers']['@odata.id'])
         else:
             error_message = utils.get_extended_error(response_base_url)
             result = {'ret': False, 'msg': " Url '/redfish/v1' response Error code %s \nerror_message: %s" % (
             response_base_url.status, error_message)}
             return result
 
-        response_managers_url = REDFISH_OBJ.get(account_managers_url, None)
-        if response_managers_url.status == 200:
-            # Get manager url form manager resource instance
-            count = response_managers_url.dict['Members@odata.count']
+        virtual_media_url = ''
+        response_manager_url = ''
+        for root_url in root_virtual_media_urls:
+            response_root_url = REDFISH_OBJ.get(root_url, None)
+            if response_root_url.status != 200:
+                error_message = utils.get_extended_error(response_root_url)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                    root_url, response_root_url.status, error_message)}
+            # Get instance url form manager resource or system resource instance
+            count = response_root_url.dict['Members@odata.count']
             for i in range(count):
-                manager_url = response_managers_url.dict['Members'][i]['@odata.id']
-                response_manager_url = REDFISH_OBJ.get(manager_url, None)
-                if response_manager_url.status == 200:
-                    # Get the virtual media url from the manger response
-                    virtual_media_url = response_manager_url.dict['VirtualMedia']['@odata.id']
-                    # Get mount media iso url
-                    remotecontrol_url = ""
-                    remotemap_url = ""
-                    if "Oem" in response_manager_url.dict:
-                        Oem_dict = response_manager_url.dict['Oem']
-                        if "Ami" not in Oem_dict and "Lenovo" in Oem_dict:
-                            remotemap_url = Oem_dict['Lenovo']['RemoteMap']['@odata.id']
-                            remotecontrol_url = Oem_dict['Lenovo']['RemoteControl']['@odata.id']
-                else:
-                    error_message = utils.get_extended_error(response_manager_url)
+                manager_url = response_root_url.dict['Members'][i]['@odata.id']
+                response_url = REDFISH_OBJ.get(manager_url, None)
+                if response_url.status != 200:
+                    error_message = utils.get_extended_error(response_url)
                     result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
-                        manager_url, response_manager_url.status, error_message)}
+                        manager_url, response_url.status, error_message)}
                     return result
+                # Get the virtual media url from the manager response or system response
+                if "VirtualMedia" in response_url.dict:
+                    virtual_media_url = response_url.dict['VirtualMedia']['@odata.id']
+                # Get manager response
+                if "Oem" in response_url.dict:
+                    response_manager_url = response_url
+                if virtual_media_url == "" or response_manager_url == "":
+                    continue
 
-                # Get the mount virtual media list
-                response_virtual_media = REDFISH_OBJ.get(virtual_media_url, None)
-                if response_virtual_media.status == 200:
-                    members_list = response_virtual_media.dict["Members"]
+        # Get mount media iso url
+        remotecontrol_url = ""
+        remotemap_url = ""
+        if "Oem" in response_manager_url.dict:
+            Oem_dict = response_manager_url.dict['Oem']
+            if "Ami" not in Oem_dict and "Lenovo" in Oem_dict:
+                remotemap_url = Oem_dict['Lenovo']['RemoteMap']['@odata.id']
+                remotecontrol_url = Oem_dict['Lenovo']['RemoteControl']['@odata.id']
+
+            # Get the mount virtual media list
+            response_virtual_media = REDFISH_OBJ.get(virtual_media_url, None)
+            if response_virtual_media.status == 200:
+                members_list = response_virtual_media.dict["Members"]
+            else:
+                error_message = utils.get_extended_error(response_virtual_media)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                    virtual_media_url, response_virtual_media.status, error_message)}
+                return result
+
+            # for 19A, XCC predefined 10 members, so call umount function for 19A. otherwise, call function for 18D.
+            if len(members_list) == 10:
+                result = umount_virtual_media(REDFISH_OBJ, members_list, image)
+            elif len(members_list) <= 4:
+                result = umount_virtual_media_from_cd(REDFISH_OBJ, members_list, image)
+            else:
+                if mounttype == "Network":
+                    result = umount_all_virtual_from_network(REDFISH_OBJ, remotemap_url)
                 else:
-                    error_message = utils.get_extended_error(response_virtual_media)
-                    result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
-                        virtual_media_url, response_virtual_media.status, error_message)}
-                    return result
-                
-                # for 19A, XCC predefined 10 members, so call umount function for 19A. otherwise, call function for 18D.
-                if len(members_list) == 10:
-                    result = umount_virtual_media(REDFISH_OBJ, members_list, image)
-                elif len(members_list) <= 4:
-                    result = umount_virtual_media_from_cd(REDFISH_OBJ, members_list, image)
-                else:
-                    if mounttype == "Network":
-                        result = umount_all_virtual_from_network(REDFISH_OBJ, remotemap_url)
-                    else:
-                        result = umount_virtual_media_from_rdoc(REDFISH_OBJ, remotecontrol_url, image)
-        else:
-            error_message = utils.get_extended_error(response_managers_url)
-            result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
-            account_managers_url, response_managers_url.status, error_message)}
+                    result = umount_virtual_media_from_rdoc(REDFISH_OBJ, remotecontrol_url, image)
+
     except Exception as e:
         traceback.print_exc()
         result = {'ret': False, 'msg': "error_message: %s" % (e)}
