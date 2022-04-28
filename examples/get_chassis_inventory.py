@@ -80,7 +80,8 @@ def get_chassis_inventory(ip, login_account, login_password):
                     chassis_inventory = response_chassis_1_url.dict
                     # Delete content with only url property
                     for property in ["Links", "@odata.etag", "@odata.id", "@odata.type", "LogServices",
-                                 "Memory", "NetworkAdapters", "PCIeDevices", "PCIeSlots", "Power", "Thermal"]:
+                                 "Memory", "NetworkAdapters", "PCIeDevices", "PCIeSlots", "Power", "Thermal",
+                                 "Controls", "EnvironmentMetrics", "PowerSubsystem", "Sensors", "ThermalSubsystem"]:
                         if property in chassis_inventory:
                             del chassis_inventory[property]
                     if "Oem" in chassis_inventory and "Lenovo" in chassis_inventory["Oem"]:

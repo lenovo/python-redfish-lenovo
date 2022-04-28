@@ -27,7 +27,7 @@ import traceback
 import lenovo_utils as utils
 
 
-def lenovo_set_bmc_dns(ip, login_account, login_password, enabled, dnsserver):
+def lenovo_set_bmc_dns(ip, login_account, login_password, enabled, dnsserver, domainname):
     """Set manager ip
     :params ip: BMC IP address
     :type ip: string
@@ -39,6 +39,8 @@ def lenovo_set_bmc_dns(ip, login_account, login_password, enabled, dnsserver):
     :type enabled: string
     :params dnsserver: DNS servers by user specified
     :type dnsserver: list
+    :params domainname: Domain name by user specified
+    :type domainname: string
     :returns: returns set result when succeeded or error message when failed
     """
     result = {}
@@ -97,32 +99,46 @@ def lenovo_set_bmc_dns(ip, login_account, login_password, enabled, dnsserver):
             return result
 
         payload = {'DNSEnable': True if enabled == '1' else False}
-        if enabled == '1' and dnsserver is None:
-            result = {'ret': False, 'msg': 'Please specify the DNS servers'}
+        if enabled == '1' and dnsserver is None and domainname is None:
+            result = {'ret': False, 'msg': 'Please specify the DNS servers or the domain name'}
             REDFISH_OBJ.logout()
             return result
+        
         if dnsserver is not None:
             len_dns = len(dnsserver)
             if len_dns > 3:
                 result = {'ret': False, 'msg': 'User can only specify the name of up to 3 DNS servers'}
                 REDFISH_OBJ.logout()
                 return result
-            if 'Actions' in response_url.dict:
-                if '#DNS.Reset' in response_url.dict['Actions']:
-                    # SR635 / SR655
-                    payload.clear()
-                    payload = {'DNSStatus': 'enable' if enabled == '1' else 'disable'}
+
+        if 'Actions' in response_url.dict:
+            if '#DNS.Reset' in response_url.dict['Actions']:
+                # SR635 / SR655
+                payload = {'DNSStatus': 'enable' if enabled == '1' else 'disable'}
+                if dnsserver is not None:
                     payload['DNSDHCP'] = 'static'
                     payload['DNSIndex'] = 'none'
                     payload['IPPriority'] = 'none'
                     for index in range(len(dnsserver)):
                         payload['DNSServerIP%s' %(index+1)] = dnsserver[index]
-            else:
-                # XCC
+
+                if domainname is not None:
+                    payload['DomainDHCP'] = 'static'
+                    payload['DomainName'] = domainname
+        else:
+            # XCC
+            if dnsserver is not None:
                 payload['PreferredAddresstype'] = 'IPv4'  #IPv6 address type is supported too
                 for index in range(len(dnsserver)):
                     payload['IPv4Address%s' %(index+1)] = dnsserver[index]  #Update IPv4Address to IPv6Address here if using IPv6
-
+            
+            if domainname is not None:
+                payload['DDNS'] = []
+                DDNS_body = {}
+                DDNS_body['DDNSEnable'] = True
+                DDNS_body['DomainNameSource'] = "Custom"
+                DDNS_body['DomainName'] = domainname
+                payload['DDNS'].append(DDNS_body)
         # perform set via patch
         headers = {"If-Match": "*"}
         response_url_patch = REDFISH_OBJ.patch(request_url, body=payload, headers=headers)
@@ -160,6 +176,7 @@ def add_helpmessage(argget):
     argget.add_argument('--enabled', type=str, choices = ["0", "1"], required=True, default="1",
                         help='Indicates if DNS is enabled or disabled for the bmc nic. (0:false, 1:true)')
     argget.add_argument('--dnsserver',  nargs="*", type=str, required=False, help='Specify the names of DNS servers, up to 3 DNS servers can be used.')
+    argget.add_argument('--domainname', type=str, required=False, help='Specify the domain name, which will be changed along with domain DHCP is set to "static", the domain name should contain dot(.) and no other special characters,such as ":".')
 
 
 def add_parameter():
@@ -170,6 +187,7 @@ def add_parameter():
     parameter_info = utils.parse_parameter(args)
     parameter_info["enabled"] = args.enabled
     parameter_info["dnsserver"] = args.dnsserver
+    parameter_info["domainname"] = args.domainname
     return parameter_info
 
 
@@ -184,7 +202,7 @@ if __name__ == '__main__':
 
     # set manager dns and check result
     result = lenovo_set_bmc_dns(ip, login_account, login_password, parameter_info["enabled"],
-                            parameter_info["dnsserver"])
+                            parameter_info["dnsserver"], parameter_info["domainname"])
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
