@@ -27,16 +27,14 @@ import traceback
 import lenovo_utils as utils
 
 
-def get_psu_inventory(ip, login_account, login_password, system_id):
-    """Get power supply unit inventory 
+def get_psu_inventory(ip, login_account, login_password):
+    """Get power supply unit inventory
     :params ip: BMC IP address
     :type ip: string
     :params login_account: BMC user name
     :type login_account: string
     :params login_password: BMC user password
     :type login_password: string
-    :params system_id: ComputerSystem instance id(None: first instance, All: all instances)
-    :type system_id: None or string
     :returns: returns power supply unit inventory when succeeded or error message when failed
     """
     result = {}
@@ -54,75 +52,122 @@ def get_psu_inventory(ip, login_account, login_password, system_id):
         traceback.print_exc()
         result = {'ret': False, 'msg': "Error_message: %s. Please check if username, password and IP are correct" % repr(e)}
         return result
-
-    # GET the ComputerSystem resource
-    system = utils.get_system_url("/redfish/v1", system_id, REDFISH_OBJ)
-    if not system:
-        result = {'ret': False, 'msg': "This system id is not exist or system member is None"}
-        REDFISH_OBJ.logout()
-        return result
-    for i in range(len(system)):
-        system_url = system[i]
-        response_system_url = REDFISH_OBJ.get(system_url, None)
-        
-        if response_system_url.status == 200:
-            # Get the Chassis resource
-            chassis_url = response_system_url.dict['Links']['Chassis'][0]['@odata.id']
-            
+    try:
+        response_base_url = REDFISH_OBJ.get('/redfish/v1', None)
+        # Get response_base_url
+        if response_base_url.status == 200:
+            chassis_url = response_base_url.dict['Chassis']['@odata.id']
         else:
-          
-            result = {'ret': False, 'msg': "response system url Error code %s" % response_system_url.status}
-            REDFISH_OBJ.logout()
+            error_message = utils.get_extended_error(response_base_url)
+            result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                '/redfish/v1', response_base_url.status, error_message)}
             return result
         response_chassis_url = REDFISH_OBJ.get(chassis_url, None)
         if response_chassis_url.status == 200:
-            # Get the power_url_list
-            power_url = response_chassis_url.dict['Power']['@odata.id']
+            subsystem = []
+            for request in response_chassis_url.dict['Members']:
+                request_url = request['@odata.id']
+                response_url = REDFISH_OBJ.get(request_url, None)
+                if response_url.status == 200:
+                    # if chassis is not normal skip it
+                    if len(response_chassis_url.dict['Members']) > 1 and ("Links" not in response_url.dict or "ComputerSystems" not in response_url.dict["Links"]):
+                        continue
+                    if 'PowerSubsystem' in response_url.dict:
+                        # Get the powersubsystem resources
+                        powersubsystem_url = response_url.dict['PowerSubsystem']['@odata.id']
+                        response_powersubsystem_url = REDFISH_OBJ.get(powersubsystem_url, None)
+                        if response_powersubsystem_url.status == 200:
+                            if 'PowerSupplies' not in response_powersubsystem_url.dict:
+                                result = {'ret': False, 'msg': "There is no PowerSupplies data in %s" % powersubsystem_url}
+                                REDFISH_OBJ.logout()
+                                return result
+                            # Get PowerSupplies resources
+                            powersupplies_url = response_powersubsystem_url.dict['PowerSupplies']['@odata.id']
+                            response_powersupplies_url = REDFISH_OBJ.get(powersupplies_url, None)
+                            for i in range(response_powersupplies_url.dict["Members@odata.count"]):
+                                members_url = response_powersupplies_url.dict['Members'][i]['@odata.id']
+                                response_members_url = REDFISH_OBJ.get(members_url, None)
+                                psu = response_members_url.dict
+                                for property in ["@odata.id", "@odata.context", "@odata.type", "@odata.etag"]:
+                                    if property in psu:
+                                        del psu[property]
+                                if 'Metrics' in response_members_url.dict:
+                                    # Get Metrics resources of each PSU
+                                    metrics_url = response_members_url.dict['Metrics']['@odata.id']
+                                    response_metrics_url = REDFISH_OBJ.get(metrics_url, None)
+                                    metrics = response_metrics_url.dict
+                                    for property in ["@odata.id", "@odata.context", "@odata.type", "@odata.etag"]:
+                                        if property in metrics:
+                                            del metrics[property]
+                                    psu["Metrics"] = metrics
+                                subsystem.append(psu)
+                                if len(subsystem) > 0:
+                                    result['ret'] = True
+                                    result['entry_details'] = subsystem
+                                else:
+                                    result['ret'] = False
+                                    result['entry_details'] = []
+                        else:
+                            error_message = utils.get_extended_error(response_powersubsystem_url)
+                            result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                                powersubsystem_url, response_powersubsystem_url.status, error_message)}
+                            return result
+                    else:
+                        # Get the power resources
+                        power_url = response_url.dict['Power']['@odata.id']
+                        response_power_url = REDFISH_OBJ.get(power_url, None)
+                        if response_power_url.status == 200:
+                            if 'PowerSupplies' not in response_power_url.dict:
+                                result = {'ret': False, 'msg': "There is no PowerSupplies data in %s" % power_url}
+                                REDFISH_OBJ.logout()
+                                return result
+                            power_supply_list = response_power_url.dict['PowerSupplies']
+                            for PowerSupplies in power_supply_list:
+                                entry = {}
+                                for property in ['Name', 'SerialNumber', 'PowerOutputWatts', 'EfficiencyPercent', 'LineInputVoltage',
+                                    'PartNumber', 'FirmwareVersion', 'PowerCapacityWatts', 'PowerInputWatts', 'Model',
+                                    'PowerSupplyType', 'Status', 'Manufacturer', 'HotPluggable', 'LastPowerOutputWatts',
+                                    'InputRanges', 'LineInputVoltageType', 'Location']:
+                                    if property in PowerSupplies:
+                                        entry[property] = PowerSupplies[property]
+                                if 'Oem' in PowerSupplies and 'Lenovo' in PowerSupplies['Oem']:
+                                    entry['Oem'] = {'Lenovo':{}}
+                                    for oemprop in ['FruPartNumber', 'ManufactureDate', 'ManufacturerName']:
+                                        if oemprop in PowerSupplies['Oem']['Lenovo']:
+                                            entry['Oem']['Lenovo'][oemprop] = PowerSupplies['Oem']['Lenovo'][oemprop]
+                                psu_details.append(entry)
+                            if len(psu_details) > 0:
+                                result['ret'] = True
+                                result['entry_details'] = psu_details
+                            else:
+                                result['ret'] = False
+                                result['entry_details'] = []
+                        else:
+                            error_message = utils.get_extended_error(response_power_url)
+                            result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                                power_url, response_power_url.status, error_message)}
+                            return result
+                else:
+                    error_message = utils.get_extended_error(response_url)
+                    result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                        request_url, response_url.status, error_message)}
+                    return result
         else:
-            
-            result = {'ret': False, 'msg': "response chassis url Error code %s" % response_chassis_url.status}
-            REDFISH_OBJ.logout()
+            error_message = utils.get_extended_error(response_chassis_url)
+            result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                chassis_url, response_chassis_url.status, error_message)}
             return result
-        response_power_url = REDFISH_OBJ.get(power_url, None)
-        if response_power_url.status == 200:
-            if 'PowerSupplies' not in response_power_url.dict:
-                result = {'ret': False, 'msg': "There is no PowerSupplies data in %s" % power_url}
-                REDFISH_OBJ.logout()
-                return result
-
-            power_supply_list = response_power_url.dict['PowerSupplies']
-            for PowerSupplies in power_supply_list:
-                entry = {}
-                for property in ['Name', 'SerialNumber', 'PowerOutputWatts', 'EfficiencyPercent', 'LineInputVoltage', 
-                    'PartNumber', 'FirmwareVersion', 'PowerCapacityWatts', 'PowerInputWatts', 'Model',
-                    'PowerSupplyType', 'Status', 'Manufacturer', 'HotPluggable', 'LastPowerOutputWatts',
-                    'InputRanges', 'LineInputVoltageType', 'Location']:
-                    if property in PowerSupplies:
-                        entry[property] = PowerSupplies[property]
-                if 'Oem' in PowerSupplies and 'Lenovo' in PowerSupplies['Oem']:
-                    entry['Oem'] = {'Lenovo':{}}
-                    for oemprop in ['FruPartNumber', 'ManufactureDate', 'ManufacturerName']:
-                        if oemprop in PowerSupplies['Oem']['Lenovo']:
-                            entry['Oem']['Lenovo'][oemprop] = PowerSupplies['Oem']['Lenovo'][oemprop]
-                psu_details.append(entry)
-        else:
-            result = {'ret': False, 'msg': "response power url Error code %s" % response_power_url.status}
-            REDFISH_OBJ.logout()
-            return result
-
-    if len(psu_details) > 0:
-        result['ret'] = True
-        result['entry_details'] = psu_details
-    else:
-        result['ret'] = False
-        result['entry_details'] = []
-
     # Logout of the current session
-    try:
-        REDFISH_OBJ.logout()
-    except:
-        pass
-    return result
+    except Exception as e:
+        traceback.print_exc()
+        result = {'ret': False, 'msg': "error_message: %s" % e}
+    finally:
+        # Logout of the current session
+        try:
+            REDFISH_OBJ.logout()
+        except:
+            pass
+        return result
 
 
 if __name__ == '__main__':
@@ -130,18 +175,18 @@ if __name__ == '__main__':
     argget = utils.create_common_parameter_list()
     args = argget.parse_args()
     parameter_info = utils.parse_parameter(args)
-    
+
     # Get connection info from the parameters user specified
     ip = parameter_info['ip']
     login_account = parameter_info["user"]
     login_password = parameter_info["passwd"]
-    system_id = parameter_info['sysid']
-    
+
     # Get power supply unit inventory and check result
-    result = get_psu_inventory(ip, login_account, login_password, system_id)
+    result = get_psu_inventory(ip, login_account, login_password)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['entry_details'], sort_keys=True, indent=2))
     else:
         sys.stderr.write(result['msg'] + '\n')
         sys.exit(1)
+
