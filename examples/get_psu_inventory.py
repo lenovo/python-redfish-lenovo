@@ -64,7 +64,6 @@ def get_psu_inventory(ip, login_account, login_password):
             return result
         response_chassis_url = REDFISH_OBJ.get(chassis_url, None)
         if response_chassis_url.status == 200:
-            subsystem = []
             for request in response_chassis_url.dict['Members']:
                 request_url = request['@odata.id']
                 response_url = REDFISH_OBJ.get(request_url, None)
@@ -100,13 +99,7 @@ def get_psu_inventory(ip, login_account, login_password):
                                         if property in metrics:
                                             del metrics[property]
                                     psu["Metrics"] = metrics
-                                subsystem.append(psu)
-                                if len(subsystem) > 0:
-                                    result['ret'] = True
-                                    result['entry_details'] = subsystem
-                                else:
-                                    result['ret'] = False
-                                    result['entry_details'] = []
+                                psu_details.append(psu)
                         else:
                             error_message = utils.get_extended_error(response_powersubsystem_url)
                             result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
@@ -136,12 +129,6 @@ def get_psu_inventory(ip, login_account, login_password):
                                         if oemprop in PowerSupplies['Oem']['Lenovo']:
                                             entry['Oem']['Lenovo'][oemprop] = PowerSupplies['Oem']['Lenovo'][oemprop]
                                 psu_details.append(entry)
-                            if len(psu_details) > 0:
-                                result['ret'] = True
-                                result['entry_details'] = psu_details
-                            else:
-                                result['ret'] = False
-                                result['entry_details'] = []
                         else:
                             error_message = utils.get_extended_error(response_power_url)
                             result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
@@ -157,6 +144,12 @@ def get_psu_inventory(ip, login_account, login_password):
             result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
                 chassis_url, response_chassis_url.status, error_message)}
             return result
+        if len(psu_details) > 0:
+            result['ret'] = True
+            result['entry_details'] = psu_details
+        else:
+            result['ret'] = False
+            result['entry_details'] = []
     # Logout of the current session
     except Exception as e:
         traceback.print_exc()
