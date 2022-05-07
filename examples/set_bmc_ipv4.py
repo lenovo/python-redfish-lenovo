@@ -81,6 +81,7 @@ def set_bmc_ipv4(ip, login_account, login_password, dhcp_enabled, static_ip, sta
     target_ethernet_uri = None
     target_ethernet_current_setting = None
     nic_addr = ip.split(':')[0]  # split port if existing
+    StaticNameServers_exist = False
     for request in response_manager_url.dict['Members']:
         request_url = request['@odata.id']
         response_url = REDFISH_OBJ.get(request_url, None)
@@ -118,6 +119,8 @@ def set_bmc_ipv4(ip, login_account, login_password, dhcp_enabled, static_ip, sta
 
             data = sub_response_url.dict
             if '"' + nic_addr + '"' in str(data) or "'" + nic_addr + "'" in str(data):
+                if "StaticNameServers" in data.keys():
+                    StaticNameServers_exist = True
                 target_ethernet_uri = sub_request_url
                 target_ethernet_current_setting = data
                 break
@@ -143,7 +146,8 @@ def set_bmc_ipv4(ip, login_account, login_password, dhcp_enabled, static_ip, sta
             config["Gateway"] = static_gateway
         if static_mask is not None:
             config["SubnetMask"] = static_mask
-        if flag_SR635_SR655:
+        # Check whether the BMC of SR635/655 has "StaticNameServers" property. If yes, specify "IPv4StaticAddresses", else, specify "IPv4Addresses".
+        if flag_SR635_SR655 and StaticNameServers_exist is False:
             payload["IPv4Addresses"] = list()
             payload["IPv4Addresses"].append(config)
         else:
@@ -153,6 +157,9 @@ def set_bmc_ipv4(ip, login_account, login_password, dhcp_enabled, static_ip, sta
     # If no need change, nothing to do. If error detected, report it
     need_change = False
     for property in payload.keys():
+        if property not in target_ethernet_current_setting.keys():
+            need_change = True
+            continue
         set_value = payload[property]
         cur_value = target_ethernet_current_setting[property]
         # type is simple(not dict/list)
@@ -187,6 +194,10 @@ def set_bmc_ipv4(ip, login_account, login_password, dhcp_enabled, static_ip, sta
     response_network_url = REDFISH_OBJ.patch(target_ethernet_uri, body=payload, headers=headers)
     if response_network_url.status in [200,204]:
         result = {'ret': True, 'msg': "Set BMC ip config successfully"}
+    elif response_network_url.status == 202:
+        task_uri = response_network_url.dict['@odata.id']
+        result = {'ret': True, 'msg': "Set BMC IP config successfully. A new task is created with uri of %s, wait 1 minute for the task to complete. "
+                                      "If you need, please go to script 'get_all_tasks.py' to check task status." % task_uri}
     else:
         error_message = utils.get_extended_error(response_network_url)
         result = {'ret': False, 'msg': "Url '%s' response error code %s \nerror_message: %s" % (
