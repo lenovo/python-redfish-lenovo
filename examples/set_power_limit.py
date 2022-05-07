@@ -82,47 +82,86 @@ def set_power_limit(ip, login_account, login_password, isenable, power_limit):
                     if len(response_chassis_url.dict['Members']) > 1 and ("Links" not in response_url.dict or
                             "ComputerSystems" not in response_url.dict["Links"]):
                         continue
-                    # if no Power property, skip it
-                    if "Power" not in response_url.dict:
-                        continue
-                    power_url = response_url.dict["Power"]['@odata.id']
-                    response_power_url = REDFISH_OBJ.get(power_url, None)
-                    if response_power_url.status == 200:
-                        # if no PowerControl property, skip it
-                        if "PowerControl" not in response_power_url.dict:
-                            continue
-                        # get etag to set If-Match precondition
-                        if "@odata.etag" in response_power_url.dict:
-                            etag = response_power_url.dict['@odata.etag']
+                    if "Controls" in response_url.dict:
+                        control_url = response_url.dict['Controls']['@odata.id']
+                        response_power = REDFISH_OBJ.get(control_url, None)
+                        if response_power.status == 200:
+                            for control in response_power.dict['Members']:
+                                power_limit_url = control['@odata.id']
+                                control_response = REDFISH_OBJ.get(power_limit_url, None)
+                                if control_response.status != 200:
+                                    error_message = utils.get_extended_error(control_response)
+                                    result = {'ret': False,
+                                              'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                                                  power_limit_url, control_response.status, error_message)}
+                                    return result
+                                # get etag to set If-Match precondition
+                                if "@odata.etag" in control_response.dict:
+                                    etag = control_response.dict["@odata.etag"]
+                                else:
+                                    etag = ""
+                                headers = {"If-Match": etag}
+                                if isenable is True:
+                                    parameter = {'SetPoint': power_limit}
+                                else:
+                                    parameter = {'SetPoint': None}
+                                response_limit_set_url = REDFISH_OBJ.patch(power_limit_url, body=parameter, headers=headers)
+                                if response_limit_set_url.status in [200, 204]:
+                                    result = {"ret": True, "msg": "Set power limit successfully"}
+                                    return result
+                                else:
+                                    error_message = utils.get_extended_error(response_limit_set_url)
+                                    result = {'ret': False,
+                                              'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                                                  power_limit_url, response_limit_set_url.status, error_message)}
+                                    return result
                         else:
-                            etag = ""
-                        headers = {"If-Match": etag}
-
-                        list_power_control = response_power_url.dict["PowerControl"]
-                        # check powerlimit existed or not
-                        try:
-                            limit_item = list_power_control[0]["PowerLimit"]
-                        except Exception as e:
-                            result = {"ret": False, "msg": "Not support this function"}
-                            return result
-                        if isenable is True:
-                            parameter = {"PowerControl": [{"PowerLimit":{"LimitInWatts": power_limit}}]}
-                        else:
-                            parameter = {"PowerControl": [{"PowerLimit":{"LimitInWatts": None}}]}
-                        response_limit_set_url = REDFISH_OBJ.patch(power_url, body=parameter, headers=headers)
-                        if response_limit_set_url.status in [200,204]:
-                            result = {"ret":True,"msg":"Set power limit successfully"}
-                            return result
-                        else:
-                            error_message = utils.get_extended_error(response_limit_set_url)
+                            error_message = utils.get_extended_error(response_power)
                             result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                                power_url, response_limit_set_url.status, error_message)}
+                                control_url, response_power.status, error_message)}
                             return result
                     else:
-                        error_message = utils.get_extended_error(response_power_url)
-                        result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                            power_url, response_power_url.status, error_message)}
-                        return result
+                        # if no Power property, skip it
+                        if "Power" not in response_url.dict:
+                            continue
+                        power_url = response_url.dict["Power"]['@odata.id']
+                        response_power_url = REDFISH_OBJ.get(power_url, None)
+                        if response_power_url.status == 200:
+                            # if no PowerControl property, skip it
+                            if "PowerControl" not in response_power_url.dict:
+                                continue
+                            # get etag to set If-Match precondition
+                            if "@odata.etag" in response_power_url.dict:
+                                etag = response_power_url.dict['@odata.etag']
+                            else:
+                                etag = ""
+                            headers = {"If-Match": etag}
+
+                            list_power_control = response_power_url.dict["PowerControl"]
+                            # check powerlimit existed or not
+                            try:
+                                limit_item = list_power_control[0]["PowerLimit"]
+                            except Exception as e:
+                                result = {"ret": False, "msg": "Not support this function"}
+                                return result
+                            if isenable is True:
+                                parameter = {"PowerControl": [{"PowerLimit":{"LimitInWatts": power_limit}}]}
+                            else:
+                                parameter = {"PowerControl": [{"PowerLimit":{"LimitInWatts": None}}]}
+                            response_limit_set_url = REDFISH_OBJ.patch(power_url, body=parameter, headers=headers)
+                            if response_limit_set_url.status in [200,204]:
+                                result = {"ret":True,"msg":"Set power limit successfully"}
+                                return result
+                            else:
+                                error_message = utils.get_extended_error(response_limit_set_url)
+                                result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                                    power_url, response_limit_set_url.status, error_message)}
+                                return result
+                        else:
+                            error_message = utils.get_extended_error(response_power_url)
+                            result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                                power_url, response_power_url.status, error_message)}
+                            return result
                 else:
                     error_message = utils.get_extended_error(response_url)
                     result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
