@@ -122,7 +122,7 @@ def lenovo_ssl_certificate_generate_csr(ip, login_account, login_password, forma
                         f.write(response_url.dict['CSRString'])
 
                 result = {'ret': True,
-                          'msg':"The CSR for SSL certificate has been generated successfully. Format is PEM. (%s)" %(filename)}
+                          'msg':"The CSR for SSL certificate has been generated successfully. Format is %s. (%s)" %(format, filename)}
                 return result
 
         # Use Oem API /redfish/v1/Managers/1/Oem/Lenovo/Security
