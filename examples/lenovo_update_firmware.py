@@ -86,7 +86,7 @@ def lenovo_update_firmware(ip, login_account, login_password, image, targets, fs
         response_update_service_url = REDFISH_OBJ.get(update_service_url, None)
         if response_update_service_url.status == 200:
             # For SR635/655
-            if "Oem" in response_update_service_url.dict['Actions']:
+            if "Oem" in response_update_service_url.dict['Actions'] and "#UpdateService.SimpleUpdate" not in response_update_service_url.dict['Actions']:
                 # Check whether the firmware is BMC or UEFI
                 if not targets:
                     if image.index('bmc') != -1:
