@@ -110,23 +110,6 @@ def lenovo_set_bmc_user_global(ip, login_account, login_password, setting_dict):
     REDFISH_OBJ.login(auth=utils.g_AUTH)
 
     try:
-        global_setting = {}
-
-        # Use user setting to update global_setting dict
-        if "AccountLockoutThreshold" in setting_dict:
-            global_setting['AccountLockoutThreshold'] = setting_dict['AccountLockoutThreshold'] 
-        if "AccountLockoutDuration" in setting_dict:
-            global_setting['AccountLockoutDuration'] = setting_dict['AccountLockoutDuration'] 
-        for item_name in ["PasswordChangeOnNextLogin", "AuthenticationMethod",
-                          "MinimumPasswordChangeIntervalHours", "PasswordExpirationPeriodDays",
-                          "PasswordChangeOnFirstAccess", "MinimumPasswordReuseCycle",
-                          "PasswordLength", "WebInactivitySessionTimeout", "PasswordExpirationWarningPeriod"]:
-            if item_name in setting_dict:
-                if 'Oem' not in global_setting:
-                    global_setting['Oem'] = {}
-                    global_setting['Oem']['Lenovo'] = {}
-                global_setting['Oem']['Lenovo'][item_name] = setting_dict[item_name]
-
         # Continue to handle other settings except complex password via Redfish
         # Get response_base_url resource
         response_base_url = REDFISH_OBJ.get('/redfish/v1', None)
@@ -147,14 +130,35 @@ def lenovo_set_bmc_user_global(ip, login_account, login_password, setting_dict):
             result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (account_service_url, response_account_service_url.status, error_message)}
             return result
 
+        global_setting = {}
+        # Use user setting to update global_setting dict
+        if "AccountLockoutThreshold" in setting_dict:
+            global_setting['AccountLockoutThreshold'] = setting_dict['AccountLockoutThreshold']
+        if "AccountLockoutDuration" in setting_dict:
+            global_setting['AccountLockoutDuration'] = setting_dict['AccountLockoutDuration']
+        for item_name in ["PasswordChangeOnNextLogin", "AuthenticationMethod",
+                          "MinimumPasswordChangeIntervalHours", "PasswordExpirationPeriodDays",
+                          "PasswordChangeOnFirstAccess", "MinimumPasswordReuseCycle",
+                          "PasswordLength", "WebInactivitySessionTimeout", "PasswordExpirationWarningPeriod"]:
+            if item_name in setting_dict:
+                if item_name in response_account_service_url.dict['Oem']['Lenovo']:
+
+                    if 'Oem' not in global_setting:
+                        global_setting['Oem'] = {}
+                        global_setting['Oem']['Lenovo'] = {}
+                else:
+                    continue
+                global_setting['Oem']['Lenovo'][item_name] = setting_dict[item_name]
+
+
         # Handle ComplexPassword setting
         if "ComplexPassword" in setting_dict:
             # Check whether property ComplexPassword is supported. If supported, set via Redfish, if not, set via WebAPI
-            if 'Oem' in response_account_service_url.dict and 'Lenovo' in response_account_service_url.dict['Oem'] and (
-                    'ComplexPassword' in response_account_service_url.dict['Oem']['Lenovo']):
-                if 'Oem' not in global_setting:
-                    global_setting['Oem'] = {}
-                    global_setting['Oem']['Lenovo'] = {}
+            if 'Oem' in response_account_service_url.dict and 'Lenovo' in response_account_service_url.dict['Oem']:
+                if 'ComplexPassword' in response_account_service_url.dict['Oem']['Lenovo']:
+                    if 'Oem' not in global_setting:
+                        global_setting['Oem'] = {}
+                        global_setting['Oem']['Lenovo'] = {}
                 global_setting['Oem']['Lenovo']['ComplexPassword'] = bool(int(setting_dict['ComplexPassword']))
             else:
                 # Set complex password via WebAPI, not Redfish.
