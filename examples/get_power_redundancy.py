@@ -65,39 +65,37 @@ def get_power_redundancy(ip, login_account, login_password):
         response_chassis_url = REDFISH_OBJ.get(chassis_url, None)
         if response_chassis_url.status == 200:
             rt_list_redundant = []
-            #Get power redundant
+            # Get power  redundant
             for request in response_chassis_url.dict['Members']:
                 request_url = request['@odata.id']
                 response_url = REDFISH_OBJ.get(request_url, None)
                 if response_url.status == 200:
-                    # if chassis is not normal skip it
+                    # If chassis is not normal skip it
                     if len(response_chassis_url.dict['Members']) > 1 and ("Links" not in response_url.dict or
                             "ComputerSystems" not in response_url.dict["Links"]):
                         continue
-                    # if no Power property, skip it
-                    if "Power" not in response_url.dict:
-                        continue
-                    power_url = response_url.dict["Power"]['@odata.id']
-                    response_power_url = REDFISH_OBJ.get(power_url, None)
-                    if response_power_url.status == 200:
-                        # if no Redundancy property, skip it
+                    if 'PowerSubsystem' in response_url.dict:
+                        # Get the powersubsystem resources
+                        powersubsystem_url = response_url.dict['PowerSubsystem']['@odata.id']
+                        response_powersubsystem_url = REDFISH_OBJ.get(powersubsystem_url, None)
+                        if "PowerSupplyRedundancy" not in response_powersubsystem_url.dict:
+                            continue
+                        list_power_redundancy = response_powersubsystem_url.dict["PowerSupplyRedundancy"]
+                    else:
+                        # Get Power resources
+                        power_url = response_url.dict["Power"]['@odata.id']
+                        response_power_url = REDFISH_OBJ.get(power_url, None)
+                        # If no Redundancy property, skip it
                         if "Redundancy" not in response_power_url.dict:
                             continue
                         list_power_redundancy = response_power_url.dict["Redundancy"]
-                        for redundancy_item in list_power_redundancy:
-                            dict_power_redundant = {}
-                            for key in redundancy_item:
-                                if key == "RedundancySet":
-                                    continue
-                                if key not in ["Description", "@odata.context", "@odata.id", "@odata.type",
-                                               "@odata.etag", "Links", "Actions", "RelatedItem"]:
-                                    dict_power_redundant[key] = redundancy_item[key]
-                            rt_list_redundant.append(dict_power_redundant)
-                    else:
-                        error_message = utils.get_extended_error(response_power_url)
-                        result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                            power_url, response_power_url.status, error_message)}
-                        return result
+                    for redundancy_item in list_power_redundancy:
+                        dict_power_redundant = {}
+                        for key in redundancy_item:
+                            if key not in ["Description", "@odata.context", "@odata.id", "@odata.type",
+                                           "@odata.etag", "Links", "Actions", "RelatedItem","RedundancyGroup","RedundancySet"]:
+                                dict_power_redundant[key] = redundancy_item[key]
+                        rt_list_redundant.append(dict_power_redundant)
                 else:
                     error_message = utils.get_extended_error(response_url)
                     result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
@@ -123,7 +121,6 @@ def get_power_redundancy(ip, login_account, login_password):
             REDFISH_OBJ.logout()
         except:
             pass
-
 
 if __name__ == '__main__':
     # Get parameters from config.ini and/or command line
