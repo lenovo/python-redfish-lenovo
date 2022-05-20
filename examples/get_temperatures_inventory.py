@@ -74,24 +74,50 @@ def get_temperatures_inventory(ip, login_account, login_password):
                     if len(response_chassis_url.dict['Members']) > 1 and ("Links" not in response_url.dict or
                             "ComputerSystems" not in response_url.dict["Links"]):
                         continue
-                    if "Thermal" not in response_url.dict:
-                        continue
-                    thermal_url = response_url.dict["Thermal"]['@odata.id']
-                    response_thermal_url = REDFISH_OBJ.get(thermal_url, None)
-                    if response_thermal_url.status == 200:
-                        list_temperatures = response_thermal_url.dict["Temperatures"]
-                        for temperatures_item in list_temperatures:
-                            tmp_temperatures_item = {}
-                            for key in temperatures_item:
-                                if key not in ["Description", "@odata.context", "@odata.id", "@odata.type",
-                                               "@odata.etag", "Links", "Actions", "RelatedItem"]:
-                                    tmp_temperatures_item[key] = temperatures_item[key]
-                            rt_list_temperatures.append(tmp_temperatures_item)
+                    if 'ThermalSubsystem' in response_url.dict and '@odata.id' in response_url.dict['ThermalSubsystem']:
+                        thermal_subsystem_url = response_url.dict["ThermalSubsystem"]['@odata.id']
+                        response_thermal_url = REDFISH_OBJ.get(thermal_subsystem_url, None)
+                        if response_thermal_url.status == 200:
+                            temperatures_url = response_thermal_url.dict["ThermalMetrics"]['@odata.id']
+                            temperatures_response = REDFISH_OBJ.get(temperatures_url, None)
+                            for temperature in temperatures_response.dict["TemperatureReadingsCelsius"]:
+                                tmp_temperatures_item = {}
+                                data_source_uri = temperature['DataSourceUri']
+                                readings_celsius = REDFISH_OBJ.get(data_source_uri, None)
+                                if readings_celsius.status != 200:
+                                    error_message = utils.get_extended_error(readings_celsius)
+                                    result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                                                  data_source_uri, readings_celsius.status, error_message)}
+                                    return result
+                                for key in readings_celsius.dict:
+                                    if key not in ["Description", "@odata.context", "@odata.id", "@odata.type",
+                                                   "@odata.etag", "Links", "Actions", "RelatedItem"]:
+                                        tmp_temperatures_item[key] = readings_celsius.dict[key]
+                                rt_list_temperatures.append(tmp_temperatures_item)
+                        else:
+                            error_message = utils.get_extended_error(response_thermal_url)
+                            result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                                thermal_subsystem_url, response_thermal_url.status, error_message)}
+                            return result
                     else:
-                        error_message = utils.get_extended_error(response_thermal_url)
-                        result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                            thermal_url, response_thermal_url.status, error_message)}
-                        return result
+                        if "Thermal" not in response_url.dict:
+                            continue
+                        thermal_url = response_url.dict["Thermal"]['@odata.id']
+                        response_thermal_url = REDFISH_OBJ.get(thermal_url, None)
+                        if response_thermal_url.status == 200:
+                            list_temperatures = response_thermal_url.dict["Temperatures"]
+                            for temperatures_item in list_temperatures:
+                                tmp_temperatures_item = {}
+                                for key in temperatures_item:
+                                    if key not in ["Description", "@odata.context", "@odata.id", "@odata.type",
+                                                   "@odata.etag", "Links", "Actions", "RelatedItem"]:
+                                        tmp_temperatures_item[key] = temperatures_item[key]
+                                rt_list_temperatures.append(tmp_temperatures_item)
+                        else:
+                            error_message = utils.get_extended_error(response_thermal_url)
+                            result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                                thermal_url, response_thermal_url.status, error_message)}
+                            return result
                 else:
                     error_message = utils.get_extended_error(response_url)
                     result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
