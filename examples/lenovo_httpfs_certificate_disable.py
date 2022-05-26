@@ -1,6 +1,6 @@
 ###
 #
-# Lenovo Redfish examples - Get HTTPS certificate info
+# Lenovo Redfish examples - disable security HTTPS to use certificate
 #
 # Copyright Notice:
 #
@@ -26,8 +26,8 @@ import traceback
 import lenovo_utils as utils
 
 
-def lenovo_https_certificate_getinfo(ip, login_account, login_password):
-    """ Get HTTPS certificate info
+def lenovo_httpfs_certificate_disable(ip, login_account, login_password):
+    """ Disable HTTPS certificate
     :params ip: BMC IP address
     :type ip: string
     :params login_account: BMC user name
@@ -67,34 +67,20 @@ def lenovo_https_certificate_getinfo(ip, login_account, login_password):
             result = {'ret': False, 'msg': "Url '%s' response Error code %s, \nError message :%s" % (
                 update_service_url, response_update_service_url.status, message)}
             return result
-        # Check /redfish/v1/UpdateService/RemoteServerCertificates existing
-        if "RemoteServerCertificates" in response_update_service_url.dict:
-            remote_cert_url = response_update_service_url.dict["RemoteServerCertificates"]["@odata.id"]
-            response_remote_cert = REDFISH_OBJ.get(remote_cert_url, None)
-            if response_remote_cert.status != 200:
-                message = utils.get_extended_error(response_remote_cert)
-                result = {'ret': False, 'msg': "Url '%s' response Error code %s, \nError message :%s" % (
-                    remote_cert_url, response_remote_cert.status, message)}
+        if "VerifyRemoteServerCertificate" in response_update_service_url.dict:
+            if response_update_service_url.dict["VerifyRemoteServerCertificate"] is False:
+                result = {'ret': True, 'msg': "HTTPS certificate security is already disabled."}
                 return result
-            if "Members" in response_remote_cert.dict:
-                all_certs = []
-                for member in response_remote_cert.dict["Members"]:
-                    request_get_url = member["@odata.id"]
-                    response_get_url = REDFISH_OBJ.get(request_get_url, None)
-                    if response_get_url.status == 200:
-                        cert_info = {}
-                        for property in ['ValidNotAfter', 'ValidNotBefore', 'KeyUsage', 'CertificateType',
-                                         'Subject', 'CertificateString', 'Issuer', 'Id', '@odata.id']:
-                            if property in response_get_url.dict:
-                                cert_info[property] = response_get_url.dict[property]
-                        all_certs.append(cert_info)
-                    else:
-                        message = utils.get_extended_error(response_get_url)
-                        result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                            request_get_url, response_get_url.status, message)}
-                        return result
 
-                result = {'ret': True, 'entries': all_certs}
+            enable_body = {"VerifyRemoteServerCertificate": False}
+            response_enable_verify = REDFISH_OBJ.patch(update_service_url, body=enable_body)
+            if response_enable_verify.status == 200:
+                result = {'ret': True, 'msg': "HTTPS certificate security is disabled."}
+                return result
+            else:
+                message = utils.get_extended_error(response_enable_verify)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s, \nError message :%s" % (
+                    update_service_url, response_enable_verify.status, message)}
                 return result
 
         # No HTTPS certificate resource found
@@ -129,11 +115,11 @@ if __name__ == '__main__':
     login_account = parameter_info["user"]
     login_password = parameter_info["passwd"]
 
-    # Get HTTPS certificate info and check result
-    result = lenovo_https_certificate_getinfo(ip, login_account, login_password)
+    # Disable HTTPS certificate security and check result
+    result = lenovo_httpfs_certificate_disable(ip, login_account, login_password)
     if result['ret'] is True:
         del result['ret']
-        sys.stdout.write(json.dumps(result['entries'], sort_keys=True, indent=2))
+        sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
     else:
         sys.stderr.write(result['msg'] + '\n')
         sys.exit(1)
