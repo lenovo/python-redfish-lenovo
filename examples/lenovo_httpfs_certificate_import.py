@@ -27,7 +27,7 @@ import lenovo_utils as utils
 
 
 def lenovo_https_certificate_import(ip, login_account, login_password, certfile):
-    """ Import ssl certificate
+    """ Import HTTPS certificate
     :params ip: BMC IP address
     :type ip: string
     :params login_account: BMC user name
