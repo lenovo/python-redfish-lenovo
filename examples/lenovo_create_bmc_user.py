@@ -221,6 +221,9 @@ def lenovo_create_bmc_user(ip, login_account, login_password, username, password
             is_support_account_type = 1
             allow_account_types = response_one_account_url.dict["AccountTypes@Redfish.AllowableValues"]
 
+            if accounttypes is None:
+                accounttypes = ["Redfish", "WebUI", "ManagerConsole"]
+                
             result = check_parameter(allow_account_types, accounttypes)
             if result["ret"] is False:
                 return result
