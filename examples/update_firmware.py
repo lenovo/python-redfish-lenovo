@@ -174,7 +174,7 @@ def update_firmware(ip, login_account, login_password, image, targets, fsprotoco
                             return result
                         if remote_response.dict["Members@odata.count"] == 0:
                             result = {"ret": False,
-                                      "msg": "Target server require certificate verification of HTTPS file server. Please go to 'lenovo_https_certificate_import.py' script to upload the certificate."}
+                                      "msg": "Target server require certificate verification of HTTPS file server. Please go to 'lenovo_httpfs_certificate_import.py' script to upload the certificate."}
                             return result
 
                 firmware_update_url = simple_update_dict['target']

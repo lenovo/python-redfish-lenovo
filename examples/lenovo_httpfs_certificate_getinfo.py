@@ -1,6 +1,6 @@
 ###
 #
-# Lenovo Redfish examples - delete HTTPS file server certificate
+# Lenovo Redfish examples - Get HTTPS certificate info
 #
 # Copyright Notice:
 #
@@ -26,16 +26,14 @@ import traceback
 import lenovo_utils as utils
 
 
-def lenovo_https_certificate_delete(ip, login_account, login_password, cert_id):
-    """ Delete HTTPS certificate
+def lenovo_httpfs_certificate_getinfo(ip, login_account, login_password):
+    """ Get HTTPS certificate info
     :params ip: BMC IP address
     :type ip: string
     :params login_account: BMC user name
     :type login_account: string
     :params login_password: BMC user password
     :type login_password: string
-    :params cert_id: certificate id
-    :type cert_id: int
     :returns: returns successful result when succeeded or error message when failed
     """
 
@@ -69,6 +67,7 @@ def lenovo_https_certificate_delete(ip, login_account, login_password, cert_id):
             result = {'ret': False, 'msg': "Url '%s' response Error code %s, \nError message :%s" % (
                 update_service_url, response_update_service_url.status, message)}
             return result
+        # Check /redfish/v1/UpdateService/RemoteServerCertificates existing
         if "RemoteServerCertificates" in response_update_service_url.dict:
             remote_cert_url = response_update_service_url.dict["RemoteServerCertificates"]["@odata.id"]
             response_remote_cert = REDFISH_OBJ.get(remote_cert_url, None)
@@ -77,26 +76,25 @@ def lenovo_https_certificate_delete(ip, login_account, login_password, cert_id):
                 result = {'ret': False, 'msg': "Url '%s' response Error code %s, \nError message :%s" % (
                     remote_cert_url, response_remote_cert.status, message)}
                 return result
-
-            request_delete_url = remote_cert_url + "/" + str(cert_id)
-            if "Members" in response_remote_cert.dict and "Members@odata.count" in response_remote_cert.dict:
-                if response_remote_cert.dict["Members@odata.count"] <= 0:
-                    result = {'ret': False,
-                              'msg': "No HTTPS certificates present, no need to delete."}
-                    return result
+            if "Members" in response_remote_cert.dict:
+                all_certs = []
                 for member in response_remote_cert.dict["Members"]:
-                    if request_delete_url == member["@odata.id"]:
-                        response_delete_url = REDFISH_OBJ.delete(request_delete_url, None)
-                        if response_delete_url.status == 204:
-                            result = {'ret': True,'msg': "Delete certificate successfully."}
-                            return result
-                        else:
-                            message = utils.get_extended_error(response_delete_url)
-                            result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                                request_delete_url, response_delete_url.status, message)}
-                            return result
-                result = {'ret': False,
-                          'msg': "Failed to delete the certificate. The specified certificate does not exist."}
+                    request_get_url = member["@odata.id"]
+                    response_get_url = REDFISH_OBJ.get(request_get_url, None)
+                    if response_get_url.status == 200:
+                        cert_info = {}
+                        for property in ['ValidNotAfter', 'ValidNotBefore', 'KeyUsage', 'CertificateType',
+                                         'Subject', 'CertificateString', 'Issuer', 'Id', '@odata.id']:
+                            if property in response_get_url.dict:
+                                cert_info[property] = response_get_url.dict[property]
+                        all_certs.append(cert_info)
+                    else:
+                        message = utils.get_extended_error(response_get_url)
+                        result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                            request_get_url, response_get_url.status, message)}
+                        return result
+
+                result = {'ret': True, 'entries': all_certs}
                 return result
 
         # No HTTPS certificate resource found
@@ -115,18 +113,12 @@ def lenovo_https_certificate_delete(ip, login_account, login_password, cert_id):
         return result
 
 
-def add_helpmessage(parser):
-    parser.add_argument('--cert_id', type=int, required=True, help="Specify the certificate ID.")
-
-
 def add_parameter():
     """Add parameter"""
     parameter_info = {}
     argget = utils.create_common_parameter_list()
-    add_helpmessage(argget)
     args = argget.parse_args()
     parameter_info = utils.parse_parameter(args)
-    parameter_info["cert_id"] = args.cert_id
     return parameter_info
 
 
@@ -136,13 +128,12 @@ if __name__ == '__main__':
     ip = parameter_info['ip']
     login_account = parameter_info["user"]
     login_password = parameter_info["passwd"]
-    cert_id = parameter_info["cert_id"]
 
-    # Delete certificate and check result
-    result = lenovo_https_certificate_delete(ip, login_account, login_password, cert_id)
+    # Get HTTPS certificate info and check result
+    result = lenovo_httpfs_certificate_getinfo(ip, login_account, login_password)
     if result['ret'] is True:
         del result['ret']
-        sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
+        sys.stdout.write(json.dumps(result['entries'], sort_keys=True, indent=2))
     else:
         sys.stderr.write(result['msg'] + '\n')
         sys.exit(1)

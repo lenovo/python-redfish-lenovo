@@ -1,6 +1,6 @@
 ###
 #
-# Lenovo Redfish examples - enable security HTTPS to use certificate
+# Lenovo Redfish examples - import HTTPS file server certificate to update firmware of BMC.
 #
 # Copyright Notice:
 #
@@ -26,18 +26,27 @@ import traceback
 import lenovo_utils as utils
 
 
-def lenovo_https_certificate_enable(ip, login_account, login_password):
-    """ Enable HTTPS certificate
+def lenovo_httpfs_certificate_import(ip, login_account, login_password, certfile):
+    """ Import HTTPS certificate
     :params ip: BMC IP address
     :type ip: string
     :params login_account: BMC user name
     :type login_account: string
     :params login_password: BMC user password
     :type login_password: string
+    :params certfile: certificate file by user specified
+    :type certfile: string
     :returns: returns successful result when succeeded or error message when failed
     """
 
     result = {}
+
+    # check file existing and readable
+    if certfile and not os.access(certfile, os.R_OK):
+        result = {'ret': False,
+                  'msg': "Specified file %s does not exist or can't be accessed. Please check your certificate file path." % (
+                      certfile)}
+        return result
 
     # Create a REDFISH object
     login_host = "https://" + ip
@@ -67,26 +76,39 @@ def lenovo_https_certificate_enable(ip, login_account, login_password):
             result = {'ret': False, 'msg': "Url '%s' response Error code %s, \nError message :%s" % (
                 update_service_url, response_update_service_url.status, message)}
             return result
-        if "VerifyRemoteServerCertificate" in response_update_service_url.dict:
-            if response_update_service_url.dict["VerifyRemoteServerCertificate"] is True:
-                result = {'ret': True, 'msg': "HTTPS certificate security is already enabled."}
+
+        if "RemoteServerCertificates" in response_update_service_url.dict:
+            # Set request body
+            request_body = {'CertificateType': 'PEM'}
+            request_body['CertificateString'] = read_cert_file_pem(certfile)
+            if request_body['CertificateString'] is None:
+                result = {'ret': False,
+                          'msg': "Target server required certificate format should be PEM. Please specify correct certificate file."}
                 return result
 
-            enable_body = {"VerifyRemoteServerCertificate": True}
-            response_enable_verify = REDFISH_OBJ.patch(update_service_url, body=enable_body)
-            if response_enable_verify.status == 200:
-                result = {'ret': True, 'msg': "HTTPS certificate security is enabled."
-                                              "Note that in order to enable SSL, a valid SSL certificate must first be in place and at least one SSL client trusted certificate must be imported."}
+            # Get https certificate uri to set request body
+            request_upload_url = response_update_service_url.dict["RemoteServerCertificates"]["@odata.id"]
+            # Upload file server certificate
+            response_upload_url = REDFISH_OBJ.post(request_upload_url, body=request_body)
+            if response_upload_url.status == 201:
+                result = {'ret':True,
+                          'msg':"Upload certificate successfully. The file server certificate has been uploaded to '%s'." % (
+                              response_upload_url.dict['@odata.id'])}
+                return result
+            elif response_upload_url.status == 409:
+                result = {"ret": False,
+                          "msg": "Failed to upload certificate. The current number of certificates in the target certificate collection already reached the maximum number:4."}
                 return result
             else:
-                message = utils.get_extended_error(response_enable_verify)
-                result = {'ret': False, 'msg': "Url '%s' response Error code %s, \nError message :%s" % (
-                    update_service_url, response_enable_verify.status, message)}
+                message = utils.get_extended_error(response_upload_url)
+                result = {'ret': False,
+                          'msg': "Url '%s' response Error code %s, \nError message :%s" % (
+                              request_upload_url, response_upload_url.status, message)}
                 return result
-
-        # No HTTPS certificate resource found
-        result = {'ret': False, 'msg': "HTTPS certificate is not supported."}
-        return result
+        else:
+            result = {'ret': False,
+                      'msg': "Target server does not support uploading certificate file."}
+            return result
 
     except Exception as e:
         traceback.print_exc()
@@ -100,12 +122,32 @@ def lenovo_https_certificate_enable(ip, login_account, login_password):
         return result
 
 
+
+def read_cert_file_pem(cert):
+    fhandle = None
+    try:
+        fhandle = open(cert, 'r')
+        filecontent = fhandle.read()
+    except:
+        filecontent = ''
+    finally:
+        if fhandle:
+            fhandle.close()
+    return filecontent if '-----BEGIN CERTIFICATE-----' in filecontent else None
+
+
+def add_helpmessage(parser):
+    parser.add_argument('--certfile', type=str, required=True, help="An file that contains signed certificate in PEM format. Note: SR635/SR655 does not support uploading HTTPS certificate.")
+
+
 def add_parameter():
     """Add parameter"""
     parameter_info = {}
     argget = utils.create_common_parameter_list()
+    add_helpmessage(argget)
     args = argget.parse_args()
     parameter_info = utils.parse_parameter(args)
+    parameter_info["certfile"] = args.certfile
     return parameter_info
 
 
@@ -115,9 +157,10 @@ if __name__ == '__main__':
     ip = parameter_info['ip']
     login_account = parameter_info["user"]
     login_password = parameter_info["passwd"]
+    certfile = parameter_info["certfile"]
 
-    # Enable HTTPS certificate security and check result
-    result = lenovo_https_certificate_enable(ip, login_account, login_password)
+    # Import certificate and check result
+    result = lenovo_httpfs_certificate_import(ip, login_account, login_password, certfile)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
