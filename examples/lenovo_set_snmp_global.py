@@ -209,6 +209,10 @@ def lenovo_set_snmp_global(ip, login_account, login_password, setting_dict):
             patch_body['SNMPTraps']['ProtocolEnabled'] = False
         if 'port_trap' in setting_dict:
             patch_body['SNMPTraps']['Port'] = setting_dict['port_trap']
+        if 'snmpv1_address' in setting_dict:
+            patch_body['SNMPTraps']['Targets'] = []
+            addr = {'Addresses': [setting_dict['snmpv1_address']]}
+            patch_body['SNMPTraps']['Targets'].append(addr)
     if 'snmpv1_community' in setting_dict:
         patch_body['CommunityNames'] = [setting_dict['snmpv1_community']]
     if alert_recipient is not None:
@@ -250,6 +254,8 @@ def add_helpmessage(parser):
             help='Specify the port of SNMP trap.')
     parser.add_argument('--snmpv1_community', type=str, required=False,
             help='Specify the community of SNMPv1 trap.')
+    parser.add_argument('--snmpv1_address', type=str, required=False,
+            help='Specify the address of SNMPv1 trap.')
 
     help_str_critical = "Specify critical events you want to receive."
     help_str_critical += "'all' means all events, 'none' means disable this, or you can specify multiple events, use space to seperate them. example: event1 event2. "
@@ -295,6 +301,8 @@ def add_parameter():
         setting_dict['port_trap'] = int(args.port_trap)
     if args.snmpv1_community is not None:
         setting_dict['snmpv1_community'] = args.snmpv1_community
+    if args.snmpv1_address is not None:
+        setting_dict['snmpv1_address'] = args.snmpv1_address
     if args.CriticalEvents is not None:
         setting_dict['CriticalEvents'] = args.CriticalEvents
     if args.WarningEvents is not None:
