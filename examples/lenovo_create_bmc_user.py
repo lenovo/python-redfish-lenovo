@@ -146,7 +146,7 @@ def set_tsm_privileges(ip, login_account, login_password, username, kvm, vm):
         return result
 
 
-def lenovo_create_bmc_user(ip, login_account, login_password, username, password, authority, accounttypes):
+def lenovo_create_bmc_user(ip, login_account, login_password, username, password, authority, accounttypes=None):
     """create bmc user
     :params ip: BMC IP address
     :type ip: string
