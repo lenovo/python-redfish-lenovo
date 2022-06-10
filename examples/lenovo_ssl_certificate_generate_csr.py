@@ -26,7 +26,7 @@ import traceback
 import lenovo_utils as utils
 
 
-def lenovo_ssl_certificate_generate_csr(ip, login_account, login_password, format, Country, StateOrProvince, Locality, Organization, HostName):
+def lenovo_ssl_certificate_generate_csr(ip, login_account, login_password, format, Country, StateOrProvince, Locality, Organization, HostName, KeyCurveId=None):
     """ Generate ssl certificate CSR
         :params ip: BMC IP address
         :type ip: string
@@ -46,6 +46,8 @@ def lenovo_ssl_certificate_generate_csr(ip, login_account, login_password, forma
         :type Organization: string
         :params HostName: Host Name for CSR
         :type HostName: string
+        :params KeyCurveId: Key Algorithm of the CSR
+        :type KeyCurveId: string
         :returns: returns successful result when succeeded or error message when failed
         """
 
@@ -101,7 +103,8 @@ def lenovo_ssl_certificate_generate_csr(ip, login_account, login_password, forma
                 #request_body["Surname"] = "Surname"
                 #request_body["GivenName"] = "Given Name"
                 #request_body["Initials"] = "Initials"
-                #request_body["KeyCurveId"] = "KeyCurveId"
+                if KeyCurveId is not None:
+                    request_body["KeyCurveId"] = KeyCurveId
                 #request_body["KeyPairAlgorithm"] = "KeyPairAlgorithm"
                 #request_body["UnstructuredName"] = "UnstructuredName"
                 ### Extended settings examples end ###
@@ -239,6 +242,8 @@ def add_helpmessage(parser):
                          help='The Organization name for required SSL certificate information.')
     parser.add_argument('--HostName', type=str, required=True, 
                          help='The BMC Host name or IP for required SSL certificate information.')
+    parser.add_argument('--KeyCurveId', type=str, required=False, choices=['TPM_ECC_NIST_P256', 'TPM_ECC_NIST_P384'],
+                         help='The Key Algorithm of the Certificate Signing Request.')
  
 
 def add_parameter():
@@ -254,6 +259,8 @@ def add_parameter():
     parameter_info["Locality"] = args.Locality
     parameter_info["Organization"] = args.Organization
     parameter_info["HostName"] = args.HostName
+    if args.KeyCurveId is not None:
+        parameter_info["KeyCurveId"] = args.KeyCurveId
     return parameter_info
 
 
@@ -269,9 +276,12 @@ if __name__ == '__main__':
     Locality = parameter_info["Locality"]
     Organization = parameter_info["Organization"]
     HostName = parameter_info["HostName"]
-
+    if "KeyCurveId" in parameter_info:
+        KeyCurveId = parameter_info["KeyCurveId"]
+    else:
+        KeyCurveId = None
     # Generate ssl certificate CSR and check result
-    result = lenovo_ssl_certificate_generate_csr(ip, login_account, login_password, format, Country, StateOrProvince, Locality, Organization, HostName)
+    result = lenovo_ssl_certificate_generate_csr(ip, login_account, login_password, format, Country, StateOrProvince, Locality, Organization, HostName, KeyCurveId)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
