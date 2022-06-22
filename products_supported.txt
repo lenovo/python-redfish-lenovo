@@ -16,6 +16,7 @@
 |                    | lenovo_get_cpu_inventory.py              |     Yes       |     Yes       |     Yes        |     Yes         |
 |                    | get_volt_inventory.py                    |     Yes       |     Yes       |     Yes        |     Yes         |
 |                    | manage_inventory.py                      |     Yes       |     Yes       |     Yes        |     Yes         |
+|                    | get_chassis_inventory.py                 |     Yes       |     Yes       |     Yes        |     Yes         |
 |--------------------|------------------------------------------|---------------|---------------|----------------|-----------------|
 | Power Control      | get_power_state.py                       |     Yes       |     Yes       |     Yes        |     Yes         |
 |                    | get_system_reset_types.py                |     Yes       |     Yes       |     Yes        |     Yes         |
@@ -133,6 +134,11 @@
 |                    | lenovo_get_ssh_pubkey.py                 |     NO        |     Yes       |     Yes        |     Yes         |
 |                    | lenovo_import_ssh_pubkey.py              |     NO        |     Yes       |     Yes        |     Yes         |
 |                    | lenovo_delete_ssh_pubkey.py              |     NO        |     Yes       |     Yes        |     Yes         |
+|                    | lenovo_httpfs_certificate_import.py      |     NO        |     Yes       |     Yes        |     Yes         |
+|                    | lenovo_httpfs_certificate_getinfo.py     |     NO        |     Yes       |     Yes        |     Yes         |
+|                    | lenovo_httpfs_certificate_enable.py      |     NO        |     Yes       |     Yes        |     Yes         |
+|                    | lenovo_httpfs_certificate_disable.py     |     NO        |     Yes       |     Yes        |     Yes         |
+|                    | lenovo_httpfs_certificate_delete.py      |     NO        |     Yes       |     Yes        |     Yes         |
 |--------------------|------------------------------------------|---------------|---------------|----------------|-----------------|
 | Other              | set_server_asset_tag.py                  |     Yes       |     Yes       |     Yes        |     Yes         |
 |                    | get_all_tasks.py                         |     Yes       |     Yes       |     Yes        |     Yes         |
