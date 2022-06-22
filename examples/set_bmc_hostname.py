@@ -117,6 +117,9 @@ def set_bmc_hostname(ip, login_account, login_password, hostname):
     if target_ethernet_uri is None:
         return {'ret': False, 'msg': "No matched EthernetInterface found under Manager"}
 
+    if sub_response_url.dict["HostName"] == hostname:
+        return {'ret': False, 'msg': "The hostname to be set is the same as the current"}
+
     headers = {"If-Match": "*"}
     body = {'HostName': hostname}
 
