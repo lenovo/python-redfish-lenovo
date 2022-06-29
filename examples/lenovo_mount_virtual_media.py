@@ -235,11 +235,11 @@ def lenovo_mount_virtual_media(ip, login_account, login_password, image, mountty
                     result = {"ret": False, "msg": "For remote mounts, only HTTP, HTTPS, NFS(no credential required) and CIFS protocols are supported."}
                     return result
             elif len(members_list) == 4:
-                if fsprotocol in ["NFS", "CIFS"]:
+                if fsprotocol in ["NFS", "CIFS", "HTTPS"]:
                     result = mount_virtual_media_from_cd(REDFISH_OBJ, members_list, protocol, fsip, fsport, fsdir, image, fsusername, fspassword)
                     return result
                 else:
-                    result = {"ret": False, "msg": "For remote mounts, only NFS(no credential required) and CIFS protocols are supported."}
+                    result = {"ret": False, "msg": "For remote mounts, only HTTPS, NFS(no credential required) and CIFS protocols are supported."}
                     return result
             else:
                 result = mount_virtual_media_from_network(REDFISH_OBJ, remotemap_url, image, fsip, fsport, fsdir,
@@ -509,7 +509,7 @@ def add_helpmessage(argget):
 
     argget.add_argument('--fsprotocol', type=str, nargs='?',choices=["Samba", "NFS", "CIFS", "HTTP", "HTTPS", "SFTP", "FTP"],
                         help='Specifies the protocol prefix for uploading image or ISO. '
-                             'For SR635 / SR655 products, only support: ["NFS", "CIFS"], for other products, support:["Samba", "NFS", "CIFS", "HTTP", "HTTPS", "SFTP", "FTP"]. ')
+                             'For SR635 / SR655 products, only support: ["NFS", "CIFS", "HTTPS"], for other products, support:["Samba", "NFS", "CIFS", "HTTP", "HTTPS", "SFTP", "FTP"]. ')
     argget.add_argument('--fsip', type=str, nargs='?', help='Specify the file server ip')
     argget.add_argument('--fsport', type=str, default='', help='Specify the file server port')
     argget.add_argument('--fsusername', type=str, nargs='?',
