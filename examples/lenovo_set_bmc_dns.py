@@ -27,7 +27,7 @@ import traceback
 import lenovo_utils as utils
 
 
-def lenovo_set_bmc_dns(ip, login_account, login_password, enabled, dnsserver, domainname):
+def lenovo_set_bmc_dns(ip, login_account, login_password, enabled, dnsserver, domainname=None):
     """Set manager ip
     :params ip: BMC IP address
     :type ip: string
