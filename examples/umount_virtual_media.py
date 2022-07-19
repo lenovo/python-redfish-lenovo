@@ -131,7 +131,7 @@ def umount_virtual_media(ip, login_account, login_password, image):
 
                                     body = {}
                                     response = REDFISH_OBJ.post(eject_media_url, body=body)
-                                    if response.status == 204:
+                                    if response.status in [200, 201, 204]:
                                         result = {'ret': True, 'msg': "'%s' Umount successfully" % image}
                                         return result
                                     else:
@@ -143,7 +143,7 @@ def umount_virtual_media(ip, login_account, login_password, image):
                             else:
                                 body = {"Image": None}
                                 response = REDFISH_OBJ.patch(members_url, body=body)
-                                if response.status in [200,204]:
+                                if response.status in [200, 201, 204]:
                                     result = {'ret': True, 'msg': "'%s' Umount successfully" % image}
                                     return result
                                 else:

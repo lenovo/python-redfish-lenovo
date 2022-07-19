@@ -145,7 +145,7 @@ def lenovo_mount_virtual_media(ip, login_account, login_password, image, mountty
                 if MediaStatus != "Enabled":
                     body = {"RMediaState": "Enable"}
                     response_enable_url = REDFISH_OBJ.post(Enable_Media_url, body=body)
-                    if response_enable_url.status in [200, 204]:
+                    if response_enable_url.status in [200, 201, 204]:
                         time.sleep(10)
                         print("Enable remote media support")
                     else:
@@ -176,7 +176,7 @@ def lenovo_mount_virtual_media(ip, login_account, login_password, image, mountty
             if MediaStatus != "Enabled":
                 body = {"RMediaState": "Enable"}
                 response_enable_url = REDFISH_OBJ.post(Enable_Media_url, body=body)
-                if response_enable_url.status in [200, 204]:
+                if response_enable_url.status in [200, 201, 204]:
                     time.sleep(10)
                     print('Enable remote media support')
                 else:
@@ -189,7 +189,7 @@ def lenovo_mount_virtual_media(ip, login_account, login_password, image, mountty
             if CdInstance != 4:
                 body = {"CDInstance": 4}
                 response = REDFISH_OBJ.post(CdInstance_url, body=body)
-                if response.status in [200, 204]:
+                if response.status in [200, 201, 204]:
                     sys.stdout.write("The RMedia will be restart, wait a moment...")
                     secs = 180
                     while secs:
@@ -303,7 +303,7 @@ def mount_virtual_media_from_cd(REDFISH_OBJ, members_list, protocol, fsip, fspor
             else:
                 body = {"Image": image_uri, "TransferProtocolType": protocol.upper(), "UserName": fsusername, "Password": fspassword}
             response = REDFISH_OBJ.post(insert_media_url, body=body)
-            if response.status in [200, 204]:
+            if response.status in [200, 201, 204]:
                 result = {'ret': True, 'msg': "'%s' mount successfully" % image}
                 return result
             elif response.status == 202:
@@ -371,7 +371,7 @@ def mount_virtual_media(REDFISH_OBJ, members_list, protocol, fsip, fsport, fsdir
                 if protocol != "cifs":
                     body = {"Image": image_uri, "WriteProtected": bool(writeprotocol), "Inserted": bool(inserted)}
                 response = REDFISH_OBJ.patch(members_url, body=body)
-                if response.status in [200, 204]:
+                if response.status in [200, 201, 204]:
                     result = {'ret': True, 'msg': "'%s' mount successfully." % image}
                     if protocol == "https":
                         result = {'ret': True, 'msg': "'%s' mount successfully. %s" %
@@ -407,7 +407,7 @@ def mount_virtual_media_from_rdoc(REDFISH_OBJ, remotecontrol_url, remotemap_url,
         body = {"sourceURL": source_url, "Username": fsusername, "Password": fspassword, "Type": fsprotocol,
                 "Readonly": bool(readonly), "Domain": domain, "Options": options}
         response_upload_url = REDFISH_OBJ.post(upload_url, body=body)
-        if response_upload_url.status in [200, 204]:
+        if response_upload_url.status in [200, 201, 204]:
             print("Upload media iso successful, next will mount media iso...")
         else:
             error_message = utils.get_extended_error(response_upload_url)
@@ -427,7 +427,7 @@ def mount_virtual_media_from_rdoc(REDFISH_OBJ, remotecontrol_url, remotemap_url,
         mount_image_url = response_remotemap_url.dict['Actions']['#LenovoRemoteMapService.Mount']['target']
 
         response_mount_image = REDFISH_OBJ.post(mount_image_url, body={})
-        if response_mount_image.status in [200, 204]:
+        if response_mount_image.status in [200, 201, 204]:
             image = source_url.split('/')[-1]
             result = {'ret': True, 'msg': "'%s' mount successfully" % image}
             return result
@@ -488,7 +488,7 @@ def mount_virtual_media_from_network(REDFISH_OBJ, remotemap_url, image, fsip, fs
         # Get mount image url form remote map resource instance
         mount_image_url = response_remotemap_url.dict['Actions']['#LenovoRemoteMapService.Mount']['target']
         response_mount_image = REDFISH_OBJ.post(mount_image_url, body={})
-        if response_mount_image.status in [200, 204]:
+        if response_mount_image.status in [200, 201, 204]:
             result = {'ret': True, 'msg': "'%s' mount successfully" % image}
             return result
         else:
