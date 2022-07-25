@@ -158,7 +158,7 @@ def umount_virtual_media_from_cd(REDFISH_OBJ, members_list, image):
         if image_name == image:
             body = {}
             response = REDFISH_OBJ.post(eject_media_url, body=body)
-            if response.status == 204:
+            if response.status in [200, 201, 204]:
                 result = {'ret': True, 'msg': "'%s' Umount successfully" % image}
                 return result
             else:
@@ -191,7 +191,7 @@ def umount_virtual_media(REDFISH_OBJ, members_list, image):
             if image_name == image:
                 body = {"Image": None}
                 response = REDFISH_OBJ.patch(members_url, body=body)
-                if response.status == 200:
+                if response.status in [200, 201, 204]:
                     result = {'ret': True, 'msg': "'%s' Umount successfully" % image}
                     return result
                 else:
@@ -234,7 +234,7 @@ def umount_virtual_media_from_rdoc(REDFISH_OBJ, remotecontrol_url, image):
             if image_url.split("/")[-1].startswith("RDOC"):
                 # Umount all virtual media
                 delete_image_response = REDFISH_OBJ.delete(image_url, None)
-                if delete_image_response.status not in [200, 204]:
+                if delete_image_response.status not in [200, 201, 204]:
                     error_message = utils.get_extended_error(delete_image_response)
                     result = {'ret': False,
                               'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
@@ -253,7 +253,7 @@ def umount_virtual_media_from_rdoc(REDFISH_OBJ, remotecontrol_url, image):
                 mount_iso_name = get_image_response.dict["Name"]
                 if image == mount_iso_name:
                     umount_iso_response = REDFISH_OBJ.delete(image_url, None)
-                    if umount_iso_response.status in [200, 204]:
+                    if umount_iso_response.status in [200, 201, 204]:
                         result = {'ret': True,
                                   'msg': "Virtual media iso (%s) umount successfully" % (image)}
                         return result
@@ -284,7 +284,7 @@ def umount_all_virtual_from_network(REDFISH_OBJ, remotemap_url):
         # Get umount image url form remote map resource instance
         umount_image_url = response_remotemap_url.dict['Actions']['#LenovoRemoteMapService.UMount']['target']
         response_umount_image = REDFISH_OBJ.post(umount_image_url, None)
-        if response_umount_image.status in [200, 204]:
+        if response_umount_image.status in [200, 201, 204]:
             result = {'ret': True, 'msg': "All Media File from Network umount successfully"}
             return result
         else:

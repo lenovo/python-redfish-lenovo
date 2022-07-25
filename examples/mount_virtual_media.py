@@ -155,7 +155,7 @@ def mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsp
                                 if protocol != "cifs":
                                     body = {"Image": image_uri, "WriteProtected": bool(writeprotocol), "Inserted": bool(inserted)}
                                 response = REDFISH_OBJ.patch(members_url, body=body)
-                                if response.status in [200, 204]:
+                                if response.status in [200, 201, 204]:
                                     result = {'ret': True, 'msg': "'%s' mount successfully" % image}
                                     return result
                                 else:
@@ -184,7 +184,7 @@ def mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsp
                                             body = {"Image": image_uri, "TransferProtocolType": protocol.upper(),
                                                     "UserName": fsusername, "Password": fspassword}
                                         response_insert = REDFISH_OBJ.post(insert_url, body=body)
-                                        if response_insert.status in [200, 204]:
+                                        if response_insert.status in [200, 201, 204]:
                                             result = {'ret': True, 'msg': "'%s' mount successfully" % image}
                                             return result
                                         elif response_insert.status == 202:
