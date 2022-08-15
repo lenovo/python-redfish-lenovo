@@ -313,7 +313,7 @@ def task_monitor(REDFISH_OBJ, task_uri):
 import argparse
 def add_helpmessage(argget):
     argget.add_argument('--image', type=str, required=True, help='Specify the fixid of the firmware to be updated.')
-    argget.add_argument('--targets', nargs='*', help='Input the targets list')
+    argget.add_argument('--targets', nargs='*', help='Input the targets list, use space to seperate them. example: event1 event2.')
     argget.add_argument('--fsprotocol', type=str, choices=["SFTP", "TFTP", "HTTPPUSH", "HTTP", "HTTPS"], help='Specify the file server protocol.Support:["SFTP", "TFTP", "HTTPPUSH", "HTTP", "HTTPS"]')
     argget.add_argument('--fsip', type=str, help='Specify the file server ip.')
     argget.add_argument('--fsport', type=str, default='', help='Specify the file server port')

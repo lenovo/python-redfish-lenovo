@@ -262,7 +262,7 @@ def lenovo_set_bios_boot_order(ip, login_account, login_password, system_id, boo
 
 
 def add_helpmessage(argget):
-    argget.add_argument('--bootorder', nargs='*', type=str, required=True, help='Input the bios boot order list,  The boot order takes effect on the next startup. Support:"CD/DVD Rom","Hard Disk", etc.')
+    argget.add_argument('--bootorder', nargs='*', type=str, required=True, help='Input the bios boot order list,  The boot order takes effect on the next startup. Support:"CD/DVD Rom","Hard Disk", etc. use space to seperate them. example: event1 event2.')
 
 
 def add_parameter():
