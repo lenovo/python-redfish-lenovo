@@ -124,6 +124,11 @@ def mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsp
                         fsport = port(fsport)
                         fsdir = dir(fsdir)
 
+                        # Get username and password for HTTPS file server
+                        safe_https = False
+                        if protocol == "https" and fsusername and fspassword:
+                            safe_https = True
+
                         # Get the members url from the members list
                         for members in members_list:
                             members_url = members["@odata.id"]
@@ -143,22 +148,26 @@ def mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsp
                                 body = {}
                                 if protocol == "nfs":
                                     image_uri = fsip + fsport + ":" + fsdir + "/" + image
-                                elif protocol == "cifs":
+                                elif protocol == "cifs" or safe_https is True:
                                     image_uri = "//" + fsip + fsport + fsdir + "/" + image
-                                    body = {"Image": image_uri, "TransferProtocolType": protocol.upper(),
-                                            "UserName": fsusername, "Password": fspassword,
-                                            "WriteProtected": bool(writeprotocol), "Inserted": bool(inserted)}
                                 else:
                                     image_uri = protocol + "://" + fsip + fsport + fsdir + "/" + image
                                 if inserted is None:
                                     inserted = 1
-                                if protocol != "cifs":
+                                if protocol != "cifs" and safe_https is False:
                                     body = {"Image": image_uri, "WriteProtected": bool(writeprotocol), "Inserted": bool(inserted)}
+                                else:
+                                    body = {"Image": image_uri, "TransferProtocolType": protocol.upper(),
+                                            "UserName": fsusername, "Password": fspassword,
+                                            "WriteProtected": bool(writeprotocol), "Inserted": bool(inserted)}
+
                                 response = REDFISH_OBJ.patch(members_url, body=body)
                                 if response.status in [200, 201, 204]:
                                     result = {'ret': True, 'msg': "'%s' mount successfully" % image}
                                     return result
                                 else:
+                                    if protocol == "https":
+                                        print("Error may be caused by failure to connect to the HTTPS file server. Please check its username and password requirements.")
                                     error_message = utils.get_extended_error(response)
                                     result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
                                         members_url, response.status, error_message)}
