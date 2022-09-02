@@ -148,18 +148,18 @@ def mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsp
                                 body = {}
                                 if protocol == "nfs":
                                     image_uri = fsip + fsport + ":" + fsdir + "/" + image
-                                elif protocol == "cifs" or safe_https is True:
+                                elif protocol == "cifs":
                                     image_uri = "//" + fsip + fsport + fsdir + "/" + image
                                 else:
                                     image_uri = protocol + "://" + fsip + fsport + fsdir + "/" + image
                                 if inserted is None:
                                     inserted = 1
-                                if protocol != "cifs" and safe_https is False:
-                                    body = {"Image": image_uri, "WriteProtected": bool(writeprotocol), "Inserted": bool(inserted)}
-                                else:
+                                if protocol == "cifs" or safe_https is True:
                                     body = {"Image": image_uri, "TransferProtocolType": protocol.upper(),
                                             "UserName": fsusername, "Password": fspassword,
                                             "WriteProtected": bool(writeprotocol), "Inserted": bool(inserted)}
+                                else:
+                                    body = {"Image": image_uri, "WriteProtected": bool(writeprotocol), "Inserted": bool(inserted)}
 
                                 response = REDFISH_OBJ.patch(members_url, body=body)
                                 if response.status in [200, 201, 204]:
