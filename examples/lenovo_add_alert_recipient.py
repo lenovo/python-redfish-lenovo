@@ -130,15 +130,17 @@ def add_helpmessage(argget):
     
     
     help_str_critical = "Specify critical events you want to receive."
-    help_str_critical += "'all' means all events, or you can specify multiple events, use space to seperate them. example: event1 event2. "
+    help_str_critical += "'all' means all events, or you can specify multiple events, use space to seperate them. example: FanFailure MemoryFailure. "
     help_str_critical += "Available events list: "
     help_str_critical += "['CriticalTemperatureThresholdExceeded', 'CriticalVoltageThresholdExceeded', 'CriticalPowerFailure', \
                  'HardDiskDriveFailure', 'FanFailure','CPUFailure', 'MemoryFailure', 'HardwareIncompatibility', \
                  'PowerRedundancyFailure', 'AllOtherCriticalEvents']"
+    help_str_critical += "'all' means all events, or you can specify multiple events, use space to seperate them. example: CPUinDegradedState MemoryWarning. "
     help_str_warning = "Similar with option CriticalEvents, Available events list: "
     help_str_warning += "['PowerRedundancyWarning', 'WarningTemperatureThresholdExceeded', 'WarningVoltageThresholdExceeded', \
                  'WarningPowerThresholdExceeded', 'NoncriticalFanevents','CPUinDegradedState', 'MemoryWarning', \
                  'AllOtherWarningEvents']"
+    help_str_critical += "'all' means all events, or you can specify multiple events, use space to seperate them. example: AllOtherEvents NetworkChange. "
     help_str_system = "Similar with option CriticalEvents, Available events list: "
     help_str_system += "['SuccessfulRemoteLogin', 'OperatingSystemTimeout', 'AllOtherEvents', \
                  'SystemPowerSwitch', 'OperatingSystemBootFailure','OperatingSystemLoaderWatchdogTimeout', \

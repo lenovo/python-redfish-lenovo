@@ -258,16 +258,18 @@ def add_helpmessage(parser):
             help='Specify the address of SNMPv1 trap.')
 
     help_str_critical = "Specify critical events you want to receive."
-    help_str_critical += "'all' means all events, 'none' means disable this, or you can specify multiple events, use space to seperate them. example: event1 event2. "
+    help_str_critical += "'all' means all events, 'none' means disable this, or you can specify multiple events, use space to seperate them. example: FanFailure CPUFailure. "
     help_str_critical += "Available events list: "
     help_str_critical += "['CriticalTemperatureThresholdExceeded', 'CriticalVoltageThresholdExceeded', 'CriticalPowerFailure', \
                  'HardDiskDriveFailure', 'FanFailure','CPUFailure', 'MemoryFailure', 'HardwareIncompatibility', \
                  'PowerRedundancyFailure', 'AllOtherCriticalEvents']"
-    help_str_warning = "Similar with option CriticalEvents, Available events list: "
+    help_str_critical += "'all' means all events, 'none' means disable this, or you can specify multiple events, use space to seperate them. example: CPUinDegradedState MemoryWarning. "
+    help_str_warning = "Available events list: "
     help_str_warning += "['PowerRedundancyWarning', 'WarningTemperatureThresholdExceeded', 'WarningVoltageThresholdExceeded', \
                  'WarningPowerThresholdExceeded', 'NoncriticalFanevents','CPUinDegradedState', 'MemoryWarning', \
                  'AllOtherWarningEvents']"
-    help_str_system = "Similar with option CriticalEvents, Available events list: "
+    help_str_critical += "'all' means all events, 'none' means disable this, or you can specify multiple events, use space to seperate them. example: SystemPowerSwitch NetworkChange. "
+    help_str_system = "Available events list: "
     help_str_system += "['SuccessfulRemoteLogin', 'OperatingSystemTimeout', 'AllOtherEvents', \
                  'SystemPowerSwitch', 'OperatingSystemBootFailure','OperatingSystemLoaderWatchdogTimeout', \
                  'PredictedFailure', 'EventLog75PercentFull', 'NetworkChange']"
