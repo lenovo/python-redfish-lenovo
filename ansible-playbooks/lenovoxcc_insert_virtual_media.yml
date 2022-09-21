@@ -1,0 +1,32 @@
+---
+- hosts: myhosts
+  connection: local
+  name: Insert Virtual Media
+  gather_facts: False
+
+  tasks:
+
+  - name: Insert Virtual Media
+    community.general.xcc_redfish_command:
+      category: Manager
+      command: VirtualMediaInsert
+      baseuri: "{{ baseuri }}"
+      username: "{{ username }}"
+      password: "{{ password }}"
+      virtual_media:
+        #HTTP protocol
+        # image_url: "http://10.245.52.18/upload/minimal_linux_live_28-Jan-2018_64-bit_bios.iso"   
+        
+        #NFS protocol
+        image_url: "10.245.52.18:/home/nfs/minimal_linux_live_28-Jan-2018_64-bit_bios.iso"     #for XCC
+        # image_url: "//10.245.52.18/home/nfs/minimal_linux_live_28-Jan-2018_64-bit_bios.iso"  #for SR635/SR645
+        transfer_protocol_type: NFS
+        
+        #CIFS protocol
+        # image_url: "//10.245.52.18/cifs/minimal_linux_live_28-Jan-2018_64-bit_bios.iso"
+        # transfer_protocol_type: CIFS
+        # username: redfish
+        # password: "123456"
+        media_types:
+          - CD
+      resource_id: "{{ resource_id }}"
