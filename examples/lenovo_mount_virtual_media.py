@@ -355,7 +355,10 @@ def mount_virtual_media(REDFISH_OBJ, members_list, protocol, fsip, fsport, fsdir
                 result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
                     members_url, response_members.status, error_message)}
                 return result
-
+            # Get username and password for HTTPS file server
+            safe_https = False
+            if protocol == "https" and fsusername and fspassword:
+                safe_https = True
             # Via patch request mount virtual media
             if image_name is None:
                 body = {}
@@ -363,12 +366,13 @@ def mount_virtual_media(REDFISH_OBJ, members_list, protocol, fsip, fsport, fsdir
                     image_uri = fsip + fsport + ":" + fsdir + "/" + image
                 elif protocol == "cifs":
                     image_uri = "//" + fsip + fsport + fsdir + "/" + image
+                else:
+                    image_uri = protocol + "://" + fsip + fsport + fsdir + "/" + image
+                if protocol == "cifs" or safe_https is True:
                     body = {"Image": image_uri, "TransferProtocolType": protocol.upper(),
                             "UserName": fsusername, "Password": fspassword,
                             "WriteProtected": bool(writeprotocol), "Inserted": bool(inserted)}
                 else:
-                    image_uri = protocol + "://" + fsip + fsport + fsdir + "/" + image
-                if protocol != "cifs":
                     body = {"Image": image_uri, "WriteProtected": bool(writeprotocol), "Inserted": bool(inserted)}
                 response = REDFISH_OBJ.patch(members_url, body=body)
                 if response.status in [200, 201, 204]:
@@ -378,6 +382,8 @@ def mount_virtual_media(REDFISH_OBJ, members_list, protocol, fsip, fsport, fsdir
                                   (image, response.dict['@Message.ExtendedInfo'][0]['Message'])}
                     return result
                 else:
+                    if protocol.lower() == "https":
+                        print("Error may be caused by failure to connect to the HTTPS file server. Please check its username and password requirements.")
                     error_message = utils.get_extended_error(response)
                     result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
                         members_url, response.status, error_message)}
@@ -410,6 +416,8 @@ def mount_virtual_media_from_rdoc(REDFISH_OBJ, remotecontrol_url, remotemap_url,
         if response_upload_url.status in [200, 201, 204]:
             print("Upload media iso successful, next will mount media iso...")
         else:
+            if fsprotocol.lower() == "https":
+                print("Error may be caused by failure to connect to the HTTPS file server. Please check its username and password requirements.")
             error_message = utils.get_extended_error(response_upload_url)
             result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
             upload_url, response_upload_url.status, error_message)}
