@@ -1,0 +1,16 @@
+---
+- hosts: myhosts
+  connection: local
+  name: Eject all Virtual Media
+  gather_facts: False
+
+  tasks:
+
+  - name: Eject all Virtual Media
+    community.general.xcc_redfish_command:
+      category: Manager
+      command: VirtualMediaEject
+      baseuri: "{{ baseuri }}"
+      username: "{{ username }}"
+      password: "{{ password }}"
+      resource_id: "{{ resource_id }}"
