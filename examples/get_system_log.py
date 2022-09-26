@@ -213,7 +213,7 @@ def add_helpmessage(parser):
     """Add filter system log parameter"""
 
     parser.add_argument('--type', type=str, default='system', choices=["system", "chassis", "manager"], help='Specify the type of the log to get. Default is system')
-    parser.add_argument('--severity', nargs="*", type=str, default='error warning info', help='Specify severity to filter log with severity. "error", "warning", "info" are supported')
+    parser.add_argument('--severity', nargs="*", type=str, default='error warning info', help='Specify severity to filter log with severity. "error", "warning", "info" are supported. Use space to seperate them, example: "error" "warning"')
     parser.add_argument('--date', type=str, default='all', help='Specify date to filter log within date, Support "all", "2hours", "24hours", "7days", "30days"')
 
     return parser

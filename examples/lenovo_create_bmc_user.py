@@ -403,12 +403,12 @@ def add_helpmessage(argget):
     argget.add_argument('--newuserpasswd', type=str, required=True, help='Input password of new user')
     help_str = "This parameter specify user's privileges. "
     help_str += "You can specify 'Supervisor', 'Operator', 'ReadOnly' or other customized privileges. "
-    help_str += "For customized privileges, you can choose one or more values in this list: "
+    help_str += "For customized privileges, you can choose one or more values in this list. Use space to seperate them, example: UserAccountManagement RemoteConsoleAccess."
     help_str += "[UserAccountManagement, RemoteConsoleAccess, RemoteConsoleAndVirtualMediaAccess, RemoteServerPowerRestartAccess, AbilityClearEventLogs, AdapterConfiguration_Basic, AdapterConfiguration_NetworkingAndSecurity, AdapterConfiguration_Advanced]"
     argget.add_argument('--authority', nargs='*', default=["Supervisor"], help=help_str)
 
     help_str1 = "This parameter specify user's AccountTypes. This parameter is supported from ThinkSystem v3 products. "
-    help_str1 += "You can choose one or more values in this list: [Redfish, WebUI, ManagerConsole, SNMP, IPMI]"
+    help_str1 += "You can choose one or more values in this list: [Redfish, WebUI, ManagerConsole, SNMP, IPMI]. Use space to seperate them, example: SNMP IPMI."
     argget.add_argument('--accounttypes', nargs='*', default=["Redfish", "WebUI", "ManagerConsole"], help=help_str1)
 
 def add_parameter():
