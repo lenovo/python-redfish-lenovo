@@ -29,9 +29,8 @@ import lenovo_utils as utils
 import requests
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-# This function is uesed to enable/disable complex password setting for XCC, not support for SR635/SR655.
-# If you want the support for SR635/SR655, please open Issue on Github. 
-def enable_complex_password(ip, login_account, login_password, enabled):
+# This function is used to enable/disable complex password setting via WebAPI.
+def enable_complex_password(ip, login_account, login_password, enabled, flag_SR635_SR655):
     """enable or disable complex password
     :params ip: BMC IP address
     :type ip: string
@@ -43,11 +42,13 @@ def enable_complex_password(ip, login_account, login_password, enabled):
     :type enabled: string
     :returns: returns result with messages when succeeded or failed
     """
-
     # Create session connection
     login_host = "https://" + ip
     headers = {"Content-Type": "application/json"}
-    session_url = login_host + "/api/login"
+    if flag_SR635_SR655:
+        session_url = login_host + "/api/session"
+    else:
+        session_url = login_host + "/api/login"
     body = {'username':login_account,'password':login_password}
 
     requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
@@ -57,11 +58,17 @@ def enable_complex_password(ip, login_account, login_password, enabled):
 
     if response.status_code == 200: # set up the connection successfully.
         # Change Complex Password setting
-        h = {"Authorization": "Bearer %s" % (json_response["access_token"]), "Content-Type": "application/json"}
-        h['X-XSRF-TOKEN'] = s.cookies.get_dict()['_csrf_token']
-        setting_url = login_host + "/api/dataset"
         setting = {}
-        setting['USER_GlobalPassComplexRequired'] = "%s" % enabled
+        if flag_SR635_SR655:
+            h = {"X-CSRFTOKEN": json_response["CSRFToken"], "Content-Type": "application/json"}
+            setting_url = login_host + "/api/SetPWComplex"
+            setting['Enable'] = "%s" % enabled
+        else:
+            h = {"Authorization": "Bearer %s" % (json_response["access_token"]), "Content-Type": "application/json"}
+            h['X-XSRF-TOKEN'] = s.cookies.get_dict()['_csrf_token']
+            setting_url = login_host + "/api/dataset"
+            setting['USER_GlobalPassComplexRequired'] = "%s" % enabled
+        
         response_post_uri = s.post(setting_url, headers=h, data=json.dumps(setting), cookies=s.cookies.get_dict(), verify=False)
 
         if response_post_uri.status_code == 200:
@@ -70,17 +77,19 @@ def enable_complex_password(ip, login_account, login_password, enabled):
             result = {'ret': False, 'msg': "Failed to change complex password setting, response code  %s" % response_post_uri.status_code}
 
         # Logout
-        logout_url = login_host + "/api/providers/logout"
-        del h["Content-Type"]
-        s.get(logout_url, headers=h, cookies=s.cookies.get_dict(), verify=False)
-
+        if flag_SR635_SR655:
+            logout_url = login_host + "/api/session"
+            del h["Content-Type"]
+            s.delete(logout_url, headers=h, cookies=s.cookies.get_dict(), verify=False)
+        else:
+            logout_url = login_host + "/api/providers/logout"
+            del h["Content-Type"]
+            s.get(logout_url, headers=h, cookies=s.cookies.get_dict(), verify=False)
         return result
-
     else:
         result = {'ret': False,
                   'msg': "Session connection failed, response code %s" % response.status_code}
         return result
-
 
 def lenovo_set_bmc_user_global(ip, login_account, login_password, setting_dict):
     """update bmc user global settings 
@@ -145,9 +154,7 @@ def lenovo_set_bmc_user_global(ip, login_account, login_password, setting_dict):
                     if 'Oem' not in global_setting:
                         global_setting['Oem'] = {}
                         global_setting['Oem']['Lenovo'] = {}
-                else:
-                    continue
-                global_setting['Oem']['Lenovo'][item_name] = setting_dict[item_name]
+                    global_setting['Oem']['Lenovo'][item_name] = setting_dict[item_name]               
 
         # Handle ComplexPassword setting
         if "ComplexPassword" in setting_dict:
@@ -157,14 +164,30 @@ def lenovo_set_bmc_user_global(ip, login_account, login_password, setting_dict):
                     if 'Oem' not in global_setting:
                         global_setting['Oem'] = {}
                         global_setting['Oem']['Lenovo'] = {}
-                global_setting['Oem']['Lenovo']['ComplexPassword'] = bool(int(setting_dict['ComplexPassword']))
-            else:
-                # Set complex password via WebAPI, not Redfish.
-                result = enable_complex_password(ip, login_account, login_password, enabled = setting_dict['ComplexPassword'])
-                if result['ret'] == False: # if failed to set complex password, return the error info.
-                    return result
-                if not global_setting: # if no other setting items, just return the result of complex password setting.
-                    return result
+                    global_setting['Oem']['Lenovo']['ComplexPassword'] = bool(int(setting_dict['ComplexPassword']))
+                else:
+                    # Get the ComputerSystem resource
+                    system = utils.get_system_url("/redfish/v1", "None", REDFISH_OBJ)
+                    if not system:
+                        result = {'ret': False, 'msg': "This system id is not exist or system member is None"}
+                        return result
+
+                    for i in range(len(system)):
+                        system_url = system[i]
+                        response_system_url = REDFISH_OBJ.get(system_url, None)
+                        if response_system_url.status != 200:
+                            error_message = utils.get_extended_error(response_system_url)
+                            result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (system_url, response_system_url.status, error_message)}
+                            return result
+                    flag_SR635_SR655 = False
+                    if 'SR635' in str(response_system_url.dict) or 'SR655' in str(response_system_url.dict):
+                        flag_SR635_SR655 = True
+                    # Set complex password via WebAPI, not Redfish.
+                    result = enable_complex_password(ip, login_account, login_password, enabled = setting_dict['ComplexPassword'], flag_SR635_SR655 = flag_SR635_SR655)
+                    if result['ret'] == False: # if failed to set complex password, return the error info.
+                        return result
+                    if not global_setting: # if no other setting items, just return the result of complex password setting.
+                        return result
 
         # Perform patch to change setting
         if "@odata.etag" in response_account_service_url.dict:
