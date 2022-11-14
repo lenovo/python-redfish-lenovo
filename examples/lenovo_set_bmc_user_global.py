@@ -29,8 +29,7 @@ import lenovo_utils as utils
 import requests
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-# This function is used to enable/disable complex password setting for XCC, not support for SR635/SR655.
-# If you want the support for SR635/SR655, please open Issue on Github. 
+# This function is used to enable/disable complex password setting via WebAPI.
 def enable_complex_password(ip, login_account, login_password, enabled, flag_SR635_SR655):
     """enable or disable complex password
     :params ip: BMC IP address
