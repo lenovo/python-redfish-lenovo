@@ -68,6 +68,70 @@ def lenovo_get_bios_boot_order(ip, login_account, login_password, system_id):
                 result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (system_url, response_system_url.status, error_message)}
                 return result
 
+            # Get boot order info via Bios Q00999_Boot_Option_Priorities attribute resource for ThinkSystem SR635/SR655
+            if 'SR635' in str(response_system_url.dict) or 'SR655' in str(response_system_url.dict):
+                bios_url = response_system_url.dict['Bios']['@odata.id']
+                response_bios = REDFISH_OBJ.get(bios_url, None)
+                if response_bios.status != 200:
+                    error_message = utils.get_extended_error(response_bios)
+                    result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                        bios_url, response_bios.status, error_message)}
+                    return result
+                attribute_name = 'Q00999_Boot_Option_Priorities'
+                attribute_value = ''
+                if 'Q00999_Boot_Option_Priorities' in response_bios.dict['Attributes']:
+                    attribute_name = 'Q00999_Boot_Option_Priorities'
+                    attribute_value = response_bios.dict['Attributes'][attribute_name]
+                elif 'Q00999 Boot Option Priorities' in response_bios.dict['Attributes']:
+                    attribute_name = 'Q00999 Boot Option Priorities'
+                    attribute_value = response_bios.dict['Attributes'][attribute_name]
+                else:
+                    continue
+
+                # Get BootOrderNext
+                attribute_value_next = None
+                bios_settings_url = response_bios.dict['@Redfish.Settings']['SettingsObject']['@odata.id']
+                response_bios_settings = REDFISH_OBJ.get(bios_settings_url, None)
+                if response_bios_settings.status != 200:
+                    error_message = utils.get_extended_error(response_bios_settings)
+                    result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                        bios_settings_url, response_bios_settings.status, error_message)}
+                    return result
+                if 'Attributes' in response_bios_settings.dict and attribute_name in response_bios_settings.dict['Attributes']:
+                    attribute_value_next = response_bios_settings.dict['Attributes'][attribute_name]
+
+                # Parse attribute value string to get currnt/supported/next boot order settings
+                boot_order_current = list()
+                boot_order_supported = list()
+                org_boot_order_struct_list = attribute_value.split(';')
+                if org_boot_order_struct_list[-1] == "":
+                    org_boot_order_struct_list = org_boot_order_struct_list[:-1]
+                for boot_order_item in org_boot_order_struct_list:
+                    boot_order_name = boot_order_item.split(',')[0]
+                    boot_order_supported.append(boot_order_name)
+                    if 'true' in boot_order_item:
+                        boot_order_current.append(boot_order_name)
+                if attribute_value_next is None:
+                    boot_order_next = boot_order_current
+                else:
+                    boot_order_next = list()
+                    for boot_order_item in attribute_value_next.split(';'):
+                        boot_order_name = boot_order_item.split(',')[0]
+                        if 'true' in boot_order_item:
+                            boot_order_next.append(boot_order_name)
+
+                # Set result
+                boot_order_info = {}
+                boot_order_info['BootOrderNext'] = boot_order_next
+                boot_order_info['BootOrderSupported'] = boot_order_supported
+                boot_order_info['BootOrderCurrent'] = boot_order_current
+                boot_info_list.append(boot_order_info)
+
+            if len(boot_info_list) > 0:
+                result['ret'] = True
+                result['entries'] = boot_info_list
+                return result
+
             # Get boot order info via BootOptions
             if 'Boot' in str(response_system_url.dict) and 'BootOptions' in str(response_system_url.dict):
                 # Get the BootOptions url
@@ -170,69 +234,6 @@ def lenovo_get_bios_boot_order(ip, login_account, login_password, system_id):
                         boot_order_url, response_boot_order.status, error_message)}
                     return result
 
-            # Get boot order info via Bios Q00999_Boot_Option_Priorities attribute resource for ThinkSystem SR635/SR655
-            if 'SR635' in str(response_system_url.dict) or 'SR655' in str(response_system_url.dict):
-                bios_url = response_system_url.dict['Bios']['@odata.id']
-                response_bios = REDFISH_OBJ.get(bios_url, None)
-                if response_bios.status != 200:
-                    error_message = utils.get_extended_error(response_bios)
-                    result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
-                        bios_url, response_bios.status, error_message)}
-                    return result
-                attribute_name = 'Q00999_Boot_Option_Priorities'
-                attribute_value = ''
-                if 'Q00999_Boot_Option_Priorities' in response_bios.dict['Attributes']:
-                    attribute_name = 'Q00999_Boot_Option_Priorities'
-                    attribute_value = response_bios.dict['Attributes'][attribute_name]
-                elif 'Q00999 Boot Option Priorities' in response_bios.dict['Attributes']:
-                    attribute_name = 'Q00999 Boot Option Priorities'
-                    attribute_value = response_bios.dict['Attributes'][attribute_name]
-                else:
-                    continue
-
-                # Get BootOrderNext
-                attribute_value_next = None
-                bios_settings_url = response_bios.dict['@Redfish.Settings']['SettingsObject']['@odata.id']
-                response_bios_settings = REDFISH_OBJ.get(bios_settings_url, None)
-                if response_bios_settings.status != 200:
-                    error_message = utils.get_extended_error(response_bios_settings)
-                    result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
-                        bios_settings_url, response_bios_settings.status, error_message)}
-                    return result
-                if 'Attributes' in response_bios_settings.dict and attribute_name in response_bios_settings.dict['Attributes']:
-                    attribute_value_next = response_bios_settings.dict['Attributes'][attribute_name]
-
-                # Parse attribute value string to get currnt/supported/next boot order settings
-                boot_order_current = list()
-                boot_order_supported = list()
-                org_boot_order_struct_list = attribute_value.split(';')
-                if org_boot_order_struct_list[-1] == "":
-                    org_boot_order_struct_list = org_boot_order_struct_list[:-1]
-                for boot_order_item in org_boot_order_struct_list:
-                    boot_order_name = boot_order_item.split(',')[0]
-                    boot_order_supported.append(boot_order_name)
-                    if 'true' in boot_order_item:
-                        boot_order_current.append(boot_order_name)
-                if attribute_value_next is None:
-                    boot_order_next = boot_order_current
-                else:
-                    boot_order_next = list()
-                    for boot_order_item in attribute_value_next.split(';'):
-                        boot_order_name = boot_order_item.split(',')[0]
-                        if 'true' in boot_order_item:
-                            boot_order_next.append(boot_order_name)
-
-                # Set result
-                boot_order_info = {}
-                boot_order_info['BootOrderNext'] = boot_order_next
-                boot_order_info['BootOrderSupported'] = boot_order_supported
-                boot_order_info['BootOrderCurrent'] = boot_order_current
-                boot_info_list.append(boot_order_info)
-
-            if len(boot_info_list) > 0:
-                result['ret'] = True
-                result['entries'] = boot_info_list
-                return result
 
         result = {'ret': False, 'msg': "No related resource found, fail to get bios boot order for target server."}
         return result
