@@ -123,7 +123,7 @@ def get_storage_inventory(ip, login_account, login_password, system_id):
                                                 if "Drives" in response_volume_url.dict[key]:
                                                     for drive in response_volume_url.dict[key]["Drives"]:
                                                         drivesIds.append(drive["@odata.id"].split("/")[-1])  
-                                                volume_inventory["RAID_DrivesIds"] = drivesIds
+                                                volume_inventory["LinkedDriveIds"] = drivesIds
                                         volumes_list.append(volume_inventory)
                                     else:
                                         error_message = utils.get_extended_error(response_volume_url)
