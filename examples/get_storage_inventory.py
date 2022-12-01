@@ -118,6 +118,12 @@ def get_storage_inventory(ip, login_account, login_password, system_id):
                                             if key not in ["Description", "@odata.context", "@odata.id", "@odata.type",
                                                            "@odata.etag", "Links", "Actions", "RelatedItem"]:
                                                 volume_inventory[key] = response_volume_url.dict[key]
+                                            if key == "Links":
+                                                drivesIds = []
+                                                if "Drives" in response_volume_url.dict[key]:
+                                                    for drive in response_volume_url.dict[key]["Drives"]:
+                                                        drivesIds.append(drive["@odata.id"].split("/")[-1])  
+                                                volume_inventory["LinkedDriveIds"] = drivesIds
                                         volumes_list.append(volume_inventory)
                                     else:
                                         error_message = utils.get_extended_error(response_volume_url)
