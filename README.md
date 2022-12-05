@@ -12,9 +12,9 @@ For more information on the Redfish API, visit <http://redfish.dmtf.org/>
 Installing
 ----------
 
-* To install the python-redfish-library, get the code from <https://github.com/DMTF/python-redfish-library> , then:
+* To install the python-redfish-library
     
-    `python setup.py install`
+    `pip install redfish`
 
 * To install configparser:
 
@@ -39,14 +39,14 @@ A set of python examples is provided under the examples directory of this projec
 
 * Common parameters configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-You can use a configuration file to store common parameters for the Lenovo PowerShell Redfish Scripts, 
+You can use a configuration file to store common parameters for the Lenovo Python Redfish Scripts, 
 such as the BMC IP address, user name, and password. Default configuration file is config.ini. 
 You can create your own configuration file and specify it using the "--config" option. 
 The scripts will load config.ini automatically if no configuration file is specified in command line.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 * Using the python examples to get and set values
 
-Simply run the python script to print out the values form the HTTP GET operation.
+Simply run the python script to print out the values from the HTTP GET operation.
 
 This example prints the current system power state (such as On or Off)
 
