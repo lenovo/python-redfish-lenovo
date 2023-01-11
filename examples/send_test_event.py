@@ -100,7 +100,7 @@ def send_test_event(ip, login_account, login_password,eventid,message,severity):
                                elif parameter["Name"] == "MessageArgs":
                                    payload["MessageArgs"] = []
                                elif parameter["Name"] == "MessageId":
-                                   payload["MessageId"] = "Created"
+                                   payload["MessageId"] = "Base.1.5.Created"
                                elif parameter["Name"] == "Severity":
                                    payload["Severity"] = severity
                                elif parameter["Name"] == "OriginOfCondition":
@@ -110,14 +110,14 @@ def send_test_event(ip, login_account, login_password,eventid,message,severity):
                     payload["EventTimestamp"] = timestamp
                     payload["Message"] = message
                     payload["MessageArgs"] = []
-                    payload["MessageId"] = "Created"
+                    payload["MessageId"] = "Base.1.5.Created"
                     payload["OriginOfCondition"] = event_url
                 elif EventService_Version >= 130:
                     payload["EventId"] = eventid
                     payload["EventTimestamp"] = timestamp
                     payload["Message"] = message
                     payload["MessageArgs"] = []
-                    payload["MessageId"] = "Created"
+                    payload["MessageId"] = "Base.1.5.Created"
                     payload["Severity"] = severity
                     payload["OriginOfCondition"] = event_url
                 elif EventService_Version >= 106:
@@ -126,7 +126,7 @@ def send_test_event(ip, login_account, login_password,eventid,message,severity):
                     payload["EventTimestamp"] = timestamp
                     payload["Message"] = message
                     payload["MessageArgs"] = []
-                    payload["MessageId"] = "Created"
+                    payload["MessageId"] = "Base.1.5.Created"
                     payload["Severity"] = severity
                     payload["OriginOfCondition"] = event_url
                 else:
@@ -135,14 +135,28 @@ def send_test_event(ip, login_account, login_password,eventid,message,severity):
                     payload["EventTimestamp"] = timestamp
                     payload["Message"] = message
                     payload["MessageArgs"] = []
-                    payload["MessageId"] = "Created"
+                    payload["MessageId"] = "Base.1.5.Created"
                     payload["Severity"] = severity
                 response_send_event = REDFISH_OBJ.post(target_url, headers=headers, body=payload)
                 if response_send_event.status == 200 or response_send_event.status == 204:
                     result = {"ret":True,"msg":"Send event successsfully,event id is " + eventid \
                               + ",EventType:Alert,EventTimestamp:" + timestamp + ",Message:" + message \
-                              + ",MessageArgs:[],MessageId:Created,Severity:" + severity\
+                              + ",MessageArgs:[],MessageId:Base.1.5.Created,Severity:" + severity\
                               + ",OriginOfCondition:" + event_url }
+                    return result
+                elif response_send_event.status == 202:
+                    task_uri = response_send_event.dict['@odata.id']
+                    result = utils.task_monitor(REDFISH_OBJ, task_uri)
+                    if result["ret"] is True and "Completed" == result["task_state"] and result['msg'] == '':
+                        REDFISH_OBJ.delete(task_uri, None)
+                    if result["ret"] is True:
+                        task_state = result["task_state"]
+                        if task_state == "Completed":
+                            result['msg'] = 'Send test event successfully. %s' % (result['msg'])
+                        else:
+                            result['ret'] = False
+                            result[
+                                'msg'] = 'Send test event failed. %s' % (result['msg'])
                     return result
                 else:
                     error_message = utils.get_extended_error(response_send_event)
