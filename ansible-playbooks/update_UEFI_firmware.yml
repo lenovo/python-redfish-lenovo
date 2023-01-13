@@ -1,0 +1,42 @@
+---
+- hosts: myhosts
+  connection: local
+  name: Simple Update UEFI
+  gather_facts: False
+
+  tasks:
+  - name: Get original tasks
+    command: python3 ../examples/get_all_tasks.py -i "{{ baseuri }}" -u "{{ username }}" -p "{{ password }}"
+    register: result_task_org
+    until: result_task_org.failed == false
+    retries: 1
+    delay: 10  
+   
+  - name: Simple update UEFI
+    redfish_command:
+      category: Update
+      command: SimpleUpdate
+      baseuri: "{{ baseuri }}"
+      username: "{{ username }}"
+      password: "{{ password }}"
+      update_image_uri: https://10.245.52.18/upload/update_fw/lnvgy_fw_uefi_ive180g-3.40_anyos_32-64.uxz
+    register: result
+    
+
+  - name: Wait with tries until the lastest task state is Completed
+    command: python3 ../examples/get_all_tasks.py -i "{{ baseuri }}" -u "{{ username }}" -p "{{ password }}"
+    register: result_task
+    until: result_task.failed == false and ((result_task.stdout | from_json).Members | difference((result_task_org.stdout | from_json).Members) != []) and ((result_task.stdout | from_json).Members | difference((result_task_org.stdout | from_json).Members) | map(attribute='TaskState') | list | first == "Completed")
+    retries: 10
+    delay: 20
+      
+  - name: Restart system power gracefully
+    redfish_command:
+      category: Systems
+      command: PowerReboot
+      baseuri: "{{ baseuri }}"
+      username: "{{ username }}"
+      password: "{{ password }}"
+      timeout: 20
+    register: power
+
