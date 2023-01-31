@@ -22,6 +22,28 @@
       timeout: 20
     register: result
 
+  - name: Set var firmware_entries
+    set_fact:
+      firmware_entries: "{{ result.redfish_facts.firmware.entries }}"
+
+  - name: Get BMC firmware version
+    set_fact:
+      BMCFWVersion: "{{ [item.SoftwareId, item.Version] | join }}"
+    when: item.Id == 'BMC-Primary'
+    loop:
+      "{{ firmware_entries }}"
+
+  - debug: var=BMCFWVersion
+
+  - name: Get UEFI firmware version
+    set_fact:
+      UEFIFWVersion: "{{ [item.SoftwareId, item.Version] | join }}"
+    when: item.Id == 'UEFI'
+    loop:
+      "{{ firmware_entries }}"
+
+  - debug: var=UEFIFWVersion
+
   - name: Copy results to output file
     copy:
       content: "{{ result | to_nice_json }}"

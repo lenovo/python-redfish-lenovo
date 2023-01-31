@@ -27,6 +27,11 @@
       dest: "{{ template }}.json"
     when: result.redfish_facts.virtual_media.ret
 
+  - name: Set var virtualMedia
+    set_fact:
+      virtualMedia: "{{ result.redfish_facts.virtual_media.entries[0][1] }}"
+    when: result.redfish_facts.virtual_media.ret
+
   - block:
     - name: Get Virtual Media information from Systems
       redfish_info:
@@ -41,4 +46,9 @@
       copy:
         content: "{{ result2.redfish_facts.virtual_media.entries | to_nice_json }}"
         dest: "{{ template }}.json"
+
+    - name: Set var virtualMedia
+      set_fact:
+        virtualMedia: "{{ result2.redfish_facts.virtual_media.entries[0][1] }}"
     when: not result.redfish_facts.virtual_media.ret
+
