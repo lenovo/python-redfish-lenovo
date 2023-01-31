@@ -129,7 +129,7 @@ def get_nic_inventory(ip, login_account, login_password, system_id):
                     response_nic_dev_x_url = REDFISH_OBJ.get(nic_dev_x_url, None)
                     if response_nic_dev_x_url.status != 200:
                         result = {'ret': False,
-                                  'msg': "get url %s failed. Error code %s" % (nic_dev_x_url, response_nic_dev_url.status)}
+                                  'msg': "get url %s failed. Error code %s" % (nic_dev_x_url, response_nic_dev_x_url.status)}
                         REDFISH_OBJ.logout()
                         return result
 
