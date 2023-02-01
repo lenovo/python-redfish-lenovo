@@ -71,6 +71,14 @@ def send_test_event(ip, login_account, login_password,eventid,message,severity):
             # Get /redfish/v1/EventService
             event_url = response_base_url.dict["EventService"]["@odata.id"]
             response_event_url = REDFISH_OBJ.get(event_url,None)
+            registries_url = response_base_url.dict["Registries"]["@odata.id"]
+            response_registries_url = REDFISH_OBJ.get(registries_url, None)
+            if response_registries_url.status == 200:
+                messageid_name = response_registries_url.dict['Members@odata.count']
+            else:
+                result = {'ret': False, 'msg': "response registries url Error code %s" % response_registries_url.status}
+                REDFISH_OBJ.logout()
+                return result
             if response_event_url.status == 200:
                 # Check EventService Version
                 EventService_Version = 130 #default version v1_3_0
@@ -100,7 +108,7 @@ def send_test_event(ip, login_account, login_password,eventid,message,severity):
                                elif parameter["Name"] == "MessageArgs":
                                    payload["MessageArgs"] = []
                                elif parameter["Name"] == "MessageId":
-                                   payload["MessageId"] = "Base.1.5.Created"
+                                   payload["MessageId"] = "Created"
                                elif parameter["Name"] == "Severity":
                                    payload["Severity"] = severity
                                elif parameter["Name"] == "OriginOfCondition":
@@ -110,14 +118,14 @@ def send_test_event(ip, login_account, login_password,eventid,message,severity):
                     payload["EventTimestamp"] = timestamp
                     payload["Message"] = message
                     payload["MessageArgs"] = []
-                    payload["MessageId"] = "Base.1.5.Created"
+                    payload["MessageId"] = "Created"
                     payload["OriginOfCondition"] = event_url
                 elif EventService_Version >= 130:
                     payload["EventId"] = eventid
                     payload["EventTimestamp"] = timestamp
                     payload["Message"] = message
                     payload["MessageArgs"] = []
-                    payload["MessageId"] = "Base.1.5.Created"
+                    payload["MessageId"] = "Created"
                     payload["Severity"] = severity
                     payload["OriginOfCondition"] = event_url
                 elif EventService_Version >= 106:
@@ -126,7 +134,7 @@ def send_test_event(ip, login_account, login_password,eventid,message,severity):
                     payload["EventTimestamp"] = timestamp
                     payload["Message"] = message
                     payload["MessageArgs"] = []
-                    payload["MessageId"] = "Base.1.5.Created"
+                    payload["MessageId"] = "Created"
                     payload["Severity"] = severity
                     payload["OriginOfCondition"] = event_url
                 else:
@@ -135,13 +143,19 @@ def send_test_event(ip, login_account, login_password,eventid,message,severity):
                     payload["EventTimestamp"] = timestamp
                     payload["Message"] = message
                     payload["MessageArgs"] = []
-                    payload["MessageId"] = "Base.1.5.Created"
+                    payload["MessageId"] = "Created"
                     payload["Severity"] = severity
+                for i in range(messageid_name):
+                    message_id = response_registries_url.dict["Members"][i]["@odata.id"]
+                    response_message_id = REDFISH_OBJ.get(message_id, None)
+                    if "Base" in response_message_id.dict["Id"]:
+                        messageid_prefix = response_message_id.dict["Id"][:-1] + "Created"
+                        payload["MessageId"] = messageid_prefix
                 response_send_event = REDFISH_OBJ.post(target_url, headers=headers, body=payload)
                 if response_send_event.status == 200 or response_send_event.status == 204:
                     result = {"ret":True,"msg":"Send event successsfully,event id is " + eventid \
                               + ",EventType:Alert,EventTimestamp:" + timestamp + ",Message:" + message \
-                              + ",MessageArgs:[],MessageId:Base.1.5.Created,Severity:" + severity\
+                              + ",MessageArgs:[],""MessageId:"+payload["MessageId"]+",Severity:" + severity\
                               + ",OriginOfCondition:" + event_url }
                     return result
                 elif response_send_event.status == 202:
