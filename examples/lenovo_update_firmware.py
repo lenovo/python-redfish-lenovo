@@ -89,18 +89,21 @@ def lenovo_update_firmware(ip, login_account, login_password, image, targets, fs
             if response_base_url.dict['Vendor'].upper() == "AMI":
                 # Check whether the firmware is BMC or UEFI
                 if not targets:
-                    if image.index('bmc') != -1:
+                    if image.find('bmc') != -1:
                         targets = ["BMC"]
-                    elif image.index('uefi') != -1:
+                    elif image.find('uefi') != -1:
                         targets = ["UEFI"]
+                    elif image.find('psoc') != -1:
+                        targets = ["BP"]
                     else:
                         result = {'ret': False,
-                                  'msg': "For SR635/SR655 products, please specify targets(BMC or UEFI) to update firmware."}
+                                  'msg': "For SR635/SR655 products, please specify targets(BMC or UEFI or BP) to update firmware."}
                         return result
-                if targets[0].upper() not in ["BMC", "UEFI"]:
+                if targets[0].upper() not in ["BMC", "UEFI", "BP"]:
                     result = {'ret': False,
-                              'msg': "SR635/SR655 products only supports specifying BMC or UEFI to refresh."}
+                              'msg': "SR635/SR655 products only supports specifying BMC or UEFI or BP to refresh."}
                     return result
+
                 # Check if multiparthttppushuri exists in response_update_service_url.dict['Oem']['AMIUpdateService'] / response_update_service_url.dict
                 multiparthttppushuri_exist = False
                 multiparthttppushuri_oem_exist = False
@@ -111,7 +114,7 @@ def lenovo_update_firmware(ip, login_account, login_password, image, targets, fs
                 if "MultipartHttpPushUri" in response_update_service_url.dict:
                     multiparthttppushuri_exist = True
                 # if yes, use multipart Uri to update Firmware
-                if multiparthttppushuri_oem_exist is True or multiparthttppushuri_exist is True:
+                if (multiparthttppushuri_oem_exist is True or multiparthttppushuri_exist is True) and targets[0].upper() != 'BP':
                     if fsprotocol.upper() != "HTTPPUSH":
                         result = {'ret': False,'msg': "SR635/SR655 products only supports the HTTPPUSH protocol to update firmware."}
                         return result
@@ -147,27 +150,59 @@ def lenovo_update_firmware(ip, login_account, login_password, image, targets, fs
                 else:
                     # for SR635/SR655 products, refresh the firmware with OEM action
                     Oem_dict = response_update_service_url.dict['Actions']['Oem']
+                    firmware_upload_url = ""
+                    if "#UpdateService.UploadFirmwareImage" in Oem_dict:
+                        firmware_upload_url = login_host + Oem_dict["#UpdateService.UploadFirmwareImage"]['target']
+
                     if "#UpdateService.HPMUpdate" in Oem_dict and targets[0].upper() == "BMC":
                         firmware_update_url = Oem_dict['#UpdateService.HPMUpdate']['target']
                     elif "#UpdateService.UEFIUpdate" in Oem_dict and targets[0].upper() == "UEFI":
                         firmware_update_url = Oem_dict["#UpdateService.UEFIUpdate"]['target']
+                    elif "#UpdateService.BPFwUpdate" in Oem_dict and targets[0].upper() == "BP":
+                        firmware_update_url = Oem_dict["#UpdateService.BPFwUpdate"]['target']
                     else:
                         result = {'ret': False,
                                   'msg':"Update firmware with HTTP protocol is not supported."}
                         return result
-
-                    if fsprotocol.upper() != "HTTP":
-                        result = {'ret': False,
-                                  'msg': "SR635/SR655 products only supports the HTTP protocol to update firmware."}
-                        return result
-                    port = (lambda fsport: ":" + fsport if fsport else fsport)
-                    dir = (lambda fsdir: "/" + fsdir.strip("/") if fsdir else fsdir)
-                    Image_uri = fsprotocol.lower() + "://" + fsip + port(fsport) + dir(fsdir) + "/" + image
-                    body = {}
-                    body["ImageURI"] = Image_uri
-                    body["TransferProtocol"] = fsprotocol.upper()
-                    response = REDFISH_OBJ.post(firmware_update_url, body=body)
-                    response_code = response.status
+                    if targets[0].upper() == "BP":
+                        # Upload firmware image file
+                        F_image = open(fsdir + os.sep + image, 'rb')
+                        # Specify the parameters required to update the firmware
+                        files = {'image_file': (image, F_image, 'multipart/form-data')}
+                        # Send a post command through requests to update the firmware
+                        # Ignore SSL Certificates
+                        requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+                        # Set BMC access credential
+                        auth = HTTPBasicAuth(login_account, login_password)
+                        print("Start to upload the image, may take about 3~10 minutes...\n")
+                        response = requests.post(firmware_upload_url, auth=auth, files=files, verify=False)
+                        response_code = response.status_code
+                        F_image.close()
+                        if response_code == 204:
+                            body = {
+                                "FlashAction": "Start",
+                                "UploadSelector": "Default"
+                            }
+                            response = REDFISH_OBJ.post(firmware_update_url, body=body)
+                            response_code = response.status
+                        else:
+                            error_message = utils.get_extended_error(response)
+                            result = {'ret': False, 'msg': "Url '%s' response Error code %s, \nError message: %s" % (
+                            firmware_upload_url, response_code, error_message)}
+                            return result
+                    else:
+                        if fsprotocol.upper() != "HTTP":
+                            result = {'ret': False,
+                                    'msg': "SR635/SR655 products only supports the HTTP protocol to update firmware."}
+                            return result
+                        port = (lambda fsport: ":" + fsport if fsport else fsport)
+                        dir = (lambda fsdir: "/" + fsdir.strip("/") if fsdir else fsdir)
+                        Image_uri = fsprotocol.lower() + "://" + fsip + port(fsport) + dir(fsdir) + "/" + image
+                        body = {}
+                        body["ImageURI"] = Image_uri
+                        body["TransferProtocol"] = fsprotocol.upper()
+                        response = REDFISH_OBJ.post(firmware_update_url, body=body)
+                        response_code = response.status
             # For other servers
             else:
                 result = update_firmware.update_firmware(ip, login_account, login_password, image, targets, fsprotocol, fsip,
@@ -181,7 +216,7 @@ def lenovo_update_firmware(ip, login_account, login_password, image, targets, fs
                     result = {'ret': True, 'msg': 'BMC refresh successfully, wait about 5 minutes for BMC to restart.'}
                     return result
                 else:
-                    if fsprotocol.upper() == "HTTP":
+                    if fsprotocol.upper() == "HTTP" or targets[0].upper() == "BP":
                         task_uri = update_service_url
                     else:
                         task_uri = response.headers['Location']
@@ -235,7 +270,10 @@ def task_monitor(REDFISH_OBJ, task_uri):
             if "TaskState" in response_task_uri.dict:
                 task_state = response_task_uri.dict["TaskState"]
             elif "Oem" in response_task_uri.dict:
-                if "UpdateStatus" in response_task_uri.dict['Oem']:
+                if "AMIUpdateService" in response_task_uri.dict["Oem"]:
+                    if "UpdateStatus" in response_task_uri.dict["Oem"]["AMIUpdateService"]:
+                        task_state = response_task_uri.dict["Oem"]["AMIUpdateService"]["UpdateStatus"]
+                elif "UpdateStatus" in response_task_uri.dict['Oem']:
                     task_state = response_task_uri.dict["Oem"]["UpdateStatus"]
                 else:
                     task_state = "Exception"
@@ -261,7 +299,7 @@ def task_monitor(REDFISH_OBJ, task_uri):
 import argparse
 def add_helpmessage(argget):
     argget.add_argument('--image', type=str, required=True, help='Specify the fixid of the firmware to be updated.')
-    argget.add_argument('--targets', nargs='*', help='For SR635/SR655 products, only support BMC or UEFI, for other products, specify the targets of firmware to refresh. '
+    argget.add_argument('--targets', nargs='*', help='For SR635/SR655 products, only support BMC or UEFI or BP, for other products, specify the targets of firmware to refresh. '
                                                      'Only support the target of BMC-Backup for V1.88 (BUILD ID:AMBT08R) and after version of XCC.')
     argget.add_argument('--fsprotocol', type=str, choices=["SFTP", "TFTP", "HTTP", "HTTPS", "HTTPPUSH"], help='Specify the file server protocol. For SR635/SR655 products, support "HTTP" and "HTTPPUSH". For other products, support "SFTP", "TFTP", "HTTP", "HTTPS" and "HTTPPUSH".')
     argget.add_argument('--fsip', type=str, help='Specify the file server ip.')
