@@ -128,7 +128,7 @@ def set_bmc_ntp(ip, login_account, login_password, ntp_server, ProtocolEnabled):
 
 
 def add_helpmessage(argget):
-    argget.add_argument('--ntpserver', nargs="*", type=str, required=True, help="Specify the names of  NTP servers, up to 4 NTP servers can be used.")
+    argget.add_argument('--ntpserver', nargs="*", type=str, required=True, help="Specify the names of  NTP servers, up to 4 NTP servers can be used, use space to seperate them. Example: 1.1.1.1 2.2.2.2")
     argget.add_argument('--enabled', type=str, choices = ["0", "1"], required=True, help='Indicates if the NTP protocol is enabled or disabled. (0:false, 1:true)')
 
 

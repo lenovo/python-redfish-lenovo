@@ -130,7 +130,7 @@ def add_helpmessage(argget):
     
     
     help_str_critical = "Specify critical events you want to receive."
-    help_str_critical += "'all' means all events, or you can specify multiple events, use space to seperate them. example: event1 event2. "
+    help_str_critical += "'all' means all events, or you can specify multiple events, use space to seperate them. Example: FanFailure MemoryFailure. "
     help_str_critical += "Available events list: "
     help_str_critical += "['CriticalTemperatureThresholdExceeded', 'CriticalVoltageThresholdExceeded', 'CriticalPowerFailure', \
                  'HardDiskDriveFailure', 'FanFailure','CPUFailure', 'MemoryFailure', 'HardwareIncompatibility', \
