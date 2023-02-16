@@ -175,7 +175,7 @@ def lenovo_set_bmc_dns(ip, login_account, login_password, enabled, dnsserver, do
 def add_helpmessage(argget):
     argget.add_argument('--enabled', type=str, choices = ["0", "1"], required=True, default="1",
                         help='Indicates if DNS is enabled or disabled for the bmc nic. (0:false, 1:true)')
-    argget.add_argument('--dnsserver',  nargs="*", type=str, required=False, help='Specify the names of DNS servers, up to 3 DNS servers can be used.')
+    argget.add_argument('--dnsserver',  nargs="*", type=str, required=False, help='Specify the names of DNS servers, up to 3 DNS servers can be used, use space to seperate them. Example: 1.1.1.1 2.2.2.2')
     argget.add_argument('--domainname', type=str, required=False, help='Specify the domain name, which will be changed along with domain DHCP is set to "static", the domain name should contain dot(.) and no other special characters,such as ":".')
 
 

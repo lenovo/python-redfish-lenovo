@@ -160,7 +160,7 @@ def add_helpmessage(parser):
     parser.add_argument('--kmprotocol', type=str, default="KMIP", required=False, choices=["KMIP", "SKLM"],
                          help='Specify the key management protocol. Support:["KMIP", "SKLM"]')
     parser.add_argument('--kmhostname', nargs="*", type=str, required=True,
-                         help='Key management server hostname or IP address. Up to 4 servers are supported.')
+                         help='Key management server hostname or IP address. Up to 4 servers are supported, use space to seperate them. Example: 1.1.1.1 2.2.2.2.')
     parser.add_argument('--kmport', nargs="*", type=int, default=[5696,5696,5696], required=False,
                          help='The corresponding port for key management server. Default port is 5696.')
     parser.add_argument('--kmgroup', type=str, required=False,

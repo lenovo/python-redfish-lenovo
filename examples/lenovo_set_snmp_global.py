@@ -258,7 +258,7 @@ def add_helpmessage(parser):
             help='Specify the address of SNMPv1 trap.')
 
     help_str_critical = "Specify critical events you want to receive."
-    help_str_critical += "'all' means all events, 'none' means disable this, or you can specify multiple events, use space to seperate them. example: event1 event2. "
+    help_str_critical += "'all' means all events, 'none' means disable this, or you can specify multiple events, use space to seperate them. Example: FanFailure CPUFailure. "
     help_str_critical += "Available events list: "
     help_str_critical += "['CriticalTemperatureThresholdExceeded', 'CriticalVoltageThresholdExceeded', 'CriticalPowerFailure', \
                  'HardDiskDriveFailure', 'FanFailure','CPUFailure', 'MemoryFailure', 'HardwareIncompatibility', \

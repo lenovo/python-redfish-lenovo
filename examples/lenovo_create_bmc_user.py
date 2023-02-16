@@ -403,7 +403,7 @@ def add_helpmessage(argget):
     argget.add_argument('--newuserpasswd', type=str, required=True, help='Input password of new user')
     help_str = "This parameter specify user's privileges. "
     help_str += "You can specify 'Supervisor', 'Operator', 'ReadOnly' or other customized privileges. "
-    help_str += "For customized privileges, you can choose one or more values in this list: "
+    help_str += "For customized privileges, you can choose one or more values in this list, use space to seperate them. Example: UserAccountManagement RemoteConsoleAccess. "
     help_str += "[UserAccountManagement, RemoteConsoleAccess, RemoteConsoleAndVirtualMediaAccess, RemoteServerPowerRestartAccess, AbilityClearEventLogs, AdapterConfiguration_Basic, AdapterConfiguration_NetworkingAndSecurity, AdapterConfiguration_Advanced]"
     argget.add_argument('--authority', nargs='*', default=["Supervisor"], help=help_str)
 
