@@ -105,7 +105,7 @@ def get_psu_inventory(ip, login_account, login_password):
                             result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
                                 powersubsystem_url, response_powersubsystem_url.status, error_message)}
                             return result
-                    else:
+                    elif 'Power' in response_url.dict:
                         # Get the power resources
                         power_url = response_url.dict['Power']['@odata.id']
                         response_power_url = REDFISH_OBJ.get(power_url, None)

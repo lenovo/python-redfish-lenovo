@@ -81,7 +81,7 @@ def get_power_redundancy(ip, login_account, login_password):
                         if "PowerSupplyRedundancy" not in response_powersubsystem_url.dict:
                             continue
                         list_power_redundancy = response_powersubsystem_url.dict["PowerSupplyRedundancy"]
-                    else:
+                    elif 'Power' in response_url.dict:
                         # Get Power resources
                         power_url = response_url.dict["Power"]['@odata.id']
                         response_power_url = REDFISH_OBJ.get(power_url, None)
