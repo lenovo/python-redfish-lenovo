@@ -63,12 +63,30 @@ def lenovo_set_bmc_config_default(ip, login_account, login_password):
         REDFISH_OBJ.logout()
         return result
     response_manager_url = REDFISH_OBJ.get(manager_url, None)
-    bmc_time_detail = []
     if response_manager_url.status == 200:
         for request in response_manager_url.dict['Members']:
             request_url = request['@odata.id']
             response_url = REDFISH_OBJ.get(request_url, None)
             if response_url.status == 200:
+                # check whether standard resetToDefault is supported
+                if 'Actions' in response_url.dict and '#Manager.ResetToDefaults' in response_url.dict['Actions']:
+                    reset_default_url = response_url.dict['Actions']['#Manager.ResetToDefaults']['target']
+                    reset_body = {'ResetType': 'ResetAll'}
+                    response_reset_default_url = REDFISH_OBJ.post(reset_default_url, body=reset_body)
+                    if response_reset_default_url.status == 200 or response_reset_default_url.status == 204:
+                        result = {'ret': True,
+                                  'msg': "Reset bmc configuration default successfully"}
+                        try:
+                            REDFISH_OBJ.logout()
+                        except:
+                            pass
+                        return result
+                    else:
+                        error_message = utils.get_extended_error(response_reset_default_url)
+                        result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                            reset_default_url, response_reset_default_url.status, error_message)}
+                        REDFISH_OBJ.logout()
+                        return result
                 # check whether function is supported first
                 if 'Oem' not in response_url.dict or 'Lenovo' not in response_url.dict['Oem'] or 'Configuration' not in response_url.dict['Oem']['Lenovo']:
                     result = {'ret': False,
