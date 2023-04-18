@@ -73,6 +73,15 @@ def send_test_event(ip, login_account, login_password,eventid,message,severity):
             response_event_url = REDFISH_OBJ.get(event_url,None)
             registries_url = response_base_url.dict["Registries"]["@odata.id"]
             response_registries_url = REDFISH_OBJ.get(registries_url, None)
+            managers_url = response_base_url.dict["Managers"]["@odata.id"]
+            response_managers_url = REDFISH_OBJ.get(managers_url, None)
+            if response_managers_url.status == 200:
+                managers_members = response_managers_url.dict["Members"][0]["@odata.id"]
+                response_managers_members = REDFISH_OBJ.get(managers_members, None)
+            else:
+                result = {'ret': False, 'msg': "response managers url Error code %s" % response_Managers_url.status}
+                REDFISH_OBJ.logout()
+                return result
             if response_registries_url.status == 200:
                 messageid_name = response_registries_url.dict['Members@odata.count']
             else:
@@ -88,7 +97,7 @@ def send_test_event(ip, login_account, login_password,eventid,message,severity):
                     EventService_Version = int(EventService_Type.replace('v','').replace('_',''))
                 # Construct hearders and body to do post
                 target_url = response_event_url.dict["Actions"]["#EventService.SubmitTestEvent"]["target"]
-                timestamp = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S+08:00')
+                timestamp = response_managers_members.dict["DateTime"]
                 headers = {"Content-Type": "application/json"}
                 payload = {}
                 if "@Redfish.ActionInfo" in response_event_url.dict["Actions"]["#EventService.SubmitTestEvent"]:
