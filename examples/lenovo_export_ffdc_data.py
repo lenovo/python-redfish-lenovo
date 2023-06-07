@@ -29,7 +29,7 @@ import time
 import os
 
 
-def lenovo_export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir):
+def lenovo_export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir, logtype):
     """Export ffdc data    
     :params ip: BMC IP address
     :type ip: string
@@ -49,6 +49,8 @@ def lenovo_export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip,
     :type fspassword: string
     :params fsdir: Specify the file server dir to save data
     :type fsdir: string
+    :params logtype: Specify the export data type
+    :type logtype: string
     :returns: returns export ffdc data result when succeeded or error message when failed
     """
 
@@ -107,9 +109,18 @@ def lenovo_export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip,
                 ffdc_data_uri = response_servicedata_uri.dict['Actions']['#LenovoServiceData.ExportFFDCData']['target']
 
                 # Build post request body and Get the user specified parameter
+                if logtype == "Debug Log":
+                    ffdctype = "ProcessorDump"
+                if logtype == "Service Data Log":
+                    ffdctype = "Mini-log"
+                if ffdctype not in response_servicedata_uri.dict['DataCollectionType']:
+                    error_message = "target server not support %s" % (logtype)
+                    result = {'ret': False, 'msg': error_message}
+                    return result
+                
                 body = {}
                 body['InitializationNeeded'] = True
-                body['DataCollectionType'] = "ProcessorDump"
+                body['DataCollectionType'] = ffdctype
 
                 # Check the transport protocol, only support sftp and tftp protocols
                 export_uri = ""
@@ -331,6 +342,7 @@ def add_helpmessage(argget):
     argget.add_argument('--fsusername', type=str, help='Specify the SFTP file server username.')
     argget.add_argument('--fspassword', type=str, help='Specify the SFTP file server password.')
     argget.add_argument('--fsdir', type=str, help='Specify the directory under which ffdc data will be saved on file server.')
+    argget.add_argument('--logtype', default='Debug Log', choices=["Debug Log","Service Data Log"], type=str, help='Specify export data type. Support:["Debug Log","Service Data Log"]')
 
 
 import configparser
@@ -364,6 +376,7 @@ def add_parameter():
     parameter_info['fsusername'] = args.fsusername
     parameter_info['fspassword'] = args.fspassword
     parameter_info['fsdir'] = args.fsdir
+    parameter_info['logtype'] = args.logtype
 
     # The parameters in the configuration file are used when the user does not specify parameters
     for key in parameter_info:
@@ -389,9 +402,10 @@ if __name__ == '__main__':
     fsusername = parameter_info['fsusername']
     fspassword = parameter_info['fspassword']
     fsdir = parameter_info['fsdir']
+    logtype = parameter_info['logtype']
 
     # export ffdc result and check result
-    result = lenovo_export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir)
+    result = lenovo_export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir, logtype)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
