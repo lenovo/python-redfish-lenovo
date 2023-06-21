@@ -31,7 +31,7 @@ import traceback
 import lenovo_utils as utils
 
 
-def update_firmware(ip, login_account, login_password, image, targets, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir):
+def update_firmware(ip, login_account, login_password, image, targets, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir, applytime="Immediate"):
     """Update firmware
     :params ip: BMC IP address
     :type ip: string
@@ -199,6 +199,8 @@ def update_firmware(ip, login_account, login_password, image, targets, fsprotoco
                     body["Targets"] = targets
                 if fsprotocol:
                     body["TransferProtocol"] = fsprotocol.upper()
+                if applytime:
+                    body["@Redfish.OperationApplyTime"] = applytime
                 firmware_update_response = REDFISH_OBJ.post(firmware_update_url, body=body)
                 response_code = firmware_update_response.status
             if response_code in [200, 204]:
@@ -209,6 +211,13 @@ def update_firmware(ip, login_account, login_password, image, targets, fsprotoco
                     task_uri = firmware_update_response.json()['@odata.id']
                 else:
                     task_uri = firmware_update_response.dict['@odata.id']
+                if applytime and applytime != 'Immediate':
+                    task_id = task_uri.split('/')[-1]
+                    if applytime == 'OnReset':
+                        result = {'ret': True, 'msg': "Update firmware task has been generated ,taskid is '%s', but need to reset system to trigger updating firmware due to applytime is 'OnReset'." % (task_id)}
+                    elif applytime == 'OnStartUpdateRequest':
+                        result = {'ret': True, 'msg': "Update firmware task has been generated ,taskid is '%s', but need to call the firmware_startupdate.py script to trigger updating firmware due to applytime is 'OnStartUpdateRequest'." % (task_id)}
+                    return result
                 result = task_monitor(REDFISH_OBJ, task_uri)
                 # Delete the task when the task state is completed without any warning
                 if result["ret"] is True and "Completed" == result["task_state"] and result['msg'] == '':
@@ -320,6 +329,7 @@ def add_helpmessage(argget):
     argget.add_argument('--fsusername', type=str, help='Specify the file server username, only for SFTP')
     argget.add_argument('--fspassword', type=str, help='Specify the file server password, only for SFTP')
     argget.add_argument('--fsdir', type=str, help='Specify the file server dir to the firmware upload.')
+    argget.add_argument('--applytime', type=str, default='Immediate', choices=["Immediate", "OnReset", "OnStartUpdateRequest"], help='Specifiy when to start to update SimpleUpdate-provided firmware.Accepted settings are ["Immediate", "OnReset", "OnStartUpdateRequest"]')
 
 import os
 import configparser
@@ -363,6 +373,7 @@ def add_parameter():
     parameter_info['fsusername'] = args.fsusername
     parameter_info['fspassword'] = args.fspassword
     parameter_info['fsdir'] = args.fsdir
+    parameter_info['applytime'] = args.applytime
 
     # The parameters in the configuration file are used when the user does not specify parameters
     for key in parameter_info:
@@ -390,12 +401,13 @@ if __name__ == '__main__':
         fsusername = parameter_info['fsusername']
         fspassword = parameter_info['fspassword']
         fsdir = parameter_info['fsdir']
+        applytime = parameter_info['applytime']
     except:
         sys.stderr.write("Please run the command 'python %s -h' to view the help info" % sys.argv[0])
         sys.exit(1)
 
     # Update firmware result and check result
-    result = update_firmware(ip, login_account, login_password, image, targets, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir)
+    result = update_firmware(ip, login_account, login_password, image, targets, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir, applytime)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
