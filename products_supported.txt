@@ -157,7 +157,7 @@
 *5: Not supported for SN550 (V2), SN850 (V2). These info are controlled by CMM or SMM.
 
 ThinkSystem AMD 1P (Rome/Milan):SR635, SR655
-ThinkSystem AMD 2P (Rome):      SR645, SR665
+ThinkSystem AMD 2P (Rome/Milan):SR645, SR665
 ThinkSystem Intel (Purley):     SR530, SR550, SR570, SR590, SR630,  SR650, SR670, SR850P, SR860, SR950, SD530, SD650, SN550, SN850, ST550
 ThinkSystem V2 Intel (Whitley): SR850 V2, SR860 V2, SR650 V2, SR630 V2, SR670 V2, ST650 V2, SN550 V2, SD650 V2, SD650-N V2, SD630 V2
 ThinkSystem V3 Intel (EGS):     SR650 V3, SR630 V3, SD650 V3, SD650-I V3, ST650 V3, SR860 V3, SR850 V3
