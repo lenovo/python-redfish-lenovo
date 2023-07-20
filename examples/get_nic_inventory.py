@@ -81,9 +81,11 @@ def get_nic_inventory(ip, login_account, login_password, system_id):
             return result
 
         # Skip this chassis if no NetworkAdapters found in it
-        if "NetworkAdapters" not in response_chassis_url.dict:
+        try:
+            if "NetworkAdapters" not in response_chassis_url.dict:
+                continue
+        except:
             continue
-
         # GET the NetworkAdapters resource from the Chassis resource
         nic_adapter_url = response_chassis_url.dict["NetworkAdapters"]["@odata.id"]
         response_nic_adapter_url = REDFISH_OBJ.get(nic_adapter_url, None)
