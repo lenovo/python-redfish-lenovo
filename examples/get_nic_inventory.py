@@ -81,7 +81,7 @@ def get_nic_inventory(ip, login_account, login_password, system_id):
             return result
 
         # Skip this chassis if no NetworkAdapters found in it
-        if "NetworkAdapters" not in response_chassis_url.dict:
+        if not response_chassis_url.text or "NetworkAdapters" not in response_chassis_url.dict:
             continue
 
         # GET the NetworkAdapters resource from the Chassis resource
