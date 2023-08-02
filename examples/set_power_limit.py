@@ -79,7 +79,7 @@ def set_power_limit(ip, login_account, login_password, isenable, power_limit):
                 response_url = REDFISH_OBJ.get(request_url, None)
                 if response_url.status == 200:
                     # if chassis is not normal skip it
-                    if len(response_chassis_url.dict['Members']) > 1 and ("Links" not in response_url.dict or
+                    if len(response_chassis_url.dict['Members']) > 1 and (not response_url.text or "Links" not in response_url.dict or
                             "ComputerSystems" not in response_url.dict["Links"]):
                         continue
                     if "Controls" in response_url.dict:
@@ -88,6 +88,9 @@ def set_power_limit(ip, login_account, login_password, isenable, power_limit):
                         if response_power.status == 200:
                             for control in response_power.dict['Members']:
                                 power_limit_url = control['@odata.id']
+                                power_li = power_limit_url.split("/")
+                                if power_li[-1] != "poserlimit":
+                                    continue
                                 control_response = REDFISH_OBJ.get(power_limit_url, None)
                                 if control_response.status != 200:
                                     error_message = utils.get_extended_error(control_response)
