@@ -75,7 +75,7 @@ def set_chassis_indicator_led(ip, login_account, login_password, led_status):
                     result = {'ret': False, 'msg': "Url '%s' get failed. response Error code %s \nerror_message: %s" % (
                         led_url, response_led_url.status, error_message)}
                     return result
-                if response_chassis_url.dict['Members@odata.count'] > 1 and 'IndicatorLED' not in response_led_url.dict:
+                if response_chassis_url.dict['Members@odata.count'] > 1 and (not response_led_url.text or'IndicatorLED' not in response_led_url.dict):
                         continue
 
                 # get etag to set If-Match precondition
