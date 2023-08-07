@@ -170,7 +170,7 @@ def update_firmware(ip, login_account, login_password, image, targets, fsprotoco
                             message = utils.get_extended_error(remote_response)
                             result = {'ret': False,
                                       'msg': "Url '%s' response Error code %s, \nError message :%s" % (
-                                          remote_url, remote_response.status, message)}
+                                          remote_url, remote_response.status, message)}SFTP
                             return result
                         if remote_response.dict["Members@odata.count"] == 0:
                             result = {"ret": False,
@@ -321,9 +321,9 @@ def task_monitor(REDFISH_OBJ, task_uri):
 
 import argparse
 def add_helpmessage(argget):
-    argget.add_argument('--image', type=str, required=True, help='Specify the fixid of the firmware to be updated.')
+    argget.add_argument('--image', type=str, required=True, help='Specify the firmware to be updated.')
     argget.add_argument('--targets', nargs='*', help='Input the targets list, use space to seperate them.')
-    argget.add_argument('--fsprotocol', type=str, choices=["SFTP", "TFTP", "HTTPPUSH", "HTTP", "HTTPS"], help='Specify the file server protocol.Support:["SFTP", "TFTP", "HTTPPUSH", "HTTP", "HTTPS"]')
+    argget.add_argument('--fsprotocol', type=str, choices=["SFTP", "TFTP", "HTTPPUSH", "HTTP", "HTTPS"], help='Specify the file server protocol.Support:["SFTP", "TFTP", "HTTPPUSH", "HTTP", "HTTPS"]. HTTPPUSH update supports file upload from local that uses binary data posting.')
     argget.add_argument('--fsip', type=str, help='Specify the file server ip.')
     argget.add_argument('--fsport', type=str, default='', help='Specify the file server port')
     argget.add_argument('--fsusername', type=str, help='Specify the file server username, only for SFTP')
@@ -342,6 +342,8 @@ def add_parameter():
       "python update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --targets https://10.10.10.10/redfish/v1/UpdateService/FirmwareInventory/Slot_7.Bundle --fsprotocol TFTP --fsip 10.10.10.11 --fsdir /fspath/ --image lnvgy_fw_sraidmr35_530-50.7.0-2054_linux_x86-64.bin"
     Example of HTTPPUSH:
       "python update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --fsprotocol HTTPPUSH --fsdir /fspath/ --image lnvgy_fw_sraidmr35_530-50.7.0-2054_linux_x86-64.bin"
+    Example of HTTP:
+      "python update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --fsprotocol HTTP --fsip 10.10.10.11 --fsport 80 --fsdir /fspath/ --image lnvgy_fw_raid_mr3.5.940-j9337-00b2_anyos_comp.zip"
     ''')
     add_helpmessage(argget)
     args = argget.parse_args()

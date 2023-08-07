@@ -125,7 +125,7 @@ def add_helpmessage(argget):
     argget.add_argument('--RecipientName', type=str, required=True, help='Recipient name.')
     argget.add_argument('--IncludeEventLog', type=int, choices=[0, 1], default=1, help='Specify if need to include Event Log contents in the email body, only avaliable for AlertType Email. Default is 1. ')
     argget.add_argument('--Address', type=str, required=True, help='For Syslog, IP:Port, e.g. 10.10.10.10:514. For Email, email address. ')
-    argget.add_argument('--Enabledstate', type=int, choices=[0, 1], default=1, help='Specify if enable to send syslog or email. ')
+    argget.add_argument('--Enabledstate', type=int, choices=[0, 1], default=1, help='Specify if enable to send syslog or email. 0: Disable, 1: Enable, default is 1. ')
     argget.add_argument('--AlertType', type=str, required=True, choices=['Syslog', 'Email'], help='Specify Syslog or Email.')
     
     
