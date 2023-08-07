@@ -250,11 +250,7 @@ if __name__ == '__main__':
     system_id = parameter_info['sysid']
 
     # Get set info from the parameters user specified
-    try:
-        enable_amt = bool(parameter_info['enable_amt'])
-    except:
-        sys.stderr.write("Please run the command 'python %s -h' to view the help info" % sys.argv[0])
-        sys.exit(1)
+    enable_amt = bool(parameter_info['enable_amt'])
 
     # Set amt result and check result
     result = lenovo_set_amt(ip, login_account, login_password, system_id, enable_amt)
