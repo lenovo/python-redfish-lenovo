@@ -170,7 +170,7 @@ def update_firmware(ip, login_account, login_password, image, targets, fsprotoco
                             message = utils.get_extended_error(remote_response)
                             result = {'ret': False,
                                       'msg': "Url '%s' response Error code %s, \nError message :%s" % (
-                                          remote_url, remote_response.status, message)}SFTP
+                                          remote_url, remote_response.status, message)}
                             return result
                         if remote_response.dict["Members@odata.count"] == 0:
                             result = {"ret": False,
