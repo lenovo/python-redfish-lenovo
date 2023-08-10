@@ -67,7 +67,7 @@
 |                    | set_chassis_indicator_led.py             |     Yes       |     Yes       |     Yes        |     Yes         |     Yes         |     Yes         |
 |--------------------|------------------------------------------|---------------|---------------|----------------|-----------------|-----------------|-----------------|
 | Power Management   | get_power_limit.py                       |     Yes       |     Yes       |     Yes *3     |     Yes *3      |     Yes *3      |     Yes *3      |
-|                    | set_power_limit.py                       |     NO        |     NO        |     Yes *3     |     Yes *3      |     Yes *3      |     Yes *3      |
+|                    | set_power_limit.py                       |     NO        |     NO        |     Yes *3     |     Yes *3      |     Yes *3      |     NO          |
 |                    | get_power_metrics.py                     |     Yes       |     Yes       |     Yes        |     Yes         |     Yes         |     Yes         |
 |--------------------|------------------------------------------|---------------|---------------|----------------|-----------------|-----------------|-----------------|
 | BMC Configuration  | get_bmc_ntp.py                           |     Yes       |     Yes       |     Yes *5     |     Yes *3      |     Yes         |     Yes         |
