@@ -144,7 +144,7 @@ def set_bmc_vlanid(ip, login_account, login_password, vlanid, vlanEnable):
 import argparse
 def add_helpmessage(parser):
     parser.add_argument('--vlanid', type=str, required=True, help='Input the vlanid of BMC')
-    parser.add_argument('--vlanenable', type=str, required=True, help='0:false, 1:true')
+    parser.add_argument('--vlanenable', type=str, required=True, choices=['0', '1'], help='Disable or Enable vlan, 0: Disable, 1: Enable.')
 
 
 def add_parameter():
