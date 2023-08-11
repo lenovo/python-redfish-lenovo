@@ -137,38 +137,41 @@ def lenovo_set_amt(ip, login_account, login_password, system_id, enable_amt):
                         watchdog_value_enum.append(value["ValueName"])
 
             parameter = {}
+            Memory_MemoryTest_Enable = "Enable"
+            Memory_MemoryTest_Disable = "Disable"
+            for value in memory_test_value_enum:
+                if "Enable" in value:
+                    Memory_MemoryTest_Enable = value    #Enable or Enabled
+                if "Disable" in value:
+                    Memory_MemoryTest_Disable = value
+
+            POSTWatchdog_Enable = "Enable"
+            POSTWatchdog_Disable = "Disable"
+            for value in watchdog_value_enum:
+                if "Enable" in value:
+                    POSTWatchdog_Enable = value
+                if "Disable" in value:
+                    POSTWatchdog_Disable = value
+            if enable_amt:
+                parameter = {
+                    "Attributes": {
+                        "Memory_MemoryTest": Memory_MemoryTest_Enable,
+                        "SystemRecovery_POSTWatchdogTimer": POSTWatchdog_Disable
+                    }
+                }
+            else:
+                parameter = {
+                    "Attributes":{
+                        "Memory_MemoryTest": Memory_MemoryTest_Disable,
+                        "SystemRecovery_POSTWatchdogTimer": POSTWatchdog_Enable
+                    }
+                }
+
             if "Memory_MemoryTest" in response_bios_url.dict['Attributes'] and "Memory_AdvMemTestOptions" in response_bios_url.dict['Attributes']:
-                Memory_MemoryTest_Enable = "Enable"
-                Memory_MemoryTest_Disable = "Disable"
-                for value in memory_test_value_enum:
-                    if "Enable" in value:
-                        Memory_MemoryTest_Enable = value    #Enable or Enabled
-                    if "Disable" in value:
-                        Memory_MemoryTest_Disable = value
-                
-                POSTWatchdog_Enable = "Enable"
-                POSTWatchdog_Disable = "Disable"
-                for value in watchdog_value_enum:
-                    if "Enable" in value:
-                        POSTWatchdog_Enable = value
-                    if "Disable" in value:
-                        POSTWatchdog_Disable = value
                 if enable_amt:
-                    parameter = {
-                        "Attributes": {
-                            "Memory_MemoryTest": Memory_MemoryTest_Enable,
-                            "Memory_AdvMemTestOptions": 0xF000,
-                            "SystemRecovery_POSTWatchdogTimer": POSTWatchdog_Disable
-                        }
-                    }
+                    parameter["Attributes"]["Memory_AdvMemTestOptions"] = 0xF000
                 else:
-                    parameter = {
-                        "Attributes":{
-                            "Memory_MemoryTest": Memory_MemoryTest_Disable,
-                            "Memory_AdvMemTestOptions": 0,
-                            "SystemRecovery_POSTWatchdogTimer": POSTWatchdog_Enable
-                        }
-                    }
+                    parameter["Attributes"]["Memory_AdvMemTestOptions"] = 0
             else:
                 if flag_sr645_sr665:
                     pending_url = system_url
@@ -198,9 +201,35 @@ def lenovo_set_amt(ip, login_account, login_password, system_id, enable_amt):
                         result = {"ret": False, "msg": "AMT is not supported on this platform, the UefiMemoryTest is not supported on this platform" }
                         return result
                 else:
-                    result = {"ret": False, "msg": "AMT is not supported on this platform, the bios attribute Memory_MemoryTest or Memory_AdvMemTestOptions is not supported on this platform" }
-                    return result
-            
+                    bios_protected_url = "/redfish/v1/Systems/1/Bios/Actions/Oem/LenovoBios.GetProtectedAttributes"
+                    bios_protected_response = REDFISH_OBJ.post(bios_protected_url, body={})
+                    if bios_protected_response.status == 200:
+                        set_protected_url = "/redfish/v1/Systems/1/Bios/Actions/Oem/LenovoBios.SetProtectedAttributes"
+                        body = {"Attributes":{}}
+                        if enable_amt:
+                            body["Attributes"]["Memory_AdvMemTestOptions"] = 0xF000
+                        else:
+                            body["Attributes"]["Memory_AdvMemTestOptions"] = 0
+                        set_protected_response = REDFISH_OBJ.post(set_protected_url, body=body)
+                        if set_protected_response.status == 200:
+                            msg = 'Disable AMT from LenovoBios.SetProtectedAttributes successful.'
+                            if enable_amt:
+                                msg = 'Enable AMT from LenovoBios.SetProtectedAttributes successful.'
+                            # print(msg)
+                        else:
+                            error_message = utils.get_extended_error(registry_response)
+                            result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                                registry_url, registry_response.status, error_message)}
+                            return result
+                    elif bios_protected_response.status == 404:
+                        result = {"ret": False, "msg": "AMT is not supported on this platform, the bios attribute Memory_MemoryTest or Memory_AdvMemTestOptions is not supported on this platform" }
+                        return result
+                    else:
+                        error_message = utils.get_extended_error(registry_response)
+                        result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                            registry_url, registry_response.status, error_message)}
+                        return result
+
             headers = {"If-Match": "*", "Content-Type": "application/json"}
             response_pending_url = REDFISH_OBJ.patch(pending_url, headers = headers, body=parameter)
             if response_pending_url.status in [200,204]:
