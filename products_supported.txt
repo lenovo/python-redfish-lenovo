@@ -53,7 +53,7 @@
 |                    | enable_secure_boot.py                    |     Yes *1    |     Yes       |     Yes        |     Yes         |     Yes         |     Yes         |
 |                    | reset_secure_boot.py                     |     Yes       |     Yes       |     Yes        |     Yes         |     Yes         |     Yes         |
 |                    | set_bios_password.py                     |     Yes       |     Yes       |     Yes        |     Yes         |     Yes         |     Yes         |
-|                    | lenovo_set_amt.py                        |     NO        |     Yes       |     Yes        |     Yes         |     Yes         |     Yes         |
+|                    | lenovo_set_amt.py                        |     NO        |     Yes       |     Yes        |     Yes         |     Yes         |     NO          |
 |--------------------|------------------------------------------|---------------|---------------|----------------|-----------------|-----------------|-----------------|
 | User Management    | lenovo_get_bmc_user_accounts.py          |     Yes       |     Yes       |     Yes        |     Yes         |     Yes         |     Yes         |
 |                    | lenovo_create_bmc_user.py                |     Yes       |     Yes       |     Yes *5     |     Yes *3      |     Yes         |     Yes         |
@@ -102,7 +102,7 @@
 | RAID Configuration | lenovo_create_raid_volume.py             |     NO        |     Yes *4    |     Yes        |     Yes         |     Yes         |     Yes         |
 |                    | lenovo_delete_raid_volume.py             |     NO        |     Yes *4    |     Yes        |     Yes         |     Yes         |     Yes         |
 |                    | lenovo_update_raid_volume.py             |     NO        |     Yes *4    |     Yes        |     Yes         |     Yes         |     Yes         |
-|                    | set_raid_encryption_mode.py              |     NO        |     Yes *4    |     Yes        |     Yes         |     Yes         |     Yes         |
+|                    | set_raid_encryption_mode.py              |     NO        |     Yes *4    |     Yes        |     Yes         |     NO          |     NO          |
 |--------------------|------------------------------------------|---------------|---------------|----------------|-----------------|-----------------|-----------------|
 | FW Update          | get_fw_inventory.py                      |     Yes       |     Yes       |     Yes        |     Yes         |     Yes         |     Yes         |
 |                    | update_firmware.py                       |     NO        |     Yes       |     Yes        |     Yes         |     Yes         |     Yes         |
@@ -132,7 +132,7 @@
 |                    | lenovo_eklm_keyserver_getinfo.py         |     NO        |     Yes       |     Yes        |     Yes         |     Yes         |     Yes         |
 |                    | lenovo_eklm_certificate_generate_csr.py  |     NO        |     Yes       |     Yes        |     Yes         |     Yes         |     Yes         |
 |                    | lenovo_eklm_certificate_import.py        |     NO        |     Yes       |     Yes        |     Yes         |     Yes         |     Yes         |
-|                    | lenovo_ekms_localcache_setting.py        |     NO        |     Yes       |     Yes        |     Yes         |     Yes         |     Yes         |
+|                    | lenovo_ekms_localcache_setting.py        |     NO        |     Yes       |     Yes        |     Yes         |     NO          |     NO          |
 |                    | lenovo_ssl_certificate_getinfo.py        |     NO        |     Yes       |     Yes        |     Yes         |     Yes         |     Yes         |
 |                    | lenovo_ssl_certificate_generate_csr.py   |     NO        |     Yes       |     Yes        |     Yes         |     Yes         |     Yes         |
 |                    | lenovo_ssl_certificate_import.py         |     NO        |     Yes       |     Yes        |     Yes         |     Yes         |     Yes         |
