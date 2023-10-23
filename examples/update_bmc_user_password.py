@@ -26,7 +26,7 @@ import json
 import traceback
 import lenovo_utils as utils
 
-def update_bmc_user_password(ip, login_account, login_password, username, new_password):
+def update_bmc_user_password(ip, login_account, login_password, username, new_password, account_url=None):
     """update user password    
     :params ip: BMC IP address
     :type ip: string
@@ -38,6 +38,8 @@ def update_bmc_user_password(ip, login_account, login_password, username, new_pa
     :type username: string
     :params new_password: New password to be modified by the user
     :type new_password: string
+    :params account_url: BMC account url
+    :type account_url: string
     :returns: returns update user password result when succeeded or error message when failed
     """
     result = {}
@@ -54,11 +56,14 @@ def update_bmc_user_password(ip, login_account, login_password, username, new_pa
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct\n"}
         return result
 
-    # change default BMC account's password (treat userid 1 as default account)
-    if username == None:
+    # change default BMC account's password or specified account (treat userid 1 as default account)
+    if username == None or account_url:
         headers = {"If-Match": "*"}
         parameter = {"Password": new_password}
-        response_modified_password = REDFISH_OBJ.patch('/redfish/v1/AccountService/Accounts/1', body=parameter, headers=headers)
+        default_account_url = '/redfish/v1/AccountService/Accounts/1'
+        if account_url:
+            default_account_url = account_url
+        response_modified_password = REDFISH_OBJ.patch(default_account_url, body=parameter, headers=headers)
         if response_modified_password.status in [200,204]:
             result = {'ret': True, 'msg': "The password of default BMC account is successfully updated."}
             return result
@@ -145,8 +150,9 @@ def update_bmc_user_password(ip, login_account, login_password, username, new_pa
 
 import argparse
 def add_helpmessage(argget):
-    argget.add_argument('--username', type=str, help='Input the name of BMC user to be updated. If not specified, the password of default BMC account will be updated')
+    argget.add_argument('--username', type=str, help='Input the name of BMC user to be updated. If not specified, the password of default BMC account or entered account_url will be updated')
     argget.add_argument('--newpasswd', type=str, required=True, help='Input new password of BMC user')
+    argget.add_argument('--url', type=str, help='Input account url of BMC user to update the password.(e.g., /redfish/v1/AccountService/Accounts/2)')
 
 
 def add_parameter():
@@ -157,6 +163,7 @@ def add_parameter():
     parameter_info = utils.parse_parameter(args)
     parameter_info["username"] = args.username
     parameter_info["new_passwd"] = args.newpasswd
+    parameter_info["account_url"] = args.url
     return parameter_info
 
 
@@ -172,9 +179,10 @@ if __name__ == '__main__':
     # Get set info from the parameters user specified
     username = parameter_info['username']
     new_password = parameter_info['new_passwd']
+    account_url = parameter_info['account_url']
 
     # Update user password result and check result   
-    result = update_bmc_user_password(ip, login_account, login_password, username, new_password)
+    result = update_bmc_user_password(ip, login_account, login_password, username, new_password, account_url)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
