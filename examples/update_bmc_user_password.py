@@ -157,7 +157,12 @@ def add_helpmessage(argget):
 
 def add_parameter():
     """Add update user password parameter"""
-    argget = utils.create_common_parameter_list()
+    example = """This script's typical scenarios: 
+                1. Change the of default BMC account password when using the machine for the first time. e.g. "python update_bmc_user_password.py -i 10.10.10.10 -u USERID -p PASSW0RD --newpassed NEWPASSED"
+                2. When changing the password of a specified user. e.g. "python update_bmc_user_password.py -i 10.10.10.10 -u USERID -p PASSW0RD --username USERNAME --newpassed NEWPASSED"
+                3. Change the password of an expired account. e.g. "python update_bmc_user_password.py -i 10.10.10.10 -u USERID -p PASSW0RD --newpassed NEWPASSED --url /redfish/v1/AccountService/Accounts/2"
+                """
+    argget = utils.create_common_parameter_list(example_string=example)
     add_helpmessage(argget)
     args = argget.parse_args()
     parameter_info = utils.parse_parameter(args)
