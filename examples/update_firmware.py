@@ -29,9 +29,10 @@ import json
 import time
 import traceback
 import lenovo_utils as utils
+from urllib.parse import urlparse
 
 
-def update_firmware(ip, login_account, login_password, image, targets, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir, applytime="Immediate"):
+def update_firmware(ip, login_account, login_password, image, targets, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir, imageurl=None, applytime="Immediate"):
     """Update firmware
     :params ip: BMC IP address
     :type ip: string
@@ -55,6 +56,8 @@ def update_firmware(ip, login_account, login_password, image, targets, fsprotoco
     :type fspassword: string
     :params fsdir: User specified the image path
     :type fsdir: string
+    :params imageurl: User specified the firmware image link
+    :type imageurl: string
     :returns: returns firmware updating result
     """
     # Connect using the address, account name, and password
@@ -80,6 +83,13 @@ def update_firmware(ip, login_account, login_password, image, targets, fsprotoco
             message = utils.get_extended_error(response_base_url)
             result = {'ret': False, 'msg': "Url '%s' response Error code %s, \nError message :%s" % ('/redfish/v1', response_base_url.status, message)}
             return result
+        # Define an anonymous function formatting parameter
+        result = check_param(fsprotocol, fsip, fsport, fsdir, image, imageurl, fsusername, fspassword)
+        if not result['ret']:
+            return result
+        else:
+            param = result['msg']
+        fsprotocol,fsport,fsdir,fsip,image,fsusername,fspassword = param['fsprotocol'].upper(),param['fsport'], param['fsdir'], param['fsip'], param['image'], param["fsusername"], param["fspassword"]
 
         response_update_service_url = REDFISH_OBJ.get(update_service_url, None)
         if response_update_service_url.status == 200:
@@ -179,11 +189,7 @@ def update_firmware(ip, login_account, login_password, image, targets, fsprotoco
 
                 firmware_update_url = simple_update_dict['target']
                 # Update firmware via file server
-                # Define an anonymous function formatting parameter
-                port = (lambda fsport: ":" + fsport if fsport else fsport)
-                dir = (lambda fsdir: "/" + fsdir.strip("/") if fsdir else fsdir)
-                fsport = port(fsport)
-                fsdir = dir(fsdir)
+
 
                 # Construct image URI by splicing parameters
                 if fsprotocol.lower() == "sftp":
@@ -251,6 +257,35 @@ def update_firmware(ip, login_account, login_password, image, targets, fsprotoco
             pass
         return result
 
+
+def check_param(fsprotocol, fsip, fsport, fsdir, image, imageurl, fsusername, fspassword):
+    """Validation parameters"""
+    port = (lambda fsport: ":" + fsport if fsport else fsport)
+    dir = (lambda fsdir: "/" + fsdir.strip("/") if fsdir else fsdir)
+    kwargs = {}
+    if imageurl:
+        url = urlparse(imageurl)  # ParseResult(scheme='https', netloc='fsusername:fspassword@fsip', path='fsdir', params='', query='', fragment='')
+        if url.scheme:
+            if fsprotocol and url.scheme.lower() != fsprotocol.lower():
+                return {'ret':False, 'msg': "Please check the fsprotocol, imageurl is the same\n"}
+            fsprotocol = url.scheme
+        if url.netloc:
+            fsip = url.netloc
+            if "@" in fsip:
+                fsusername = fsip.split('@')[0].split(":")[0]
+                fspassword = fsip.split('@')[0].split(":")[1]
+                fsip = fsip.split("@")[1]
+        if url.path:
+            image = url.path.split('/')[-1]
+            fsdir = url.path.rsplit('/', 1)[0]
+    kwargs["fsprotocol"] = fsprotocol
+    kwargs["fsip"] = fsip
+    kwargs["fsdir"] = dir(fsdir)
+    kwargs['image'] = image
+    kwargs['fsport'] = port(fsport)
+    kwargs['fsusername'] = fsusername
+    kwargs['fspassword'] = fspassword
+    return {'ret': True, 'msg':kwargs}
 
 def flush(percent):
     list = ['|', '\\', '-', '/']
@@ -321,7 +356,7 @@ def task_monitor(REDFISH_OBJ, task_uri):
 
 import argparse
 def add_helpmessage(argget):
-    argget.add_argument('--image', type=str, required=True, help='Specify the firmware to be updated.')
+    argget.add_argument('--image', type=str, help='Specify the firmware to be updated.')
     argget.add_argument('--targets', nargs='*', help='Input the targets list, use space to seperate them.')
     argget.add_argument('--fsprotocol', type=str, choices=["SFTP", "TFTP", "HTTPPUSH", "HTTP", "HTTPS"], help='Specify the file server protocol.Support:["SFTP", "TFTP", "HTTPPUSH", "HTTP", "HTTPS"]. HTTPPUSH update supports file upload from local that uses binary data posting.')
     argget.add_argument('--fsip', type=str, help='Specify the file server ip.')
@@ -330,20 +365,22 @@ def add_helpmessage(argget):
     argget.add_argument('--fspassword', type=str, help='Specify the file server password, only for SFTP')
     argget.add_argument('--fsdir', type=str, help='Specify the file server dir to the firmware upload.')
     argget.add_argument('--applytime', type=str, default='Immediate', choices=["Immediate", "OnReset", "OnStartUpdateRequest"], help='Specifiy when to start to update SimpleUpdate-provided firmware.Accepted settings are ["Immediate", "OnReset", "OnStartUpdateRequest"]')
+    argget.add_argument('--imageurl', type=str, help="Specify the firmware link to be updated.")
 
 import os
 import configparser
 def add_parameter():
     """Add update firmware parameter"""
     argget = utils.create_common_parameter_list(example_string='''
+    Example of HTTP:
+      "python update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --imageurl http://fsusername:fspassword@10.10.10.11/upload/lnvgy_fw_xcc_cdi3b2o-9.87_anyos_noarch.uxz"
+      "python update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --fsprotocol HTTP --fsip 10.10.10.11 --fsport 80 --fsdir /fspath/ --image lnvgy_fw_raid_mr3.5.940-j9337-00b2_anyos_comp.zip"
     Example of SFTP:
       "python update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --targets https://10.10.10.10/redfish/v1/UpdateService/FirmwareInventory/Slot_7.Bundle --fsprotocol SFTP --fsip 10.10.10.11 --fsusername mysftp --fspassword mypass --fsdir /fspath/ --image lnvgy_fw_sraidmr35_530-50.7.0-2054_linux_x86-64.bin"
     Example of TFTP:
       "python update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --targets https://10.10.10.10/redfish/v1/UpdateService/FirmwareInventory/Slot_7.Bundle --fsprotocol TFTP --fsip 10.10.10.11 --fsdir /fspath/ --image lnvgy_fw_sraidmr35_530-50.7.0-2054_linux_x86-64.bin"
     Example of HTTPPUSH:
       "python update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --fsprotocol HTTPPUSH --fsdir /fspath/ --image lnvgy_fw_sraidmr35_530-50.7.0-2054_linux_x86-64.bin"
-    Example of HTTP:
-      "python update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --fsprotocol HTTP --fsip 10.10.10.11 --fsport 80 --fsdir /fspath/ --image lnvgy_fw_raid_mr3.5.940-j9337-00b2_anyos_comp.zip"
     ''')
     add_helpmessage(argget)
     args = argget.parse_args()
@@ -376,6 +413,7 @@ def add_parameter():
     parameter_info['fspassword'] = args.fspassword
     parameter_info['fsdir'] = args.fsdir
     parameter_info['applytime'] = args.applytime
+    parameter_info['imageurl'] = args.imageurl
 
     # The parameters in the configuration file are used when the user does not specify parameters
     for key in parameter_info:
@@ -404,12 +442,13 @@ if __name__ == '__main__':
         fspassword = parameter_info['fspassword']
         fsdir = parameter_info['fsdir']
         applytime = parameter_info['applytime']
+        imageurl = parameter_info['imageurl']
     except:
         sys.stderr.write("Please run the command 'python %s -h' to view the help info" % sys.argv[0])
         sys.exit(1)
 
     # Update firmware result and check result
-    result = update_firmware(ip, login_account, login_password, image, targets, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir, applytime)
+    result = update_firmware(ip, login_account, login_password, image, targets, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir, imageurl, applytime)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
