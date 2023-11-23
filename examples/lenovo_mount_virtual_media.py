@@ -25,7 +25,7 @@ import json
 import time
 import traceback
 import lenovo_utils as utils
-from urllib.parse import urlparse
+from  mount_virtual_media import check_param
 
 
 def lenovo_mount_virtual_media(ip, login_account, login_password, image, mounttype, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir, readonly, domain, options,  inserted=True, writeprotocol=True, imageurl=None):
@@ -84,8 +84,8 @@ def lenovo_mount_virtual_media(ip, login_account, login_password, image, mountty
         if not result['ret']:
             return result
         else:
-            param = result['msg']
-        protocol,fsprotocol,fsport,fsdir,fsip,image,fsusername,fspassword = param['fsprotocol'].lower(), param['fsprotocol'].upper(),param['fsport'], param['fsdir'], param['fsip'], param['image'],  param["fsusername"], param["fspassword"]
+            image_info = result['image_info']
+        fsprotocol,fsport,fsdir,fsip,image,fsusername,fspassword = image_info
         
         # Get ServiceRoot resource
         response_base_url = REDFISH_OBJ.get('/redfish/v1', None)
@@ -224,23 +224,23 @@ def lenovo_mount_virtual_media(ip, login_account, login_password, image, mountty
             result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
                 virtual_media_url, response_virtual_media.status, error_message)}
             return result
-        if protocol == "samba":
+        if fsprotocol.lower() == "samba":
             source_url = "smb://" + fsip + fsport + fsdir + "/" + image
         else:
-            source_url = protocol + "://" + fsip + fsport + fsdir + "/" + image
+            source_url = fsprotocol.lower() + "://" + fsip + fsport + fsdir + "/" + image
         # Build file server image url
         if mounttype == "Network":
             # for 19A, XCC predefined 10 members, so call mount function for 19A. otherwise, call function for 18D.
             if len(members_list) == 10:
                 if fsprotocol in ["NFS", "HTTP", "CIFS", "HTTPS"]:
-                    result = mount_virtual_media(REDFISH_OBJ, members_list, protocol, fsip, fsport, fsdir, image, writeprotocol, inserted, fsusername, fspassword)
+                    result = mount_virtual_media(REDFISH_OBJ, members_list, fsprotocol.lower(), fsip, fsport, fsdir, image, writeprotocol, inserted, fsusername, fspassword)
                     return result
                 else:
                     result = {"ret": False, "msg": "For remote mounts, only HTTP, HTTPS, NFS(no credential required) and CIFS protocols are supported."}
                     return result
             elif len(members_list) == 4:
                 if fsprotocol in ["NFS", "CIFS", "HTTPS"]:
-                    result = mount_virtual_media_from_cd(REDFISH_OBJ, members_list, protocol, fsip, fsport, fsdir, image, fsusername, fspassword)
+                    result = mount_virtual_media_from_cd(REDFISH_OBJ, members_list, fsprotocol.lower(), fsip, fsport, fsdir, image, fsusername, fspassword)
                     return result
                 else:
                     result = {"ret": False, "msg": "For remote mounts, only HTTPS, NFS(no credential required) and CIFS protocols are supported."}
@@ -265,35 +265,6 @@ def lenovo_mount_virtual_media(ip, login_account, login_password, image, mountty
         except:
             pass
         return result
-
-def check_param(fsprotocol, fsip, fsport, fsdir, image, imageurl, fsusername, fspassword):
-    """Validation parameters"""
-    port = (lambda fsport: ":" + fsport if fsport else fsport)
-    dir = (lambda fsdir: "/" + fsdir.strip("/") if fsdir else fsdir)
-    kwargs = {}
-    if imageurl:
-        url = urlparse(imageurl)
-        if url.scheme:
-            if fsprotocol and url.scheme.lower() != fsprotocol.lower():
-                return {'ret':False, 'msg': "Please check if the fsprotocol and imageurl are the same.\n"}
-            fsprotocol = url.scheme
-        if url.netloc:
-            fsip = url.netloc
-            if "@" in fsip:
-                fsusername = fsip.split('@')[0].split(":")[0]
-                fspassword = fsip.split('@')[0].split(":")[1]
-                fsip = fsip.split("@")[1]
-        if url.path:
-            image = url.path.split('/')[-1]
-            fsdir = url.path.rsplit('/', 1)[0]
-    kwargs["fsprotocol"] = fsprotocol
-    kwargs["fsip"] = fsip
-    kwargs["fsdir"] = dir(fsdir)
-    kwargs['image'] = image
-    kwargs['fsport'] = port(fsport)
-    kwargs['fsusername'] = fsusername
-    kwargs['fspassword'] = fspassword
-    return {'ret': True, 'msg':kwargs}
 
 def flush():
     list = ['|', '\\', '-', '/']
@@ -577,9 +548,9 @@ import os
 def add_parameter():
     """Add mount media iso parameter"""
     argget = utils.create_common_parameter_list(example_string='''
-Example of HTTP/NFS:
-  "python lenovo_mount_virtual_media.py -i 10.10.10.10 -u USERID -p PASSW0RD --imageurl http://fsusername:fspassword@10.10.10.11/fspath/isoname.img"
-  "python lenovo_mount_virtual_media.py -i 10.10.10.10 -u USERID -p PASSW0RD --fsprotocol HTTP --fsip 10.10.10.11 --fsdir /fspath/ --image isoname.img"
+Example of HTTPS/NFS:
+  "python lenovo_mount_virtual_media.py -i 10.10.10.10 -u USERID -p PASSW0RD --imageurl https://10.10.10.11/fspath/isoname.img"
+  "python lenovo_mount_virtual_media.py -i 10.10.10.10 -u USERID -p PASSW0RD --fsprotocol HTTPS --fsip 10.10.10.11 --fsdir /fspath/ --image isoname.img"
 Example of SFTP/FTP/Samba:
   "python lenovo_mount_virtual_media.py -i 10.10.10.10 -u USERID -p PASSW0RD --imageurl sftp://fsusername:fspassword@10.10.10.11/fspath/isoname.img --mounttype RDOC"
   "python lenovo_mount_virtual_media.py -i 10.10.10.10 -u USERID -p PASSW0RD --fsprotocol SFTP --fsip 10.10.10.11 --fsusername mysftp --fspassword mypass --fsdir /fspath/ --image isoname.img"
