@@ -23,7 +23,6 @@
 # For other products, please use update_firmware.py directly.
 
 import sys
-from urllib.parse import urlparse
 import redfish
 import json
 import update_firmware
@@ -86,12 +85,12 @@ def lenovo_update_firmware(ip, login_account, login_password, image, targets, fs
             result = {'ret': False, 'msg': "Url '%s' response Error code %s, \nError message :%s" % ('/redfish/v1', response_base_url.status, message)}
             return result
         # Define an anonymous function formatting parameter
-        result = check_param(fsprotocol, fsip, fsport, fsdir, image, imageurl, fsusername, fspassword)
+        result = update_firmware.check_param(fsprotocol, fsip, fsport, fsdir, image, imageurl, fsusername, fspassword)
         if not result['ret']:
             return result
         else:
-            param = result['msg']
-        fsprotocol,fsport,fsdir,fsip,image,fsusername,fspassword = param['fsprotocol'].upper(),param['fsport'], param['fsdir'], param['fsip'], param['image'],  param["fsusername"], param["fspassword"]
+            image_info = result['image_info']
+        fsprotocol,fsport,fsdir,fsip,image,fsusername,fspassword = image_info
         response_update_service_url = REDFISH_OBJ.get(update_service_url, None)
         if response_update_service_url.status == 200:
             # For SR635/655
@@ -265,36 +264,6 @@ def lenovo_update_firmware(ip, login_account, login_password, image, targets, fs
         return result
 
 
-def check_param(fsprotocol, fsip, fsport, fsdir, image, imageurl, fsusername, fspassword):
-    """Validation parameters"""
-    port = (lambda fsport: ":" + fsport if fsport else fsport)
-    dir = (lambda fsdir: "/" + fsdir.strip("/") if fsdir else fsdir)
-    kwargs = {}
-    if imageurl:
-        url = urlparse(imageurl)  # ParseResult(scheme='https', netloc='fsusername:fspassword@fsip', path='fsdir', params='', query='', fragment='')
-        if url.scheme:
-            if fsprotocol and url.scheme.lower() != fsprotocol.lower():
-                return {'ret':False, 'msg': "Please check the fsprotocol, imageurl is the same\n"}
-            fsprotocol = url.scheme
-        if url.netloc:
-            fsip = url.netloc
-            if "@" in fsip:
-                fsusername = fsip.split('@')[0].split(":")[0]
-                fspassword = fsip.split('@')[0].split(":")[1]
-                fsip = fsip.split("@")[1]
-        if url.path:
-            image = url.path.split('/')[-1]
-            fsdir = url.path.rsplit('/', 1)[0]
-    kwargs["fsprotocol"] = fsprotocol
-    kwargs["fsip"] = fsip
-    kwargs["fsdir"] = dir(fsdir)
-    kwargs['image'] = image
-    kwargs['fsport'] = port(fsport)
-    kwargs['fsusername'] = fsusername
-    kwargs['fspassword'] = fspassword
-    return {'ret': True, 'msg':kwargs}
-
-
 def task_monitor(REDFISH_OBJ, task_uri):
     """Monitor task status"""
     END_TASK_STATE = ["Cancelled", "Completed", "Exception", "Killed", "Interrupted", "Suspended", "Done", "Failed when Flashing Image."]
@@ -354,10 +323,11 @@ import configparser
 def add_parameter():
     """Add update firmware parameter"""
     argget = utils.create_common_parameter_list(example_string='''
-    Example of HTTP:
-      "python lenovo_update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --imageurl http://fsusername:fspassword@10.10.10.11/upload/lnvgy_fw_uefi_cfe139h-7.24_anyos_32-64.rom"
-      "python lenovo_update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --targets BMC --fsprotocol HTTP --fsip 10.10.10.11 --fsport 80 --fsdir /fspath/ --image lnvgy_fw_bmc_ambt08l-1.82_anyos_arm.hpm"
+    Example of HTTPS:
+      "python lenovo_update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --targets BMC --imageurl https://10.10.10.11:80/fspath/lnvgy_fw_bmc_ambt08l-1.82_anyos_arm.hpm"
+      "python lenovo_update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --targets BMC --fsprotocol HTTPS --fsip 10.10.10.11 --fsport 80 --fsdir /fspath/ --image lnvgy_fw_bmc_ambt08l-1.82_anyos_arm.hpm"
     Example of SFTP:
+      "python lenovo_update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --targets https://10.10.10.10/redfish/v1/UpdateService/FirmwareInventory/BMC-Backup --imageurl sftp://mysftp:mypass@10.10.10.11/fspath/lnvgy_fw_xcc_cdi364m-5.40_anyos_noarch.uxz"                                
       "python lenovo_update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --targets https://10.10.10.10/redfish/v1/UpdateService/FirmwareInventory/BMC-Backup --fsprotocol SFTP --fsip 10.10.10.11 --fsusername mysftp --fspassword mypass --fsdir /fspath/ --image lnvgy_fw_xcc_cdi364m-5.40_anyos_noarch.uxz"
     Example of TFTP:
       "python lenovo_update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --targets https://10.10.10.10/redfish/v1/UpdateService/FirmwareInventory/BMC-Backup --fsprotocol TFTP --fsip 10.10.10.11 --fsdir /fspath/ --image lnvgy_fw_xcc_cdi364m-5.40_anyos_noarch.uxz"

@@ -250,8 +250,6 @@ def check_param(fsprotocol, fsip, fsport, fsdir, image, imageurl, fsusername, fs
         try:
             url = urlparse(imageurl)  # ParseResult(scheme='https', netloc='fsusername:fspassword@fsip', path='fsdir', params='', query='', fragment='')
             if url.scheme:
-                if fsprotocol and url.scheme.lower() != fsprotocol.lower():
-                    return {'ret':False, 'msg': "Please check if the fsprotocol and imageurl are the same.\n"}
                 fsprotocol = url.scheme
             if url.netloc:
                 fsip = url.netloc

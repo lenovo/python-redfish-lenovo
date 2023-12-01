@@ -88,9 +88,9 @@ def update_firmware(ip, login_account, login_password, image, targets, fsprotoco
         if not result['ret']:
             return result
         else:
-            param = result['msg']
-        fsprotocol,fsport,fsdir,fsip,image,fsusername,fspassword = param['fsprotocol'].upper(),param['fsport'], param['fsdir'], param['fsip'], param['image'], param["fsusername"], param["fspassword"]
-
+            image_info = result['image_info']
+        fsprotocol,fsport,fsdir,fsip,image,fsusername,fspassword = image_info
+        
         response_update_service_url = REDFISH_OBJ.get(update_service_url, None)
         if response_update_service_url.status == 200:
             # Update firmware via local payload
@@ -262,30 +262,24 @@ def check_param(fsprotocol, fsip, fsport, fsdir, image, imageurl, fsusername, fs
     """Validation parameters"""
     port = (lambda fsport: ":" + fsport if fsport else fsport)
     dir = (lambda fsdir: "/" + fsdir.strip("/") if fsdir else fsdir)
-    kwargs = {}
     if imageurl:
-        url = urlparse(imageurl)  # ParseResult(scheme='https', netloc='fsusername:fspassword@fsip', path='fsdir', params='', query='', fragment='')
-        if url.scheme:
-            if fsprotocol and url.scheme.lower() != fsprotocol.lower():
-                return {'ret':False, 'msg': "Please check the fsprotocol, imageurl is the same\n"}
-            fsprotocol = url.scheme
-        if url.netloc:
-            fsip = url.netloc
-            if "@" in fsip:
-                fsusername = fsip.split('@')[0].split(":")[0]
-                fspassword = fsip.split('@')[0].split(":")[1]
-                fsip = fsip.split("@")[1]
-        if url.path:
-            image = url.path.split('/')[-1]
-            fsdir = url.path.rsplit('/', 1)[0]
-    kwargs["fsprotocol"] = fsprotocol
-    kwargs["fsip"] = fsip
-    kwargs["fsdir"] = dir(fsdir)
-    kwargs['image'] = image
-    kwargs['fsport'] = port(fsport)
-    kwargs['fsusername'] = fsusername
-    kwargs['fspassword'] = fspassword
-    return {'ret': True, 'msg':kwargs}
+        try:
+            url = urlparse(imageurl)  # ParseResult(scheme='https', netloc='fsusername:fspassword@fsip', path='fsdir', params='', query='', fragment='')
+            if url.scheme:
+                fsprotocol = url.scheme
+            if url.netloc:
+                fsip = url.netloc
+                if "@" in fsip:
+                    fsusername, fspassword = fsip.split('@')[0].split(":")
+                    fsip = fsip.split("@")[1]
+            if url.path:
+                image = url.path.split('/')[-1]
+                fsdir = url.path.rsplit('/', 1)[0]
+        except Exception as e:
+            traceback.print_exc()
+            return {'ret':False,'msg': "Please check if the imageurl is correct.\nerror_message: %s" % (e)}
+    image_info = (fsprotocol.upper(),port(fsport),dir(fsdir),fsip,image,fsusername,fspassword)
+    return {'ret': True, 'msg':"Analysis successful", 'image_info': image_info}
 
 def flush(percent):
     list = ['|', '\\', '-', '/']
@@ -372,10 +366,11 @@ import configparser
 def add_parameter():
     """Add update firmware parameter"""
     argget = utils.create_common_parameter_list(example_string='''
-    Example of HTTP:
-      "python update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --imageurl http://fsusername:fspassword@10.10.10.11/upload/lnvgy_fw_xcc_cdi3b2o-9.87_anyos_noarch.uxz"
-      "python update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --fsprotocol HTTP --fsip 10.10.10.11 --fsport 80 --fsdir /fspath/ --image lnvgy_fw_raid_mr3.5.940-j9337-00b2_anyos_comp.zip"
+    Example of HTTPS:
+      "python update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --imageurl https://10.10.10.11:80/fspath/lnvgy_fw_raid_mr3.5.940-j9337-00b2_anyos_comp.zip"
+      "python update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --fsprotocol HTTPS --fsip 10.10.10.11 --fsport 80 --fsdir /fspath/ --image lnvgy_fw_raid_mr3.5.940-j9337-00b2_anyos_comp.zip"
     Example of SFTP:
+      "python update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --targets https://10.10.10.10/redfish/v1/UpdateService/FirmwareInventory/Slot_7.Bundle  --imageurl sftp://mysftp:mypass@10.10.10.11/fspath/lnvgy_fw_sraidmr35_530-50.7.0-2054_linux_x86-64.bin"
       "python update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --targets https://10.10.10.10/redfish/v1/UpdateService/FirmwareInventory/Slot_7.Bundle --fsprotocol SFTP --fsip 10.10.10.11 --fsusername mysftp --fspassword mypass --fsdir /fspath/ --image lnvgy_fw_sraidmr35_530-50.7.0-2054_linux_x86-64.bin"
     Example of TFTP:
       "python update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --targets https://10.10.10.10/redfish/v1/UpdateService/FirmwareInventory/Slot_7.Bundle --fsprotocol TFTP --fsip 10.10.10.11 --fsdir /fspath/ --image lnvgy_fw_sraidmr35_530-50.7.0-2054_linux_x86-64.bin"

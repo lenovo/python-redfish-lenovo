@@ -552,7 +552,7 @@ Example of HTTPS/NFS:
   "python lenovo_mount_virtual_media.py -i 10.10.10.10 -u USERID -p PASSW0RD --imageurl https://10.10.10.11/fspath/isoname.img"
   "python lenovo_mount_virtual_media.py -i 10.10.10.10 -u USERID -p PASSW0RD --fsprotocol HTTPS --fsip 10.10.10.11 --fsdir /fspath/ --image isoname.img"
 Example of SFTP/FTP/Samba:
-  "python lenovo_mount_virtual_media.py -i 10.10.10.10 -u USERID -p PASSW0RD --imageurl sftp://fsusername:fspassword@10.10.10.11/fspath/isoname.img --mounttype RDOC"
+  "python lenovo_mount_virtual_media.py -i 10.10.10.10 -u USERID -p PASSW0RD --imageurl sftp://mysftp:mypass@10.10.10.11/fspath/isoname.img --mounttype RDOC"
   "python lenovo_mount_virtual_media.py -i 10.10.10.10 -u USERID -p PASSW0RD --fsprotocol SFTP --fsip 10.10.10.11 --fsusername mysftp --fspassword mypass --fsdir /fspath/ --image isoname.img"
 ''')
     add_helpmessage(argget)
