@@ -370,8 +370,8 @@ def add_parameter():
       "python update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --imageurl https://10.10.10.11:80/fspath/lnvgy_fw_raid_mr3.5.940-j9337-00b2_anyos_comp.zip"
       "python update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --fsprotocol HTTPS --fsip 10.10.10.11 --fsport 80 --fsdir /fspath/ --image lnvgy_fw_raid_mr3.5.940-j9337-00b2_anyos_comp.zip"
     Example of SFTP:
-      "python update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --targets https://10.10.10.10/redfish/v1/UpdateService/FirmwareInventory/Slot_7.Bundle  --imageurl sftp://mysftp:mypass@10.10.10.11/fspath/lnvgy_fw_sraidmr35_530-50.7.0-2054_linux_x86-64.bin"
-      "python update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --targets https://10.10.10.10/redfish/v1/UpdateService/FirmwareInventory/Slot_7.Bundle --fsprotocol SFTP --fsip 10.10.10.11 --fsusername mysftp --fspassword mypass --fsdir /fspath/ --image lnvgy_fw_sraidmr35_530-50.7.0-2054_linux_x86-64.bin"
+      "python update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --targets https://10.10.10.10/redfish/v1/UpdateService/FirmwareInventory/Slot_7.Bundle  --imageurl sftp://mysftpuser:mysftppassword@10.10.10.11/fspath/lnvgy_fw_sraidmr35_530-50.7.0-2054_linux_x86-64.bin"
+      "python update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --targets https://10.10.10.10/redfish/v1/UpdateService/FirmwareInventory/Slot_7.Bundle --fsprotocol SFTP --fsip 10.10.10.11 --fsusername mysftpuser --fspassword mysftppassword --fsdir /fspath/ --image lnvgy_fw_sraidmr35_530-50.7.0-2054_linux_x86-64.bin"
     Example of TFTP:
       "python update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --targets https://10.10.10.10/redfish/v1/UpdateService/FirmwareInventory/Slot_7.Bundle --fsprotocol TFTP --fsip 10.10.10.11 --fsdir /fspath/ --image lnvgy_fw_sraidmr35_530-50.7.0-2054_linux_x86-64.bin"
     Example of HTTPPUSH:

@@ -327,8 +327,8 @@ def add_parameter():
       "python lenovo_update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --targets BMC --imageurl https://10.10.10.11:80/fspath/lnvgy_fw_bmc_ambt08l-1.82_anyos_arm.hpm"
       "python lenovo_update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --targets BMC --fsprotocol HTTPS --fsip 10.10.10.11 --fsport 80 --fsdir /fspath/ --image lnvgy_fw_bmc_ambt08l-1.82_anyos_arm.hpm"
     Example of SFTP:
-      "python lenovo_update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --targets https://10.10.10.10/redfish/v1/UpdateService/FirmwareInventory/BMC-Backup --imageurl sftp://mysftp:mypass@10.10.10.11/fspath/lnvgy_fw_xcc_cdi364m-5.40_anyos_noarch.uxz"                                
-      "python lenovo_update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --targets https://10.10.10.10/redfish/v1/UpdateService/FirmwareInventory/BMC-Backup --fsprotocol SFTP --fsip 10.10.10.11 --fsusername mysftp --fspassword mypass --fsdir /fspath/ --image lnvgy_fw_xcc_cdi364m-5.40_anyos_noarch.uxz"
+      "python lenovo_update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --targets https://10.10.10.10/redfish/v1/UpdateService/FirmwareInventory/BMC-Backup --imageurl sftp://mysftpuser:mysftppassword@10.10.10.11/fspath/lnvgy_fw_xcc_cdi364m-5.40_anyos_noarch.uxz"                                
+      "python lenovo_update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --targets https://10.10.10.10/redfish/v1/UpdateService/FirmwareInventory/BMC-Backup --fsprotocol SFTP --fsip 10.10.10.11 --fsusername mysftpuser --fspassword mysftppassword --fsdir /fspath/ --image lnvgy_fw_xcc_cdi364m-5.40_anyos_noarch.uxz"
     Example of TFTP:
       "python lenovo_update_firmware.py -i 10.10.10.10 -u USERID -p PASSW0RD --targets https://10.10.10.10/redfish/v1/UpdateService/FirmwareInventory/BMC-Backup --fsprotocol TFTP --fsip 10.10.10.11 --fsdir /fspath/ --image lnvgy_fw_xcc_cdi364m-5.40_anyos_noarch.uxz"
     Example of HTTPPUSH:
