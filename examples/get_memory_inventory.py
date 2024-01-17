@@ -97,7 +97,7 @@ def get_memory_inventory(ip, login_account, login_password, system_id, member_id
                                 list_memory_info.append(memory_info)
                                 continue
                             for key in response_sub_memory_url.dict:
-                                if key == "Oem":
+                                if key == 'Oem':
                                     continue
                                 if key not in ["Description", "@odata.context", "@odata.id", "@odata.type",
                                                "@odata.etag", "Links", "Actions", "RelatedItem"]:

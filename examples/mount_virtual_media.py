@@ -35,9 +35,9 @@ import redfish
 import json
 import traceback
 import lenovo_utils as utils
+from urllib.parse import urlparse
 
-
-def mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsport, fsusername, fspassword, image, fsdir, inserted=True, writeprotocol=True):
+def mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsport, fsusername, fspassword, image, fsdir, inserted=True, writeprotocol=True, imageurl=None):
     """Mount an ISO or IMG image file from a file server to the host as a DVD or USB drive.
     :params ip: BMC IP address
     :type ip: string
@@ -54,6 +54,8 @@ def mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsp
     :type inserted: int
     :params writeProtected:This value shall specify if the remote media is supposed to be treated as write protected. If this parameter is not provided by the client, the service shall default this value to be true
     :type writeProtected: int
+    :params imageurl:Specify the file link
+    :type imageurl:string
     :returns: returns mount media iso result when succeeded or error message when failed
     """
     result = {}
@@ -118,15 +120,16 @@ def mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsp
                             return result
 
                         # Define an anonymous function formatting parameter
-                        port = (lambda fsport: ":" + fsport if fsport else fsport)
-                        dir = (lambda fsdir: "/" + fsdir.strip("/") if fsdir else fsdir)
-                        protocol = fsprotocol.lower()
-                        fsport = port(fsport)
-                        fsdir = dir(fsdir)
+                        result = check_param(fsprotocol, fsip, fsport, fsdir, image, imageurl, fsusername, fspassword)
+                        if not result['ret']:
+                            return result
+                        else:
+                            image_info = result['image_info']
+                        fsprotocol,fsport,fsdir,fsip,image,fsusername,fspassword = image_info
 
                         # Get username and password for HTTPS file server
                         safe_https = False
-                        if protocol == "https" and fsusername and fspassword:
+                        if fsprotocol.lower() == "https" and fsusername and fspassword:
                             safe_https = True
 
                         # Get the members url from the members list
@@ -146,16 +149,16 @@ def mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsp
                             # Mount virtual media via patch
                             if members_url.split('/')[-1].startswith("EXT"):
                                 body = {}
-                                if protocol == "nfs":
+                                if fsprotocol.lower() == "nfs":
                                     image_uri = fsip + fsport + ":" + fsdir + "/" + image
-                                elif protocol == "cifs":
+                                elif fsprotocol.lower() == "cifs":
                                     image_uri = "//" + fsip + fsport + fsdir + "/" + image
                                 else:
-                                    image_uri = protocol + "://" + fsip + fsport + fsdir + "/" + image
+                                    image_uri = fsprotocol.lower() + "://" + fsip + fsport + fsdir + "/" + image
                                 if inserted is None:
                                     inserted = 1
-                                if protocol == "cifs" or safe_https is True:
-                                    body = {"Image": image_uri, "TransferProtocolType": protocol.upper(),
+                                if fsprotocol.lower() == "cifs" or safe_https is True:
+                                    body = {"Image": image_uri, "TransferProtocolType": fsprotocol.upper(),
                                             "UserName": fsusername, "Password": fspassword,
                                             "WriteProtected": bool(writeprotocol), "Inserted": bool(inserted)}
                                 else:
@@ -165,7 +168,7 @@ def mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsp
                                     result = {'ret': True, 'msg': "'%s' mount successfully" % image}
                                     return result
                                 else:
-                                    if protocol == "https":
+                                    if fsprotocol.lower() == "https":
                                         print("Error may be caused by failure to connect to the HTTPS file server. Please check its username and password requirements.")
                                     error_message = utils.get_extended_error(response)
                                     result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
@@ -185,11 +188,11 @@ def mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsp
 
                                     if fsprotocol.upper() in support_protocols:
                                         insert_url = response_members.dict["Actions"]["#VirtualMedia.InsertMedia"]["target"]
-                                        image_uri = protocol + "://" + fsip + fsport + fsdir + "/" + image
-                                        if protocol == 'nfs':
-                                            body = {"Image": image_uri, "TransferProtocolType": protocol.upper()}
+                                        image_uri = fsprotocol.lower() + "://" + fsip + fsport + fsdir + "/" + image
+                                        if fsprotocol.lower() == 'nfs':
+                                            body = {"Image": image_uri, "TransferProtocolType": fsprotocol.upper()}
                                         else:
-                                            body = {"Image": image_uri, "TransferProtocolType": protocol.upper(),
+                                            body = {"Image": image_uri, "TransferProtocolType": fsprotocol.upper(),
                                                     "UserName": fsusername, "Password": fspassword}
                                         response_insert = REDFISH_OBJ.post(insert_url, body=body)
                                         if response_insert.status in [200, 201, 204]:
@@ -238,7 +241,29 @@ def mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsp
         except:
             pass
         return result
-
+    
+def check_param(fsprotocol, fsip, fsport, fsdir, image, imageurl, fsusername, fspassword):
+    """Validation parameters"""
+    port = (lambda fsport: ":" + fsport if fsport else fsport)
+    dir = (lambda fsdir: "/" + fsdir.strip("/") if fsdir else fsdir)
+    if imageurl:
+        try:
+            url = urlparse(imageurl)  # ParseResult(scheme='https', netloc='fsusername:fspassword@fsip', path='fsdir', params='', query='', fragment='')
+            if url.scheme:
+                fsprotocol = url.scheme
+            if url.netloc:
+                fsip = url.netloc
+                if "@" in fsip:
+                    fsusername, fspassword = fsip.split('@')[0].split(":")
+                    fsip = fsip.split("@")[1]
+            if url.path:
+                image = url.path.split('/')[-1]
+                fsdir = url.path.rsplit('/', 1)[0]
+        except Exception as e:
+            traceback.print_exc()
+            return {'ret': False,'msg': "Please check if the imageurl is correct.\nerror_message: %s" % (e)}
+    image_info = (fsprotocol.upper(), port(fsport), dir(fsdir), fsip ,image, fsusername, fspassword)
+    return {'ret': True, 'msg':"Analysis successful", "image_info": image_info}
 
 def add_helpmessage(argget):
     argget.add_argument('--fsprotocol', type=str, nargs='?', choices=["NFS", "HTTP", "HTTPS", "CIFS"],
@@ -250,22 +275,23 @@ def add_helpmessage(argget):
                         help='Specify the file server username, available for CIFS')
     argget.add_argument('--fspassword', type=str, nargs='?',
                         help='Specify the file server password, available for CIFS')
-    argget.add_argument('--image', type=str, required=True, help='Mount media iso name')
+    argget.add_argument('--image', type=str,  help='Mount media iso name')
     #As inserted property must be true while mounting, so comment this argument
     #argget.add_argument('--inserted', type=int, nargs='?', default=1, choices=[0, 1],
     #                    help='Indicates if virtual media is inserted in the virtual device. Support: [0:False, 1:True].')
     argget.add_argument('--writeprotocol', type=int, nargs='?', default=1, choices=[0, 1],
                         help='Indicates the media is write protected. Support: [0:False, 1:True].')
 
-
+    argget.add_argument('--imageurl', type=str, help='Mount media iso link')
 import configparser
 import os
 def add_parameter():
     """Add mount media iso parameter"""
     argget = utils.create_common_parameter_list(example_string='''
-Example of HTTP/NFS:
-  "python mount_virtual_media.py -i 10.10.10.10 -u USERID -p PASSW0RD --fsprotocol HTTP --fsip 10.10.10.11 --fsdir /fspath/ --image isoname.img"
-''')
+Example of HTTPS/NFS:
+  "python mount_virtual_media.py -i 10.10.10.10 -u USERID -p PASSW0RD --imageurl https://10.10.10.11/fspath/isoname.img"
+  "python mount_virtual_media.py -i 10.10.10.10 -u USERID -p PASSW0RD --fsprotocol HTTPS --fsip 10.10.10.11 --fsdir /fspath/ --image isoname.img"
+    ''')
     add_helpmessage(argget)
     args = argget.parse_args()
     parameter_info = utils.parse_parameter(args)
@@ -294,6 +320,7 @@ Example of HTTP/NFS:
     parameter_info['fspassword'] = args.fspassword
     parameter_info['fsip'] = args.fsip
     parameter_info['fsdir'] = args.fsdir
+    parameter_info['imageurl'] = args.imageurl
 
 
     # The parameters in the configuration file are used when the user does not specify parameters
@@ -323,12 +350,13 @@ if __name__ == '__main__':
         image = parameter_info['image']
         fsdir = parameter_info['fsdir']
         writeprotocol = parameter_info['writeprotocol']
+        imageurl = parameter_info['imageurl']
     except:
         sys.stderr.write("Please run the command 'python %s -h' to view the help info" % sys.argv[0])
         sys.exit(1)
 
     # Get mount media iso result and check result
-    result = mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsport, fsusername, fspassword, image, fsdir, True, writeprotocol)
+    result = mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsport, fsusername, fspassword, image, fsdir, True, writeprotocol, imageurl)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
