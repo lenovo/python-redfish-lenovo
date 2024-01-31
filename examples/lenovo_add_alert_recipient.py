@@ -98,6 +98,9 @@ def lenovo_add_alert_recipient(ip, login_account, login_password, setting_dict):
         # POST setting info body to add one new recipient
         headers = {"Content-Type": "application/json"}
         response_add_recipient = REDFISH_OBJ.post(recipients_url,body=setting_dict, headers=headers)
+        if response_add_recipient.status == 400:
+            settings_dict = add_parameter_without_audit_events(setting_dict)
+            response_add_recipient = REDFISH_OBJ.post(recipients_url,body=settings_dict, headers=headers)
         if response_add_recipient.status in [200, 201]:
             result = {"ret":True,"msg":"Add alert recipientsuccessfully, id is %s." % setting_dict['Id']}
             return result
@@ -148,6 +151,15 @@ def add_helpmessage(argget):
     argget.add_argument('--WarningEvents', type=str, nargs='*', default='', help=help_str_warning)
     argget.add_argument('--SystemEvents', type=str, nargs='*', default='', help=help_str_system)
 
+
+def add_parameter_without_audit_events(setting_dict):
+    if len(setting_dict["RecipientSettings"]["EnabledAlerts"]["SystemEvents"]["AcceptedEvents"]) > 1:
+        all_system_events = ['SuccessfulRemoteLogin', 'OperatingSystemTimeout', 'AllOtherEvents', \
+                 'SystemPowerSwitch', 'OperatingSystemBootFailure','OperatingSystemLoaderWatchdogTimeout', \
+                 'PredictedFailure', 'EventLog75PercentFull', 'NetworkChange', 'AllOtherAuditEvents']
+        setting_dict["RecipientSettings"]["EnabledAlerts"]["SystemEvents"]["Enabled"] = True
+        setting_dict["RecipientSettings"]["EnabledAlerts"]["SystemEvents"]["AcceptedEvents"] = all_system_events
+    return setting_dict
 
 def add_parameter():
     # Common parameter handling
