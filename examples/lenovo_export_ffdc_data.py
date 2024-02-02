@@ -27,9 +27,10 @@ import traceback
 import lenovo_utils as utils
 import time
 import os
+from urllib.parse import urlparse
 
 
-def lenovo_export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir, logtype="Debuglog"):
+def lenovo_export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir, logtype="Debuglog", exporturl=None):
     """Export ffdc data    
     :params ip: BMC IP address
     :type ip: string
@@ -51,10 +52,18 @@ def lenovo_export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip,
     :type fsdir: string
     :params logtype: Specify the export data type
     :type logtype: string
+    :params exporturl: Specify the export url
+    :type exporturl: string
     :returns: returns export ffdc data result when succeeded or error message when failed
     """
 
     # Check parameter
+    result = check_parameter(fsprotocol, fsip, fsport, fsdir, fsusername, fspassword, exporturl)
+    if not result['ret']:
+        return result
+    else:
+        export_info = result['export_info']
+    fsprotocol,fsport,fsdir,fsip,fsusername,fspassword = export_info
     if fsprotocol and (fsip is None or fsip == ''):
         result = {'ret': False, 'msg': "fsip in needed for %s file server" %(fsprotocol)}
         return result
@@ -261,7 +270,26 @@ def lenovo_export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip,
             pass
         return result
 
-
+def check_parameter(fsprotocol, fsip, fsport, fsdir, fsusername, fspassword, exporturl):
+    """Check whether the parameter is valid"""
+    if exporturl:
+        try:
+            url = urlparse(exporturl)  # ParseResult(scheme='https', netloc='fsusername:fspassword@fsip', path='fsdir', params='', query='', fragment='')
+            print(url)
+            if url.scheme:
+                fsprotocol = url.scheme
+            if url.netloc:
+                fsip = url.netloc
+                if "@" in fsip:
+                    fsusername, fspassword = fsip.split('@')[0].split(":")
+                    fsip = fsip.split("@")[1]
+            if url.path:
+                fsdir = url.path
+        except Exception as e:
+            traceback.print_exc()
+            return {'ret':False,'msg': "Please check if the exporturl is correct.\nerror_message: %s" % (e)}
+    export_info = (fsprotocol,fsport,fsdir,fsip,fsusername,fspassword)
+    return {'ret': True, 'msg':"Analysis successful", 'export_info': export_info}
 def flush(percent):
     list = ['|', '\\', '-', '/']
     for i in list:
@@ -343,12 +371,19 @@ def add_helpmessage(argget):
     argget.add_argument('--fspassword', type=str, help='Specify the SFTP file server password.')
     argget.add_argument('--fsdir', type=str, help='Specify the directory under which ffdc data will be saved on file server.')
     argget.add_argument('--logtype', default='Debuglog', choices=["Debuglog","Minilog"], type=str, help='Specify export data type. Support:["Debuglog","Minilog"]')
-
+    argget.add_argument('--exporturl', type=str, help='Specify the export url.')
 
 import configparser
 def add_parameter():
     """Add get servicedata parameter"""
-    argget = utils.create_common_parameter_list()
+    argget = utils.create_common_parameter_list(example_string='''
+Example of HTTP/TFTP:
+    "python lenovo_export_ffdc_data.py -i 10.10.10.10 -u USERID -p PASSW0RD --exporturl http://10.10.10.11:80/fspath/"
+    "python lenovo_export_ffdc_data.py -i 10.10.10.10 -u USERID -p PASSW0RD --fsprotocol HTTP --fsip 10.10.10.11 --fsport 80 --fsdir /fspath/"
+Example of SFTP:
+    "python lenovo_export_ffdc_data.py -i 10.10.10.10 -u USERID -p PASSW0RD --exporturl sftp://mysftpuser:mysftppassword@10.10.10.11/fspath/"
+    "python lenovo_export_ffdc_data.py -i 10.10.10.10 -u USERID -p PASSW0RD --fsprotocol SFTP --fsip 10.10.10.11 --fsusername mysftpuser --fspassword mysftppassword --fsdir /fspath/"
+    ''')
     add_helpmessage(argget)
     args = argget.parse_args()
 
@@ -377,6 +412,7 @@ def add_parameter():
     parameter_info['fspassword'] = args.fspassword
     parameter_info['fsdir'] = args.fsdir
     parameter_info['logtype'] = args.logtype
+    parameter_info['exporturl'] = args.exporturl
 
     # The parameters in the configuration file are used when the user does not specify parameters
     for key in parameter_info:
@@ -403,9 +439,10 @@ if __name__ == '__main__':
     fspassword = parameter_info['fspassword']
     fsdir = parameter_info['fsdir']
     logtype = parameter_info['logtype']
+    exporturl = parameter_info['exporturl']
 
     # export ffdc result and check result
-    result = lenovo_export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir, logtype)
+    result = lenovo_export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir, logtype, exporturl)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
