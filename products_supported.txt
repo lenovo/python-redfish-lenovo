@@ -165,7 +165,7 @@ ThinkSystem AMD 1P (Rome/Milan):SR635, SR655
 ThinkSystem AMD 2P (Rome/Milan):SR645, SR665
 ThinkSystem Intel (Purley):     SR530, SR550, SR570, SR590, SR630,  SR650, SR670, SR850P, SR860, SR950, SD530, SD650, SN550, SN850, ST550
 ThinkSystem V2 Intel (Whitley): SR850 V2, SR860 V2, SR650 V2, SR630 V2, SR670 V2, ST650 V2, SN550 V2, SD650 V2, SD650-N V2, SD630 V2
-ThinkSystem V3 Intel (EGS):     SR650 V3, SR630 V3, SD650 V3, SD650-I V3, ST650 V3, SR860 V3, SR850 V3
-ThinkSystem V3 AMD (Genoa):     SR655 V3, SR635 V3, SR645 V3, SR665 V3, SD665 V3, SR675 V3
+ThinkSystem V3 Intel (EGS):     SR650 V3, SR630 V3, SD650 V3, SD650-I V3, ST650 V3, SR860 V3, SR850 V3, SR950 V3, SD650-N V3
+ThinkSystem V3 AMD (Genoa):     SR655 V3, SR635 V3, SR645 V3, SR665 V3, SD665 V3, SR675 V3, SD665-N V3, SE455 V3
 
 Note: on different products, there will be little different behaviors and properties per hardware design and Redfish spec/schema supported.
