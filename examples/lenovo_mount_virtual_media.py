@@ -86,6 +86,9 @@ def lenovo_mount_virtual_media(ip, login_account, login_password, image, mountty
         else:
             image_info = result['image_info']
         fsprotocol,fsport,fsdir,fsip,image,fsusername,fspassword = image_info
+        # If the fsprotocol is Samba, change it to uppercase for the first letter.
+        if fsprotocol == "SAMBA":
+            fsprotocol = fsprotocol.capitalize()
         
         # Get ServiceRoot resource
         response_base_url = REDFISH_OBJ.get('/redfish/v1', None)
