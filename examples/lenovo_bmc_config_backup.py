@@ -26,7 +26,6 @@ import traceback
 import lenovo_utils as utils
 import os
 import time
-from urllib.parse import urlparse
 
 # get file size
 def getDocSize(path):
@@ -37,7 +36,7 @@ def getDocSize(path):
         result = {'ret': False, 'msg': "Failed to get file size %s. " % path + str(err)}
         return result
 
-def lenovo_bmc_config_backup(ip, login_account, login_password, backup_password, backup_file, httpip, httpport, httpdir, backup_url=None):
+def lenovo_bmc_config_backup(ip, login_account, login_password, backup_password, backup_file, httpip, httpport, httpdir):
     """BMC configuration backup
         :params ip: BMC IP address
         :type ip: string
@@ -55,8 +54,6 @@ def lenovo_bmc_config_backup(ip, login_account, login_password, backup_password,
         :type httpport: int
         :params httpdir: Specify the file server dir to save
         :type httpdir: string
-        :params backup_url: Specify the backup dir url
-        :type backup_url: string
         :returns: returns BMC configuration backup result when succeeded or error message when failed
         """
 
@@ -108,14 +105,6 @@ def lenovo_bmc_config_backup(ip, login_account, login_password, backup_password,
         REDFISH_OBJ.logout()
         back_file.close()
         return result
-
-    # Check parameter
-    result = check_parameter(backup_password, backup_file, httpip, httpport, httpdir, backup_url)
-    if result['ret'] is False:
-        return result
-    else:
-        backup_info = result["backup_info"]
-    backup_password, backup_file, httpip, httpport, httpdir = backup_info
 
     for request in response_manager_url.dict['Members']:
         # Get /redfish/v1/Managers/1 resource
@@ -188,6 +177,7 @@ def lenovo_bmc_config_backup(ip, login_account, login_password, backup_password,
             body['serverPort'] = httpport
             body['folderPath'] = httpdir
             export_uri = 'http://' + httpip + ':' + str(httpport) + '/' + httpdir
+            
             backup_uri = '/redfish/v1/Managers/Self/Actions/Oem/Lenovo/Backup.start'
             time_start=time.time()
             response_backup_uri = REDFISH_OBJ.post(backup_uri, body=body)
@@ -197,6 +187,7 @@ def lenovo_bmc_config_backup(ip, login_account, login_password, backup_password,
                 REDFISH_OBJ.logout()
                 return result
             task_uri = response_backup_uri.dict['@odata.id']
+
             # Check task status
             task_state = ''
             messages = []
@@ -240,24 +231,6 @@ def lenovo_bmc_config_backup(ip, login_account, login_password, backup_password,
             REDFISH_OBJ.logout()
             return result
 
-def check_parameter(backup_password, backup_file, httpip, httpport, httpdir, backupurl):
-    if backupurl:
-        try:
-            url = urlparse(backupurl)
-            print(url)
-            if url.netloc:
-                if ":" in url.netloc:
-                    httpip, httpport = url.netloc.split(':')
-                else:
-                    httpip = url.netloc
-            if url.path:
-                httpdir = url.path.split('/',1)[1]
-        except:
-            error_message = "The backupurl parameter is invalid, please check it again"
-            result = {'ret': False, 'msg': error_message}
-            return result
-    backup_info = (backup_password, backup_file, httpip, int(httpport), httpdir)
-    return {"ret": True, "msg": "Parameter check passed", "backup_info": backup_info}
 
 def flush(percent):
     list = ['|', '\\', '-', '/']
@@ -278,20 +251,13 @@ def add_helpmessage(parser):
     parser.add_argument('--httpip', type=str, help='Specify http file server ip for SR635/SR655.')
     parser.add_argument('--httpport', type=int, default=80, help='Specify http file server port for SR635/SR655, default port is 80.')
     parser.add_argument('--httpdir', type=str, help='Specify the directory on http file server for SR635/SR655.')
-    parser.add_argument('--backupurl', type=str, help='Specify the back up url for SR635/SR655.')
+
 
 import configparser
 def add_parameter():
     """Add BMC configuration backup parameter"""
     parameter_info = {}
-    argget = utils.create_common_parameter_list(example_string=
-    '''
-    Example of HTTP:
-        "python lenovo_bmc_config_backup.py -i 10.10.10.10 -u USERID -p PASSW0RD --backuppasswd Aa1234567 --backupfile bmc-config.bin --backupurl http://10.10.10.11:80/upload"
-        "python lenovo_bmc_config_backup.py -i 10.10.10.10 -u USERID -p PASSW0RD --backuppasswd Aa1234567 --backupfile bmc-config.bin --httpip 10.10.10.11 --httpport 80 --httpdir upload"
-    Example of Local:
-        "python lenovo_bmc_config_backup.py -i 10.10.10.10 -u USERID -p PASSW0RD --backuppasswd Aa1234567 --backupfile bmc-config.bin"
-    ''')
+    argget = utils.create_common_parameter_list()
     add_helpmessage(argget)
     args = argget.parse_args()
 
@@ -325,7 +291,7 @@ def add_parameter():
     parameter_info["httpip"] = args.httpip
     parameter_info["httpport"] = args.httpport
     parameter_info["httpdir"] = args.httpdir
-    parameter_info["backupurl"] = args.backupurl
+
     # The parameters in the configuration file are used when the user does not specify parameters
     for key in parameter_info:
         if not parameter_info[key]:
@@ -350,9 +316,8 @@ if __name__ == '__main__':
     httpip = parameter_info["httpip"]
     httpport = parameter_info["httpport"]
     httpdir = parameter_info["httpdir"]
-    backup_url = parameter_info["backupurl"]
     #BMC configuration backup and check result
-    result = lenovo_bmc_config_backup(ip, login_account, login_password, backup_password, backup_file, httpip, httpport, httpdir, backup_url)
+    result = lenovo_bmc_config_backup(ip, login_account, login_password, backup_password, backup_file, httpip, httpport, httpdir)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))

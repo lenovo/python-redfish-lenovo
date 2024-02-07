@@ -26,7 +26,6 @@ import traceback
 import lenovo_utils as utils
 import os
 import time
-from urllib.parse import urlparse
 
 
 # get file size
@@ -78,7 +77,7 @@ def check_whether_new_schema(odatatype, REDFISH_OBJ):
     return boolret
 
 
-def lenovo_bmc_config_restore(ip, login_account, login_password, backup_password, backup_file, httpip, httpport, httpdir, restore_url=None):
+def lenovo_bmc_config_restore(ip, login_account, login_password, backup_password, backup_file, httpip, httpport, httpdir):
     """BMC configuration restore
         :params ip: BMC IP address
         :type ip: string
@@ -96,8 +95,6 @@ def lenovo_bmc_config_restore(ip, login_account, login_password, backup_password
         :type httpport: int
         :params httpdir: Specify the file server dir
         :type httpdir: string
-        :params restore_url: Specify the restore url
-        :type restore_url: string
         :returns: returns get bmc configuration result when succeeded or error message when failed
         """
 
@@ -161,14 +158,7 @@ def lenovo_bmc_config_restore(ip, login_account, login_password, backup_password
             result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
                 '/redfish/v1', response_base_url.status, error_message)}
             return result
-
-        # Check parameter
-        result = check_parameter(backup_password, backup_file, httpip, httpport, httpdir, restore_url)
-        if result['ret'] is False:
-            return result
-        else:
-            restore_info = result["restore_info"]
-        backup_password, backup_file, httpip, httpport, httpdir = restore_info
+    
         # Get /redfish/v1/Managers resource
         response_manager_url = REDFISH_OBJ.get(manager_url, None)
         bmc_time_detail = []
@@ -302,43 +292,19 @@ def lenovo_bmc_config_restore(ip, login_account, login_password, backup_password
             back_file.close()
 
 
-def check_parameter(backup_password, backup_file, httpip, httpport, httpdir, restore_url):
-    if restore_url:
-        try:
-            url = urlparse(restore_url)
-            if ":" in url.netloc:
-                httpip, httpport = url.netloc.split(':')
-            else:
-                httpip = url.netloc
-            if url.path:
-                httpdir = url.path
-        except:
-            error_message = "The restore_url parameter is invalid, please check it again"
-            result = {'ret': False, 'msg': error_message}
-            return result
-    restore_info = (backup_password, backup_file, httpip, int(httpport), httpdir)
-    return {"ret": True, "msg": "Parameter check passed", "restore_info": restore_info}
-
-
 def add_helpmessage(parser):
     parser.add_argument('--backuppasswd', type=str, required=True, help='The password that you specified when the configuration was exported')
     parser.add_argument('--backupfile', type=str, required=True, help='An file that contains the configuration you wish to restore from local or http file server. Note: SR635/SR655 not support local restore, only support restore from http file server')
     parser.add_argument('--httpip', type=str, help='Specify http file server ip for SR635/SR655.')
     parser.add_argument('--httpport', type=int, default=80, help='Specify http file server port for SR635/SR655, default port is 80.')
     parser.add_argument('--httpdir', type=str, help='Specify the directory on http file server for SR635/SR655.')
-    parser.add_argument('--restoreurl', type=str, help='Specify http file server url for SR635/SR655.')
+
 
 import configparser
 def add_parameter():
     """Add configuration restore parameter"""
     parameter_info = {}
-    argget = utils.create_common_parameter_list('''
-Example of HTTP:
-    "python lenovo_bmc_config_restore.py -i 10.10.10.10 -u USERID -p PASSW0RD --backuppasswd Aa1234567 --backupfile bmc-config.bin --restoreurl http://10.10.10.11:80/upload"
-    "python lenovo_bmc_config_restore.py -i 10.10.10.10 -u USERID -p PASSW0RD --backuppasswd Aa1234567 --backupfile bmc-config.bin --httpip 10.10.10.11 --httpport 80 --httpdir upload"
-Example of Local:
-    "python lenovo_bmc_config_restore.py -i 10.10.10.10 -u USERID -p PASSW0RD --backuppasswd Aa1234567 --backupfile bmc-config.bin"
-''')
+    argget = utils.create_common_parameter_list()
     add_helpmessage(argget)
     args = argget.parse_args()
 
@@ -372,7 +338,6 @@ Example of Local:
     parameter_info["httpip"] = args.httpip
     parameter_info["httpport"] = args.httpport
     parameter_info["httpdir"] = args.httpdir
-    parameter_info['restoreurl'] = args.restoreurl
 
     # The parameters in the configuration file are used when the user does not specify parameters
     for key in parameter_info:
@@ -399,9 +364,8 @@ if __name__ == '__main__':
     httpip = parameter_info["httpip"]
     httpport = parameter_info["httpport"]
     httpdir = parameter_info["httpdir"]
-    restore_url = parameter_info['restoreurl']
     # BMC configuration restore and check result
-    result = lenovo_bmc_config_restore(ip, login_account, login_password, backup_password, backup_file, httpip, httpport, httpdir, restore_url)
+    result = lenovo_bmc_config_restore(ip, login_account, login_password, backup_password, backup_file, httpip, httpport, httpdir)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
