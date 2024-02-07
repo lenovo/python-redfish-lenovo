@@ -274,8 +274,8 @@ def check_parameter(fsprotocol, fsip, fsport, fsdir, fsusername, fspassword, exp
     """Check whether the parameter is valid"""
     if exporturl:
         try:
-            url = urlparse(exporturl)  # ParseResult(scheme='https', netloc='fsusername:fspassword@fsip', path='fsdir', params='', query='', fragment='')
-            print(url)
+            # ParseResult(scheme='https', netloc='fsusername:fspassword@fsip', path='fsdir', params='', query='', fragment='')
+            url = urlparse(exporturl)
             if url.scheme:
                 fsprotocol = url.scheme
             if url.netloc:
@@ -377,7 +377,7 @@ import configparser
 def add_parameter():
     """Add get servicedata parameter"""
     argget = utils.create_common_parameter_list(example_string='''
-Example of HTTP/TFTP:
+Example of HTTP:
     "python lenovo_export_ffdc_data.py -i 10.10.10.10 -u USERID -p PASSW0RD --exporturl http://10.10.10.11:80/fspath/"
     "python lenovo_export_ffdc_data.py -i 10.10.10.10 -u USERID -p PASSW0RD --fsprotocol HTTP --fsip 10.10.10.11 --fsport 80 --fsdir /fspath/"
 Example of SFTP:
