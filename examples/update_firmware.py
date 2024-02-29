@@ -231,7 +231,17 @@ def update_firmware(ip, login_account, login_password, image, targets, fsprotoco
                 if result["ret"] is True:
                     task_state = result["task_state"]
                     if task_state == "Completed":
-                        result['msg'] = 'Update firmware successfully. %s' %(result['msg'])
+                        job_url = result["job_url"]
+                        if job_url:
+                            job_result = job_monitor(REDFISH_OBJ, job_url)
+                            if job_result["ret"] is True and job_result["job_state"] == "Completed" and job_result['percent']==100:
+                                result['ret'] = True
+                                result['msg'] = 'Update firmware successfully. %s' %(job_result['msg'])
+                            else:
+                                result['ret'] = False
+                                result['msg'] = 'Update firmware failed. %s' %(job_result['msg'])
+                        else:
+                            result['msg'] = 'Update firmware successfully. %s' %(result['msg'])
                     else:
                         result['ret'] = False
                         result['msg'] = 'Update firmware failed. %s' %(result['msg'])
@@ -299,12 +309,17 @@ def task_monitor(REDFISH_OBJ, task_uri):
     messages = []
     percent = 0
     num_503 = 0
+    job_url = None
     while True:
         response_task_uri = REDFISH_OBJ.get(task_uri, None)
         if response_task_uri.status == 200:
             task_state = response_task_uri.dict["TaskState"]
             if 'Messages' in response_task_uri.dict:
                 messages = response_task_uri.dict['Messages']
+                for message in messages:
+                    if message["MessageArgs"] and "Jobs" in message["MessageArgs"][0]:
+                        job_url = message['MessageArgs'][0]
+                        break
             if 'PercentComplete' in response_task_uri.dict:
                 percent = response_task_uri.dict['PercentComplete']
             if task_state in RUNNING_TASK_STATE:
@@ -330,7 +345,7 @@ def task_monitor(REDFISH_OBJ, task_uri):
                 sys.stdout.write(' ' * 100 + '\r')
                 sys.stdout.flush()
                 print("End of the task")
-                result = {'ret':True, 'task_state':task_state, 'msg': ' Messages: %s' %str(messages) if messages != [] else ''}
+                result = {'ret':True, 'task_state':task_state, 'msg': ' Messages: %s' %str(messages) if messages != [] else '', 'job_url':job_url}
                 return result
             else:
                 result = {'ret':False, 'task_state':task_state}
@@ -347,7 +362,48 @@ def task_monitor(REDFISH_OBJ, task_uri):
                     task_uri, response_task_uri.status, message)}
                 return result
 
-
+def job_monitor(REDFISH_OBJ, job_uri):
+    """Monitor job status"""
+    RUNNING_JOB_STATE = ["Pending", "Running"]
+    END_JOB_STATE = ["Cancelled", "Completed", "Exception"]
+    current_state = ""
+    messages = []
+    percent = 0
+    num_503 = 0
+    while True:
+        response_job_uri = REDFISH_OBJ.get(job_uri, None)
+        if response_job_uri.status == 200:
+            job_state = response_job_uri.dict["JobState"]
+            if 'Messages' in response_job_uri.dict:
+                messages = response_job_uri.dict['Messages']
+            if 'PercentComplete' in response_job_uri.dict:
+                percent = response_job_uri.dict['PercentComplete']
+            if job_state in RUNNING_JOB_STATE:
+                if job_state != current_state:
+                    current_state = job_state
+                    print('Job state is %s, wait a minute' % current_state)
+                    continue
+                else:
+                    flush(percent)
+            elif job_state in END_JOB_STATE:
+                sys.stdout.write(' ' * 100 + '\r')
+                sys.stdout.flush()
+                result = {'ret':True, 'job_state':job_state, 'msg': ' Messages: %s' %str(messages) if messages != [] else '', "percent": percent}
+                return result
+            else:
+                result = {'ret':False, 'job_state':job_state}
+                result['msg'] = ('Unknown JobState %s. ' %job_state) + 'Task Not conforming to Schema Specification. ' + (
+                    'Messages: %s' %str(messages) if messages != [] else '')
+                return result
+        else:
+            if response_job_uri.status == 503 and num_503 < 3:
+                num_503 += 1
+                continue
+            else:
+                message = utils.get_extended_error(response_job_uri)
+                result = {'ret': False, 'job_state':None, 'msg': "Url '%s' response Error code %s, \nError message :%s" % (
+                    job_uri, response_job_uri.status, message)}
+                return result
 import argparse
 def add_helpmessage(argget):
     argget.add_argument('--image', type=str, help='Specify the firmware to be updated.')
@@ -446,7 +502,7 @@ if __name__ == '__main__':
     result = update_firmware(ip, login_account, login_password, image, targets, fsprotocol, fsip, fsport, fsusername, fspassword, fsdir, imageurl, applytime)
     if result['ret'] is True:
         del result['ret']
-        sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
+        sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2) + '\n')
     else:
         sys.stderr.write(result['msg'] + '\n')
         sys.exit(1)
