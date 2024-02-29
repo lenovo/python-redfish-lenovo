@@ -107,7 +107,7 @@ if __name__ == '__main__':
     result = raw_command_get(ip, login_account, login_password, resource_uri)
     if result['ret'] is True:
         del result['ret']
-        sys.stdout.write(json.dumps(result['data'], sort_keys=True, indent=2))
+        sys.stdout.write(json.dumps(result['data'], sort_keys=True, indent=2) + '\n')
     else:
         sys.stderr.write(result['msg'] + '\n')
         sys.exit(1)

@@ -192,9 +192,9 @@ def subcmd_getbmc_main(args, parameter_info):
     
     if result['ret'] is True:
         del result['ret']
-        sys.stdout.write(json.dumps(result['entries'], sort_keys=True, indent=2))
+        sys.stdout.write(json.dumps(result['entries'], sort_keys=True, indent=2) + '\n')
     else:
-        sys.stderr.write(result['msg'])
+        sys.stderr.write(result['msg'] + '\n')
 
 
 if __name__ == '__main__':

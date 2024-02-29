@@ -236,7 +236,7 @@ if __name__ == '__main__':
     result = get_system_log(ip, login_account, login_password, system_id, args.type)
     if result['ret'] is True:
         filtered_entries = filter_system_log(result['entries'], args.severity, args.date)
-        sys.stdout.write(json.dumps(filtered_entries, sort_keys=True, indent=2))
+        sys.stdout.write(json.dumps(filtered_entries, sort_keys=True, indent=2) + '\n')
     else:
-        sys.stderr.write(result['msg'])
+        sys.stderr.write(result['msg'] + '\n')
         sys.exit(1)

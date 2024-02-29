@@ -272,7 +272,7 @@ if __name__ == '__main__':
     result = lenovo_callhome_setting(ip, login_account, login_password, parameter_info["callhomesetting_dict"], parameter_info["httpproxy_dict"])
     if result['ret'] is True:
         del result['ret']
-        sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
+        sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2) + '\n')
     else:
         sys.stderr.write(result['msg'] + '\n')
         sys.exit(1)

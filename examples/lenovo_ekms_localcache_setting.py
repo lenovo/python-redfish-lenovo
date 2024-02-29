@@ -168,7 +168,7 @@ if __name__ == '__main__':
     result = lenovo_ekms_localcache_setting(ip, login_account, login_password, ekms_local_cache_enabled, ekms_local_cache_expiration)
     if result['ret'] is True:
         del result['ret']
-        sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
+        sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2) + '\n')
     else:
-        sys.stderr.write(result['msg'])
+        sys.stderr.write(result['msg'] + '\n')
         sys.exit(1)

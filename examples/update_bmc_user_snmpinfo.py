@@ -247,7 +247,7 @@ if __name__ == '__main__':
     result = update_bmc_user_snmpinfo(ip, login_account, login_password, username, authentication_protocol, privacy_protocol, privacy_password)
     if result['ret'] is True:
         del result['ret']
-        sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
+        sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2) + '\n')
     else:
         sys.stderr.write(result['msg'] + '\n')
         sys.exit(1)

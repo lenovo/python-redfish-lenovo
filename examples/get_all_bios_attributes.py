@@ -158,7 +158,7 @@ if __name__ == '__main__':
     result = get_all_bios_attributes(ip, login_account, login_password, system_id, bios_get)
     if result['ret'] is True:
         del result['ret']
-        sys.stdout.write(json.dumps(result['attributes'], sort_keys=True, indent=2))
+        sys.stdout.write(json.dumps(result['attributes'], sort_keys=True, indent=2) + '\n')
     else:
-        sys.stderr.write(result['msg'])
+        sys.stderr.write(result['msg'] + '\n')
         sys.exit(1)

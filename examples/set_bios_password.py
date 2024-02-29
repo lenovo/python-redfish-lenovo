@@ -243,7 +243,7 @@ if __name__ == '__main__':
     result = set_bios_password(ip, login_account, login_password, system_id, bios_password_name, bios_password, bios_oldpassword)
     if result['ret'] is True:
         del result['ret']
-        sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
+        sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2) + '\n')
     else:
         sys.stderr.write(result['msg'] + '\n')
         sys.exit(1)
