@@ -144,7 +144,7 @@ if __name__ == '__main__':
     result = set_server_boot_once(ip, login_account, login_password, system_id, boot_source, boot_mode)
     if result['ret'] is True:
         del result['ret']
-        sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
+        sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2) + '\n')
     else:
         sys.stderr.write(result['msg'] + '\n')
         sys.exit(1)

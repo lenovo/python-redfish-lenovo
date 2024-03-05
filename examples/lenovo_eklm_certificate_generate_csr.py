@@ -221,7 +221,7 @@ if __name__ == '__main__':
     result = lenovo_eklm_certificate_generate_csr(ip, login_account, login_password, Country, StateOrProvince, Locality, Organization, HostName)
     if result['ret'] is True:
         del result['ret']
-        sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2))
+        sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2) + '\n')
     else:
         sys.stderr.write(result['msg'] + '\n')
         sys.exit(1)

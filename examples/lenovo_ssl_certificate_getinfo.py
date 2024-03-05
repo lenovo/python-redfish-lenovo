@@ -196,7 +196,7 @@ if __name__ == '__main__':
     result = lenovo_ssl_certificate_getinfo(ip, login_account, login_password)
     if result['ret'] is True:
         del result['ret']
-        sys.stdout.write(json.dumps(result['entries'], sort_keys=True, indent=2))
+        sys.stdout.write(json.dumps(result['entries'], sort_keys=True, indent=2) + '\n')
     else:
         sys.stderr.write(result['msg'] + '\n')
         sys.exit(1)
