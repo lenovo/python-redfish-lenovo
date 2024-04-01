@@ -143,7 +143,7 @@ import argparse
 def add_helpmessage(argget):
     argget.add_argument('--username', type=str, help='Input the name of BMC user to be updated.')
     argget.add_argument('--accounttype', type=str, required=True, nargs="+", choices=["WebUI","Redfish","ManagerConsole","IPMI","SNMP"], help='Input account type of BMC user')
-    argget.add_argument('--newpassword', type=str, help='Input the password for the user specified, only needed when you specified "IPMI" in accounttype.')
+    argget.add_argument('--newpassword', type=str, help='Input the password for the user specified, only needed when you specified "IPMI" or "SNMP" in accounttype.')
     argget.add_argument('--url', type=str, help='Input account url of BMC user to update the account type.(e.g., /redfish/v1/AccountService/Accounts/2)')
 
 
@@ -156,7 +156,7 @@ def add_parameter():
         Change the account type for the specified user:
             "python update_bmc_user_account_type.py -i 10.10.10.10 -u USERID -p PASSW0RD --username USERNAME --accounttype WebUI Redfish"
             "python update_bmc_user_account_type.py -i 10.10.10.10 -u USERID -p PASSW0RD --accounttype WebUI Redfish --url /redfish/v1/AccountService/Accounts/2"
-            "python update_bmc_user_account_type.py -i 10.10.10.10 -u USERID -p PASSW0RD --accounttype WebUI Redfish IPMI --newpassword NEWPASSWORD --url /redfish/v1/AccountService/Accounts/2"
+            "python update_bmc_user_account_type.py -i 10.10.10.10 -u USERID -p PASSW0RD --accounttype WebUI Redfish IPMI SNMP --newpassword NEWPASSWORD --url /redfish/v1/AccountService/Accounts/2"
             """
     argget = utils.create_common_parameter_list(example_string=example)
     add_helpmessage(argget)
