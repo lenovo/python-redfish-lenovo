@@ -63,7 +63,7 @@ def update_bmc_user_account_type(ip, login_account, login_password, username, ac
     parameter = {"AccountTypes": account_type}
     if "IPMI" in account_type or "SNMP" in account_type:
         if new_password == None:
-            result = {'ret': False, 'msg': "You must specify newpassword for the account you want to change because IPMI is specified in account type. \n"}
+            result = {'ret': False, 'msg': "You must specify newpassword for the account you want to change because IPMI or SNMP is specified in account type. \n"}
             return result
         parameter['Password'] = new_password
     
@@ -156,7 +156,7 @@ def add_parameter():
         Change the account type for the specified user:
             "python update_bmc_user_account_type.py -i 10.10.10.10 -u USERID -p PASSW0RD --username USERNAME --accounttype WebUI Redfish"
             "python update_bmc_user_account_type.py -i 10.10.10.10 -u USERID -p PASSW0RD --accounttype WebUI Redfish --url /redfish/v1/AccountService/Accounts/2"
-            "python update_bmc_user_account_type.py -i 10.10.10.10 -u USERID -p PASSW0RD --accounttype WebUI Redfish IPMI SNMP --newpassword NEWPASSWORD --url /redfish/v1/AccountService/Accounts/2"
+            "python update_bmc_user_account_type.py -i 10.10.10.10 -u USERID -p PASSW0RD --accounttype WebUI Redfish IPMI --newpassword NEWPASSWORD --url /redfish/v1/AccountService/Accounts/2"
             """
     argget = utils.create_common_parameter_list(example_string=example)
     add_helpmessage(argget)
