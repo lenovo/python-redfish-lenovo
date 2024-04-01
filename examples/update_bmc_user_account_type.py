@@ -61,7 +61,7 @@ def update_bmc_user_account_type(ip, login_account, login_password, username, ac
     # default user account url, treat userid 1 as default account
     account_x_url = '/redfish/v1/AccountService/Accounts/1'
     parameter = {"AccountTypes": account_type}
-    if "IPMI" in account_type:
+    if "IPMI" in account_type or "SNMP" in account_type:
         if new_password == None:
             result = {'ret': False, 'msg': "You must specify newpassword for the account you want to change because IPMI is specified in account type. \n"}
             return result
