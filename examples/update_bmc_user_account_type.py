@@ -61,9 +61,9 @@ def update_bmc_user_account_type(ip, login_account, login_password, username, ac
     # default user account url, treat userid 1 as default account
     account_x_url = '/redfish/v1/AccountService/Accounts/1'
     parameter = {"AccountTypes": account_type}
-    if "IPMI" in account_type:
+    if "IPMI" in account_type or "SNMP" in account_type:
         if new_password == None:
-            result = {'ret': False, 'msg': "You must specify newpassword for the account you want to change because IPMI is specified in account type. \n"}
+            result = {'ret': False, 'msg': "You must specify newpassword for the account you want to change because IPMI or SNMP is specified in account type. \n"}
             return result
         parameter['Password'] = new_password
     
@@ -143,7 +143,7 @@ import argparse
 def add_helpmessage(argget):
     argget.add_argument('--username', type=str, help='Input the name of BMC user to be updated.')
     argget.add_argument('--accounttype', type=str, required=True, nargs="+", choices=["WebUI","Redfish","ManagerConsole","IPMI","SNMP"], help='Input account type of BMC user')
-    argget.add_argument('--newpassword', type=str, help='Input the password for the user specified, only needed when you specified "IPMI" in accounttype.')
+    argget.add_argument('--newpassword', type=str, help='Input the password for the user specified, only needed when you specified "IPMI" or "SNMP" in accounttype.')
     argget.add_argument('--url', type=str, help='Input account url of BMC user to update the account type.(e.g., /redfish/v1/AccountService/Accounts/2)')
 
 
