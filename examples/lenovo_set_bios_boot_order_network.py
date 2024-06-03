@@ -27,7 +27,7 @@ import traceback
 import lenovo_utils as utils
 
 
-def lenovo_set_bios_boot_order(ip, login_account, login_password, system_id, bootorder):
+def lenovo_set_bios_boot_order_network(ip, login_account, login_password, system_id, bootorder):
     """set bios boot order of network
     :params ip: BMC IP address
     :type ip: string
@@ -159,7 +159,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     # Get set bios boot order of network result and check result
-    result = lenovo_set_bios_boot_order(ip, login_account, login_password, system_id, bootorder)
+    result = lenovo_set_bios_boot_order_network(ip, login_account, login_password, system_id, bootorder)
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2) + '\n')
