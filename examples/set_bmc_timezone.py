@@ -71,20 +71,8 @@ def set_bmc_timezone(ip, login_account, login_password, timezone):
         return result
     for request in response_manager_url.dict['Members']:
         request_url = request['@odata.id']
-        response_url = REDFISH_OBJ.get(request_url, None)
-        if response_url.status != 200:
-            error_message = utils.get_extended_error(response_url)
-            result = {'ret': False, 'msg': "Url '%s' response error code %s \nerror_message: %s" % (
-                request_url, response_url.status, error_message)}
-            REDFISH_OBJ.logout()
-            return result
-
-        # get etag to set If-Match precondition
-        if "@odata.etag" in response_url.dict:
-            etag = response_url.dict['@odata.etag']
-        else:
-            etag = "*"
-        headers = {"If-Match": etag}
+        
+        headers = {"If-Match": "*"}
 
         # Build patch body for request to set timezone
         payload = {"DateTimeLocalOffset":timezone}
