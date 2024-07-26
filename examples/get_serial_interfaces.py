@@ -81,7 +81,11 @@ def get_serial_interfaces(ip, login_account, login_password, interfaceid):
             manager_url_response = REDFISH_OBJ.get(manager_url, None)
             if manager_url_response.status == 200:
                 # Get the serial interfaces url
-                serial_interfaces_url = manager_url_response.dict['SerialInterfaces']['@odata.id']
+                if 'SerialInterfaces' in manager_url_response.dict:
+                    serial_interfaces_url = manager_url_response.dict['SerialInterfaces']['@odata.id']
+                else:
+                    result = {'ret': False, 'msg': "The serial interface resource does not exist."}
+                    return result
             else:
                 error_message = utils.get_extended_error(manager_url_response)
                 result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (manager_url, manager_url_response.status, error_message)}
