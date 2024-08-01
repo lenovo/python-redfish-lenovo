@@ -100,7 +100,11 @@ def lenovo_set_serial_interfaces(ip, login_account, login_password, interfaceid,
             manager_x_url_response = REDFISH_OBJ.get(manager_x_url, None)
             if manager_x_url_response.status == 200:
                 # Get the serial interfaces url
-                serial_interfaces_url = manager_x_url_response.dict['SerialInterfaces']['@odata.id']
+                if 'SerialInterfaces' in manager_x_url_response.dict:
+                    serial_interfaces_url = manager_x_url_response.dict['SerialInterfaces']['@odata.id']
+                else:
+                    result = {'ret': False, 'msg': "The serial interface resource does not exist."}
+                    return result
             else:
                 try:
                     error_message = utils.get_extended_error(manager_x_url_response)
@@ -173,10 +177,10 @@ def lenovo_set_serial_interfaces(ip, login_account, login_password, interfaceid,
                                 lenovo['EnterCLIKeySequence'] = clikey
                 else:
                     try:
-                        error_message = utils.get_extended_error(response_serial_interfaces_x_ur)
+                        error_message = utils.get_extended_error(response_serial_interfaces_x_url)
                     except:
-                        error_message = response_serial_interfaces_x_ur
-                    result = {'ret': False, 'msg': "response response_serial_interfaces_x_ur Error code %s \nerror_message: %s" % (response_serial_interfaces_x_ur.status, error_message)}
+                        error_message = response_serial_interfaces_x_url
+                    result = {'ret': False, 'msg': "response response_serial_interfaces_x_ur Error code %s \nerror_message: %s" % (response_serial_interfaces_x_url.status, error_message)}
                     return result
 
                 # Add in serial oem properies value to body
