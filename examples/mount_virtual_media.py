@@ -96,6 +96,7 @@ def mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsp
                 for i in range(count):
                     manager_url = response_url.dict['Members'][i]['@odata.id']
                     response_x_url = REDFISH_OBJ.get(manager_url, None)
+                    model = response_x_url.dict['Model']
                     virtual_media_url = ""
                     if response_x_url.status == 200:
                         # Get the virtual media url
@@ -149,16 +150,22 @@ def mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsp
                             # Mount virtual media via patch
                             if members_url.split('/')[-1].startswith("EXT"):
                                 body = {}
-                                if fsprotocol.lower() == "nfs":
-                                    image_uri = fsip + fsport + ":" + fsdir + "/" + image
-                                elif fsprotocol.lower() == "cifs":
-                                    image_uri = "//" + fsip + fsport + fsdir + "/" + image
+                                if fsprotocol.lower() == "cifs":
+                                    if "V4" in model.upper():
+                                        image_uri = "smb://" + fsip + fsport + fsdir + "/" + image
+                                    else:
+                                        image_uri = "//" + fsip + fsport + fsdir + "/" + image
+                                elif fsprotocol.lower() == "nfs":
+                                    if "V4" in model.upper():
+                                        image_uri = fsprotocol.lower() + "://" + fsip + fsport + fsdir + "/" + image
+                                    else:
+                                        image_uri = fsip + fsport + ":" + fsdir + "/" + image
                                 else:
                                     image_uri = fsprotocol.lower() + "://" + fsip + fsport + fsdir + "/" + image
                                 if inserted is None:
                                     inserted = 1
                                 if fsprotocol.lower() == "cifs" or safe_https is True:
-                                    body = {"Image": image_uri, "TransferProtocolType": fsprotocol.upper(),
+                                    body = {"Image": image_uri,
                                             "UserName": fsusername, "Password": fspassword,
                                             "WriteProtected": bool(writeprotocol), "Inserted": bool(inserted)}
                                 else:
@@ -244,7 +251,7 @@ def mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsp
     
 def check_param(fsprotocol, fsip, fsport, fsdir, image, imageurl, fsusername, fspassword):
     """Validation parameters"""
-    port = (lambda fsport: ":" + fsport if fsport else fsport)
+    port = (lambda fsport: ":" + fsport.strip(":") if fsport else fsport)
     dir = (lambda fsdir: "/" + fsdir.strip("/") if fsdir else fsdir)
     if imageurl:
         try:
@@ -291,6 +298,9 @@ def add_parameter():
 Example of HTTPS/NFS:
   "python mount_virtual_media.py -i 10.10.10.10 -u USERID -p PASSW0RD --imageurl https://10.10.10.11/fspath/isoname.img"
   "python mount_virtual_media.py -i 10.10.10.10 -u USERID -p PASSW0RD --fsprotocol HTTPS --fsip 10.10.10.11 --fsdir /fspath/ --image isoname.img"
+Example of CIFS:
+    "python mount_virtual_media.py -i 10.10.10.10 -u USERID -p PASSW0RD --fsprotocol CIFS --fsip 10.10.10.11 --fsdir /fspath/ --fsusername username --fspassword password --image isoname.img"
+    "python mount_virtual_media.py -i 10.10.10.10 -u USERID -p PASSW0RD --imageurl cifs://10.10.10.11/fspath/isoname.img"
     ''')
     add_helpmessage(argget)
     args = argget.parse_args()

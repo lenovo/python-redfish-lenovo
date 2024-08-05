@@ -160,10 +160,16 @@ def add_event_subscriptions(ip, login_account, login_password, destination, subs
 
                     # Perform post to create new subscription
                     response_add_subscriptions = REDFISH_OBJ.post(subscriptions_url,body=parameter, headers=headers)
-                    if response_add_subscriptions.status == 200 or response_add_subscriptions.status == 201:
+                    if response_add_subscriptions.status == 200:
                         rt_link = login_host + "/" + response_add_subscriptions.dict["@odata.id"]
                         id = rt_link.split("/")[-1]
-                        result = {"ret":True,"msg":"Add event subscriptions successfully,subscription id is " + id + ",subscription's link is:" + rt_link}
+                        result = {"ret": True, "msg": "Add event subscriptions successfully,subscription id is " + id + ",subscription's link is:" + rt_link}
+                        return result
+                    elif response_add_subscriptions.status == 201:
+                        location = response_add_subscriptions.getheader("Location")
+                        rt_link = login_host + location
+                        id = rt_link.split("/")[-1]
+                        result = {"ret": True, "msg": "Add event subscriptions successfully,subscription id is " + id + ",subscription's link is:" + rt_link}
                         return result
                     else:
                         error_message = utils.get_extended_error(response_add_subscriptions)
