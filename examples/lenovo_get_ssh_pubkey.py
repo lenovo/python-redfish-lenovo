@@ -91,10 +91,27 @@ def lenovo_get_ssh_pubkey(ip, login_account, login_password, user_name):
                         pubkey_dict = {}
                         pubkey_dict["Id"] = account_url_response.dict["Id"]
                         pubkey_dict["UserName"] = user_name
-                        try:
+                        pubkey_dict["SSHPublicKey"] = []
+
+                        if "Keys" in account_url_response.dict:
+                            account_keys_url = account_url_response.dict["Keys"]["@odata.id"]
+                            account_keys_url_response = REDFISH_OBJ.get(account_keys_url)
+                            if account_keys_url_response.status == 200:
+                                account_keys_url_list = account_keys_url_response.dict["Members"]
+                                for keys_dict in account_keys_url_list:
+                                    key_url = keys_dict["@odata.id"]
+                                    key_url_response = REDFISH_OBJ.get(key_url)
+                                    if key_url_response.status == 200:
+                                        pubkey_dict["SSHPublicKey"].append(key_url_response.dict["KeyString"])
+                            else:
+                                error_message = utils.get_extended_error(account_keys_url_response)
+                                result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                                    account_keys_url, account_keys_url_response.status, error_message)}
+                                return result
+                        elif "Oem" in account_url_response.dict and "Lenovo" in account_url_response.dict["Oem"] and "SSHPublicKey" in account_url_response.dict["Oem"]["Lenovo"]:
                             pubkey_dict["SSHPublicKey"] = account_url_response.dict["Oem"]["Lenovo"]["SSHPublicKey"]
-                        except:
-                            result = {"ret":False, "msg":"Not support resource Oem.Lenovo.SSHPublicKey in Account"}
+                        else:
+                            result = {"ret":False, "msg":"Not support resource SSHPublicKey in Account"}
                             return result
 
                         result = {"ret":True, "entries":pubkey_dict}

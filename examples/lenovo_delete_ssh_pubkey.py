@@ -27,7 +27,7 @@ import redfish
 import lenovo_utils as utils
 
 
-def lenovo_delete_ssh_pubkey(ip, login_account, login_password, user_name):
+def lenovo_delete_ssh_pubkey(ip, login_account, login_password, user_name, keyid=None):
     """Delete SSH Pubkey    
     :params ip: BMC IP address
     :type ip: string
@@ -86,26 +86,61 @@ def lenovo_delete_ssh_pubkey(ip, login_account, login_password, user_name):
                 account_url_response = REDFISH_OBJ.get(account_url)
                 if account_url_response.status == 200:
                     if user_name == account_url_response.dict["UserName"]:
-                        try:
-                            temp = account_url_response.dict["Oem"]["Lenovo"]["SSHPublicKey"]
-                        except:
-                            result = {"ret":False, "msg":"Not support resource Oem.Lenovo.SSHPublicKey in Account"}
-                            return result
+                        if "Keys" in account_url_response.dict:
+                            account_keys_url = account_url_response.dict["Keys"]["@odata.id"]
+                            account_keys_url_response = REDFISH_OBJ.get(account_keys_url)
+                            if account_keys_url_response.status == 200:
+                                account_keys_url_list = account_keys_url_response.dict["Members"]
+                                if keyid is None or keyid == '':
+                                    for keys_dict in account_keys_url_list:
+                                        key_url = keys_dict["@odata.id"]
+                                        key_url_response = REDFISH_OBJ.delete(key_url)
+                                        if key_url_response.status != 204:
+                                            error_message = utils.get_extended_error(set_sshpubkey_response)
+                                            result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                                                key_url, key_url_response.status, error_message)}
+                                            return result
+                                else:
+                                    findKeyid = False
+                                    for keys_dict in account_keys_url_list:
+                                        key_url = keys_dict["@odata.id"]
+                                        if str(keyid) == key_url.split("/")[-1].split("_")[-1]:
+                                            findKeyid = True
+                                            key_url_response = REDFISH_OBJ.delete(key_url)
+                                            if key_url_response.status != 204:
+                                                error_message = utils.get_extended_error(set_sshpubkey_response)
+                                                result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                                                    key_url, key_url_response.status, error_message)}
+                                                return result
+                                    if not findKeyid:
+                                        result = {"ret":False, "msg":"The specify key id is not exist"}
+                                        return result
 
-                        if "@odata.etag" in account_url_response.dict:
-                            etag = account_url_response.dict['@odata.etag']
+                                result = {"ret":True,"msg":"Delete ssh public key successfully"}
+                                return result
+                            else:
+                                error_message = utils.get_extended_error(account_keys_url_response)
+                                result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                                    account_keys_url, account_keys_url_response.status, error_message)}
+                                return result
+                        elif "Oem" in account_url_response.dict and "Lenovo" in account_url_response.dict["Oem"] and "SSHPublicKey" in account_url_response.dict["Oem"]["Lenovo"]:
+                            if "@odata.etag" in account_url_response.dict:
+                                etag = account_url_response.dict['@odata.etag']
+                            else:
+                                etag = ""
+                            headers = {"If-Match": etag}
+                            parameter = {"Oem":{"Lenovo":{"SSHPublicKey":[None,None,None,None]}}}
+                            set_sshpubkey_response = REDFISH_OBJ.patch(account_url,body=parameter,headers=headers)
+                            if set_sshpubkey_response.status == 200:
+                                result = {"ret":True,"msg":"Delete ssh public key successfully"}
+                                return result
+                            else:
+                                error_message = utils.get_extended_error(set_sshpubkey_response)
+                                result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                                    account_url, set_sshpubkey_response.status, error_message)}
+                                return result
                         else:
-                            etag = ""
-                        headers = {"If-Match": etag}
-                        parameter = {"Oem":{"Lenovo":{"SSHPublicKey":[None,None,None,None]}}}
-                        set_sshpubkey_response = REDFISH_OBJ.patch(account_url,body=parameter,headers=headers)
-                        if set_sshpubkey_response.status == 200:
-                            result = {"ret":True,"msg":"Delete ssh public key successfully"}
-                            return result
-                        else:
-                            error_message = utils.get_extended_error(set_sshpubkey_response)
-                            result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                                account_url, set_sshpubkey_response.status, error_message)}
+                            result = {"ret":False, "msg":"Not support resource SSHPublicKey in Account"}
                             return result
                     else:
                         continue
@@ -133,6 +168,7 @@ def lenovo_delete_ssh_pubkey(ip, login_account, login_password, user_name):
 
 def add_helpmessage(argget):
     argget.add_argument('--username', type=str, help='The user name you want to delete. If not specified, login username will be used')
+    argget.add_argument('--keyid', type=int, help='The key id you want to delete. If not specified, all keys of specified username will be deleted')
 
 def add_parameter():
     """Delete SSH Pubkey parameter"""
@@ -141,6 +177,7 @@ def add_parameter():
     args = argget.parse_args()
     parameter_info = utils.parse_parameter(args)
     parameter_info["username"] = args.username
+    parameter_info["keyid"] = args.keyid
     return parameter_info
 
 if __name__ == '__main__':
@@ -152,9 +189,10 @@ if __name__ == '__main__':
     login_account = parameter_info["user"]
     login_password = parameter_info["passwd"]
     user_name = parameter_info["username"]
+    key_id = parameter_info["keyid"]
 
     # Delete SSH public key and check result
-    result = lenovo_delete_ssh_pubkey(ip, login_account, login_password,user_name)
+    result = lenovo_delete_ssh_pubkey(ip, login_account, login_password, user_name, key_id)
 
     if result['ret'] is True:
         del result['ret']

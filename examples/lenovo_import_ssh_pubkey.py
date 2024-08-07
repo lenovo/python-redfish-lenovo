@@ -106,37 +106,70 @@ def lenovo_import_ssh_pubkey(ip, login_account, login_password, user_name, pb_co
                 if account_url_response.status == 200:
                     if user_name == account_url_response.dict["UserName"]:
                         # Check existing SSH public keys, add new key to pubkeys collection
-                        try:
-                            pubkeys = account_url_response.dict["Oem"]["Lenovo"]["SSHPublicKey"]
-                        except:
-                            result = {"ret":False, "msg":"Not support resource Oem.Lenovo.SSHPublicKey in Account"}
-                            return result
-                        if sshpubkey in pubkeys:
-                            result = {"ret":True, "msg":"The ssh public key has already imported"}
-                            return result
-                        for index in range(len(pubkeys)):
-                            if pubkeys[index] == '' or pubkeys[index] == None:
-                                pubkeys[index] = sshpubkey
-                                break
-                        if sshpubkey not in pubkeys:
-                            result = {"ret":True, "msg":"The ssh public key for this user is full, only 4 keys are allowed"}
-                            return result
+                        pubkeys = []
+                        if "Keys" in account_url_response.dict:
+                            account_keys_url = account_url_response.dict["Keys"]["@odata.id"]
+                            account_keys_url_response = REDFISH_OBJ.get(account_keys_url)
+                            if account_keys_url_response.status == 200:
+                                account_keys_url_list = account_keys_url_response.dict["Members"]
+                                for keys_dict in account_keys_url_list:
+                                    key_url = keys_dict["@odata.id"]
+                                    key_url_response = REDFISH_OBJ.get(key_url)
+                                    if key_url_response.status == 200:
+                                        pubkeys.append(key_url_response.dict["KeyString"])
+                                if sshpubkey in pubkeys:
+                                    result = {"ret":True, "msg":"The ssh public key has already imported"}
+                                    return result
+                                if len(account_keys_url_list) > 4:
+                                    result = {"ret":True, "msg":"The ssh public key for this user is full, only 4 keys are allowed"}
+                                    return result
+                                parameter = {"KeyString":sshpubkey, "KeyType": "SSH"}
+                                set_sshpubkey_response = REDFISH_OBJ.post(account_keys_url,body=parameter)
 
-                        # Perform patch to import the SSH public key
-                        if "@odata.etag" in account_url_response.dict:
-                            etag = account_url_response.dict['@odata.etag']
+                                if set_sshpubkey_response.status == 201:
+                                    result = {"ret":True, "msg":"Import ssh public key successfully"}
+                                    return result
+                                else:
+                                    error_message = utils.get_extended_error(set_sshpubkey_response)
+                                    result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                                        account_keys_url, set_sshpubkey_response.status, error_message)}
+                                    return result
+                            else:
+                                error_message = utils.get_extended_error(account_keys_url_response)
+                                result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                                    account_keys_url, account_keys_url_response.status, error_message)}
+                                return result
+                        elif "Oem" in account_url_response.dict and "Lenovo" in account_url_response.dict["Oem"] and "SSHPublicKey" in account_url_response.dict["Oem"]["Lenovo"]:
+                            pubkeys = account_url_response.dict["Oem"]["Lenovo"]["SSHPublicKey"]
+                            if sshpubkey in pubkeys:
+                                result = {"ret":True, "msg":"The ssh public key has already imported"}
+                                return result
+                            for index in range(len(pubkeys)):
+                                if pubkeys[index] == '' or pubkeys[index] == None:
+                                    pubkeys[index] = sshpubkey
+                                    break
+                            if sshpubkey not in pubkeys:
+                                result = {"ret":True, "msg":"The ssh public key for this user is full, only 4 keys are allowed"}
+                                return result
+
+                            # Perform patch to import the SSH public key
+                            if "@odata.etag" in account_url_response.dict:
+                                etag = account_url_response.dict['@odata.etag']
+                            else:
+                                etag = ""
+                            headers = {"If-Match": etag}
+                            parameter = {"Oem":{"Lenovo":{"SSHPublicKey":pubkeys}}}
+                            set_sshpubkey_response = REDFISH_OBJ.patch(account_url,body=parameter,headers=headers)
+                            if set_sshpubkey_response.status == 200:
+                                result = {"ret":True, "msg":"Import ssh public key successfully"}
+                                return result
+                            else:
+                                error_message = utils.get_extended_error(set_sshpubkey_response)
+                                result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                                    account_url, set_sshpubkey_response.status, error_message)}
+                                return result
                         else:
-                            etag = ""
-                        headers = {"If-Match": etag}
-                        parameter = {"Oem":{"Lenovo":{"SSHPublicKey":pubkeys}}}
-                        set_sshpubkey_response = REDFISH_OBJ.patch(account_url,body=parameter,headers=headers)
-                        if set_sshpubkey_response.status == 200:
-                            result = {"ret":True, "msg":"Import ssh public key successfully"}
-                            return result
-                        else:
-                            error_message = utils.get_extended_error(set_sshpubkey_response)
-                            result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                                account_url, set_sshpubkey_response.status, error_message)}
+                            result = {"ret":False, "msg":"Not support resource SSHPublicKey in Account"}
                             return result
                     else:
                         continue
