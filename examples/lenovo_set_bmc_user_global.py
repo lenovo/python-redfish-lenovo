@@ -145,17 +145,40 @@ def lenovo_set_bmc_user_global(ip, login_account, login_password, setting_dict):
             global_setting['AccountLockoutThreshold'] = setting_dict['AccountLockoutThreshold']
         if "AccountLockoutDuration" in setting_dict:
             global_setting['AccountLockoutDuration'] = setting_dict['AccountLockoutDuration']
+        setMinPasswordLength = False
         for item_name in ["PasswordChangeOnNextLogin", "AuthenticationMethod",
                           "MinimumPasswordChangeIntervalHours", "PasswordExpirationPeriodDays",
                           "PasswordChangeOnFirstAccess", "MinimumPasswordReuseCycle",
                           "PasswordLength", "WebInactivitySessionTimeout", "PasswordExpirationWarningPeriod"]:
             if item_name in setting_dict:
                 if item_name in response_account_service_url.dict['Oem']['Lenovo']:
+                    if item_name == "PasswordLength":
+                        setMinPasswordLength = True
                     if 'Oem' not in global_setting:
                         global_setting['Oem'] = {}
                         global_setting['Oem']['Lenovo'] = {}
                     global_setting['Oem']['Lenovo'][item_name] = setting_dict[item_name]               
 
+        if not setMinPasswordLength:
+            if "MinPasswordLength" in setting_dict:
+                global_setting['MinPasswordLength'] = setting_dict['MinPasswordLength']
+
+        flag_SR635_SR655 = False
+        # Get the ComputerSystem resource
+        system = utils.get_system_url("/redfish/v1", "None", REDFISH_OBJ)
+        if not system:
+            result = {'ret': False, 'msg': "This system id is not exist or system member is None"}
+            return result
+
+        for i in range(len(system)):
+            system_url = system[i]
+            response_system_url = REDFISH_OBJ.get(system_url, None)
+            if response_system_url.status != 200:
+                error_message = utils.get_extended_error(response_system_url)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (system_url, response_system_url.status, error_message)}
+                return result
+        if 'SR635' in str(response_system_url.dict) or 'SR655' in str(response_system_url.dict):
+            flag_SR635_SR655 = True
         # Handle ComplexPassword setting
         if "ComplexPassword" in setting_dict:
             # Check whether property ComplexPassword is supported. If supported, set via Redfish, if not, set via WebAPI
@@ -166,22 +189,6 @@ def lenovo_set_bmc_user_global(ip, login_account, login_password, setting_dict):
                         global_setting['Oem']['Lenovo'] = {}
                     global_setting['Oem']['Lenovo']['ComplexPassword'] = bool(int(setting_dict['ComplexPassword']))
                 else:
-                    # Get the ComputerSystem resource
-                    system = utils.get_system_url("/redfish/v1", "None", REDFISH_OBJ)
-                    if not system:
-                        result = {'ret': False, 'msg': "This system id is not exist or system member is None"}
-                        return result
-
-                    for i in range(len(system)):
-                        system_url = system[i]
-                        response_system_url = REDFISH_OBJ.get(system_url, None)
-                        if response_system_url.status != 200:
-                            error_message = utils.get_extended_error(response_system_url)
-                            result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (system_url, response_system_url.status, error_message)}
-                            return result
-                    flag_SR635_SR655 = False
-                    if 'SR635' in str(response_system_url.dict) or 'SR655' in str(response_system_url.dict):
-                        flag_SR635_SR655 = True
                     # Set complex password via WebAPI, not Redfish.
                     result = enable_complex_password(ip, login_account, login_password, enabled = setting_dict['ComplexPassword'], flag_SR635_SR655 = flag_SR635_SR655)
                     if result['ret'] == False: # if failed to set complex password, return the error info.
@@ -194,7 +201,10 @@ def lenovo_set_bmc_user_global(ip, login_account, login_password, setting_dict):
             etag = response_account_service_url.dict['@odata.etag']
         else:
             etag = ""
-        headers = {"If-Match": etag}
+        if flag_SR635_SR655:
+            headers = {"If-Match": etag}
+        else:
+            headers = {"Etag": etag}
         response_modified_global = REDFISH_OBJ.patch(account_service_url, body=global_setting, headers=headers)
         if response_modified_global.status in [200,204]:
             result = {'ret': True, 'msg': "The BMC user global setting is successfully updated."}
@@ -249,6 +259,7 @@ def add_parameter():
         globalsetting_dict["PasswordExpirationWarningPeriod"] = int(args.PasswordExpirationWarningPeriod)
     if args.MinimumPasswordLength is not None:
         globalsetting_dict["PasswordLength"] = int(args.MinimumPasswordLength)
+        globalsetting_dict["MinPasswordLength"] = int(args.MinimumPasswordLength)
     if args.MinimumPasswordReuseCycle is not None:
         globalsetting_dict["MinimumPasswordReuseCycle"] = int(args.MinimumPasswordReuseCycle)
     if args.MinimumPasswordChangeInterval is not None:
