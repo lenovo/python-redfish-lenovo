@@ -120,14 +120,17 @@ def lenovo_set_bios_boot_order(ip, login_account, login_password, system_id, boo
                 body = {"Boot":{"BootOrder":bootorder_ids}}
                 response_boot_order = REDFISH_OBJ.patch(pending_url, body=body)
                 if response_boot_order.status == 200:
-                    boot_order_next = response_boot_order.dict["Boot"]["BootOrder"]
-                    boot_order_next_name = []
-                    for id in boot_order_next:
-                        if id in supported_boot_id_name_map.keys():
-                            boot_order_next_name.append(supported_boot_id_name_map[id])
-                        elif id[4:] in supported_boot_id_name_map.keys(): # For ThinkSystem SR635/SR655
-                            boot_order_next_name.append(supported_boot_id_name_map[id[4:]])
-                    result = {'ret': True, 'msg': "Modified Boot Order '%s' successfully. New boot order will take effect on the next startup."%(boot_order_next_name)}
+                    if "Boot" in response_boot_order.dict and "BootOrder" in response_boot_order.dict["Boot"]:
+                        boot_order_next = response_boot_order.dict["Boot"]["BootOrder"]
+                        boot_order_next_name = []
+                        for id in boot_order_next:
+                            if id in supported_boot_id_name_map.keys():
+                                boot_order_next_name.append(supported_boot_id_name_map[id])
+                            elif id[4:] in supported_boot_id_name_map.keys(): # For ThinkSystem SR635/SR655
+                                boot_order_next_name.append(supported_boot_id_name_map[id[4:]])
+                        result = {'ret': True, 'msg': "Modified Boot Order '%s' successfully. New boot order will take effect on the next startup."%(boot_order_next_name)}
+                    else:
+                        result = {'ret': True, 'msg': "Modified Boot Order successfully. New boot order will take effect on the next startup."}
                     return result
                 else:
                     error_message = utils.get_extended_error(response_boot_order)
