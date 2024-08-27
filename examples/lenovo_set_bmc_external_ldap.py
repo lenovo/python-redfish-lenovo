@@ -132,7 +132,7 @@ def lenovo_set_bmc_external_ldap(ip, login_account, login_password, ldapserver, 
                 # Build request body for set ldap server
                 body = {'ServiceEnabled': True} # Enable the LDAP service for user to use
                 if client_distinguished_name is not None:
-                    body['Authentication'] = {'AuthenticationType': 'UsernameAndPassword', 'Username': client_distinguished_name, 'Password': client_password}
+                    body['Authentication'] = {'Username': client_distinguished_name, 'Password': client_password}
                 body['LDAPService'] = {'SearchSettings': {}}
                 body['LDAPService']['SearchSettings']['BaseDistinguishedNames'] = [rootdn]
                 body['LDAPService']['SearchSettings']['GroupsAttribute'] = group_filter
