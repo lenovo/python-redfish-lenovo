@@ -177,7 +177,6 @@ def lenovo_bmc_config_restore(ip, login_account, login_password, backup_password
                 result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
                     request_url, response_url.status, error_message)}
                 return result
-
             # Check whether action is supported or not
             if 'Oem/Lenovo/Configuration' not in str(response_url.dict) and '#Manager.Restore' not in str(response_url.dict):
                 result = {'ret': False, 'msg': "Not support bmc configuration restore."}
@@ -209,24 +208,61 @@ def lenovo_bmc_config_restore(ip, login_account, login_password, backup_password
                     result = {'ret': False,
                               'msg': "list_data is empty"}
                     return result
-        
-                #check schema to specify proper body
+
+                # GET model
+                system = utils.get_system_url("/redfish/v1", "None", REDFISH_OBJ)
+                if not system:
+                    result = {'ret': False, 'msg': "This system id is not exist or system member is None"}
+                    REDFISH_OBJ.logout()
+                    return result
+
+                for i in range(len(system)):
+                    system_url = system[i]
+                    response_system_url = REDFISH_OBJ.get(system_url, None)
+                    if response_system_url.status != 200:
+                        error_message = utils.get_extended_error(response_system_url)
+                        result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                            system_url, response_system_url.status, error_message)}
+                        REDFISH_OBJ.logout()
+                        return result
+                    model = response_system_url.dict["Model"]
+
                 restore_body = {}
-                if check_whether_new_schema(response_config_url.dict['@odata.type'], REDFISH_OBJ) == True:
-                    restore_body = {
-                    "ConfigContent":list_data,
-                    "Passphrase":backup_password
-                    }
+                if "V4" in model.upper():
+                    EncryptData = ""
+                    VerificationCode = ""
+                    for item in list_data:  
+                        if isinstance(item, dict):  
+                            if "EncryptData" in item:
+                                EncryptData = item["EncryptData"]
+                            if "VerificationCode" in item:
+                                VerificationCode = item["VerificationCode"]
+                    if EncryptData and VerificationCode:
+                        restore_body = {
+                            "EncryptData":EncryptData,
+                            "Passphrase":backup_password,
+                            "VerificationCode": VerificationCode
+                        }
+                    else:
+                        result = {'ret': False, 'msg': "The specified backupfile is error, you can get it by executing lenovo_bmc_config_backup.py." }
+                        return result
                 else:
-                    restore_body = {
-                    "bytes":list_data,
-                    "Passphrase":backup_password
-                    }
+                    #check schema to specify proper body
+                    if check_whether_new_schema(response_config_url.dict['@odata.type'], REDFISH_OBJ) == True:
+                        restore_body = {
+                            "ConfigContent":list_data,
+                            "Passphrase":backup_password
+                        }
+                    else:
+                        restore_body = {
+                            "bytes":list_data,
+                            "Passphrase":backup_password
+                        }
 
                 # Perform post to do restore action
                 print("It may take 1 or 2 minutes to restore bmc config, please wait...")
                 response_restore_url = REDFISH_OBJ.post(restore_target_url, body=restore_body)
-                if response_restore_url.status != 200:
+                if response_restore_url.status != 200 and response_restore_url.status != 204:
                     error_message = utils.get_extended_error(response_restore_url)
                     result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
                         restore_target_url, response_restore_url.status, error_message)}
