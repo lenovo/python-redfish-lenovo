@@ -18,7 +18,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 ###
-
+import ast
 import sys
 import redfish
 import json
@@ -107,6 +107,7 @@ def lenovo_mount_virtual_media(ip, login_account, login_password, image, mountty
 
         virtual_media_url = ''
         response_manager_url = ''
+        model = ''
         for root_url in root_virtual_media_urls:
             response_root_url = REDFISH_OBJ.get(root_url, None)
             if response_root_url.status != 200:
@@ -127,6 +128,9 @@ def lenovo_mount_virtual_media(ip, login_account, login_password, image, mountty
                 # Get the virtual media url from the manager response or system response
                 if "VirtualMedia" in response_url.dict:
                     virtual_media_url = response_url.dict['VirtualMedia']['@odata.id']
+
+                if "Systems" in manager_url and "Model" in response_url.dict:
+                    model = response_url.dict["Model"]
                 # Get manager response
                 if "Oem" in response_url.dict:
                     response_manager_url = response_url
@@ -169,8 +173,8 @@ def lenovo_mount_virtual_media(ip, login_account, login_password, image, mountty
                         return result
             elif "Lenovo" in Oem_dict:
                 # XCC Mount VirtualMedia
-                remotemap_url = Oem_dict['Lenovo']['RemoteMap']['@odata.id']
-                remotecontrol_url = Oem_dict['Lenovo']['RemoteControl']['@odata.id']
+                remotemap_url = Oem_dict.get('Lenovo', {}).get('RemoteMap', {}).get('@odata.id', '')
+                remotecontrol_url = Oem_dict.get('Lenovo', {}).get('RemoteControl', {}).get('@odata.id', '')
             else:
                 result = {'ret': False, 'msg': "Please check whether the redfish version supports mount virtual media."}
                 return result
@@ -236,7 +240,7 @@ def lenovo_mount_virtual_media(ip, login_account, login_password, image, mountty
             # for 19A, XCC predefined 10 members, so call mount function for 19A. otherwise, call function for 18D.
             if len(members_list) == 10:
                 if fsprotocol in ["NFS", "HTTP", "CIFS", "HTTPS"]:
-                    result = mount_virtual_media(REDFISH_OBJ, members_list, fsprotocol.lower(), fsip, fsport, fsdir, image, writeprotocol, inserted, fsusername, fspassword)
+                    result = mount_virtual_media(REDFISH_OBJ, members_list, fsprotocol.lower(), fsip, fsport, fsdir, image, writeprotocol, inserted, fsusername, fspassword, model)
                     return result
                 else:
                     result = {"ret": False, "msg": "For remote mounts, only HTTP, HTTPS, NFS(no credential required) and CIFS protocols are supported."}
@@ -254,7 +258,10 @@ def lenovo_mount_virtual_media(ip, login_account, login_password, image, mountty
                                                           options)
                 return result
         else:
-            result = mount_virtual_media_from_rdoc(REDFISH_OBJ, remotecontrol_url, remotemap_url,  source_url, fsusername, fspassword, fsprotocol, readonly, domain, options)
+            if "V4" in model:
+                result = mount_virtual_media_from_rdoc_bhs(REDFISH_OBJ, members_list, fsprotocol.lower(), fsip, fsport, fsdir, image, writeprotocol,fsusername, fspassword)
+            else:
+                result = mount_virtual_media_from_rdoc(REDFISH_OBJ, remotecontrol_url, remotemap_url,  source_url, fsusername, fspassword, fsprotocol, readonly, domain, options)
             return result
 
     except Exception as e:
@@ -342,7 +349,7 @@ def mount_virtual_media_from_cd(REDFISH_OBJ, members_list, protocol, fsip, fspor
     return result
 
 
-def mount_virtual_media(REDFISH_OBJ, members_list, protocol, fsip, fsport, fsdir, image, writeprotocol, inserted, fsusername=None, fspassword=None):
+def mount_virtual_media(REDFISH_OBJ, members_list, protocol, fsip, fsport, fsdir, image, writeprotocol, inserted, fsusername=None, fspassword=None, model=""):
     """
      This function uses the patch method to mount VM, only HTTP and NFS(no credential required) protocols are supported.
      This function can work on 19A version of XCC and license is "Lenovo XClarity Controller Enterprise".
@@ -369,9 +376,15 @@ def mount_virtual_media(REDFISH_OBJ, members_list, protocol, fsip, fsport, fsdir
             if image_name is None:
                 body = {}
                 if protocol == "nfs":
-                    image_uri = fsip + fsport + ":" + fsdir + "/" + image
+                    if "V4" in model:
+                        image_uri = fsprotocol.lower() + "://" + fsip + fsport + fsdir + "/" + image
+                    else:
+                        image_uri = fsip + fsport + ":" + fsdir + "/" + image
                 elif protocol == "cifs":
-                    image_uri = "//" + fsip + fsport + fsdir + "/" + image
+                    if "V4" in model:
+                        image_uri = "smb://" + fsip + fsport + fsdir + "/" + image
+                    else:
+                        image_uri = "//" + fsip + fsport + fsdir + "/" + image
                 else:
                     image_uri = protocol + "://" + fsip + fsport + fsdir + "/" + image
                 if protocol == "cifs" or safe_https is True:
@@ -380,12 +393,21 @@ def mount_virtual_media(REDFISH_OBJ, members_list, protocol, fsip, fsport, fsdir
                             "WriteProtected": bool(writeprotocol), "Inserted": bool(inserted)}
                 else:
                     body = {"Image": image_uri, "WriteProtected": bool(writeprotocol), "Inserted": bool(inserted)}
+                # Get username and password for HTTPS file server
+                safe_https = False
+                if protocol == "https" and fsusername and fspassword:
+                    safe_https = True
                 response = REDFISH_OBJ.patch(members_url, body=body)
                 if response.status in [200, 201, 204]:
                     result = {'ret': True, 'msg': "'%s' mount successfully." % image}
                     if protocol == "https":
+                        try:
+                            message = response.dict['@Message.ExtendedInfo'][0]['Message']
+                        except:
+                            message = ""
+
                         result = {'ret': True, 'msg': "'%s' mount successfully. %s" %
-                                  (image, response.dict['@Message.ExtendedInfo'][0]['Message'])}
+                                  (image, message)}
                     return result
                 else:
                     if protocol.lower() == "https":
@@ -416,8 +438,11 @@ def mount_virtual_media_from_rdoc(REDFISH_OBJ, remotecontrol_url, remotemap_url,
             return result
         # Get upload media iso url from remoto control resource instance
         upload_url = response_remotecontrol_url.dict['Actions']['#LenovoRemoteControlService.UploadFromURL']['target']
-        body = {"sourceURL": source_url, "Username": fsusername, "Password": fspassword, "Type": fsprotocol,
+        body = {"sourceURL": source_url,  "Type": fsprotocol,
                 "Readonly": bool(readonly), "Domain": domain, "Options": options}
+        if fsusername and fspassword:
+            body["Username"] = fsusername
+            body["Password"] = fspassword
         response_upload_url = REDFISH_OBJ.post(upload_url, body=body)
         if response_upload_url.status in [200, 201, 204]:
             print("Upload media iso successful, next will mount media iso...")
@@ -516,6 +541,74 @@ def mount_virtual_media_from_network(REDFISH_OBJ, remotemap_url, image, fsip, fs
         remotemap_url, response_remotemap_url.status, error_message)}
         return result
 
+
+def mount_virtual_media_from_rdoc_bhs(REDFISH_OBJ, members_list, protocol, fsip, fsport, fsdir, image, writeprotocol, fsusername=None, fspassword=None):
+    for members in members_list:
+        members_url = members["@odata.id"]
+        if members_url.split('/')[-1].startswith("RDOC"):
+            response_members = REDFISH_OBJ.get(members_url, None)
+            if response_members.status == 200:
+                image_name = response_members.dict["ImageName"]
+                mount_image_url = response_members.dict['Actions']['#VirtualMedia.InsertMedia']['target']
+            else:
+                error_message = utils.get_extended_error(response_members)
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                    members_url, response_members.status, error_message)}
+                return result
+            if image_name is None:
+                image_uri = protocol.lower() + "://" + fsip + fsport + fsdir + "/" + image
+                if protocol.lower() == 'nfs':
+                    image_uri = protocol.lower() + "://" + fsip + ":" + fsport + fsdir + "/" + image
+                    body = {"Image": image_uri, "WriteProtected": bool(writeprotocol)}
+                else:
+                    if protocol.lower() == 'cifs':
+                        image_uri = "smb://" + fsip + fsport + fsdir + "/" + image
+                    body = {"Image": image_uri,
+                            "UserName": fsusername, "Password": fspassword, "WriteProtected": bool(writeprotocol)}
+                print(mount_image_url, body)
+                response = REDFISH_OBJ.post(mount_image_url, body=body)
+                if response.status in [200, 201, 204]:
+                    result = {'ret': True, 'msg': "'%s' mount successfully." % image}
+                    if protocol == "https":
+                        try:
+                            message = response.dict['@Message.ExtendedInfo'][0]['Message']
+                        except:
+                            message = ""
+                        result = {'ret': True, 'msg': "'%s' mount successfully. %s" %
+                                                      (image, message)}
+                    return result
+                elif response.status == 202:
+                    task_uri = response.dict['@odata.id']
+                    result = utils.task_monitor(REDFISH_OBJ, task_uri)
+                    # Delete the task when the task state is completed without any warning
+                    severity = ''
+                    if result["ret"] is True and "Completed" == result["task_state"] and result['msg'] != '':
+                        result_json = json.dumps(ast.literal_eval(result['msg'].replace("Messages:", "")))
+                        if "Severity" in result_json[0]:
+                            severity = result_json[0]["Severity"]
+                    if result["ret"] is True and "Completed" == result["task_state"] and (
+                            result['msg'] == '' or severity == 'OK'):
+                        REDFISH_OBJ.delete(task_uri, None)
+                    if result["ret"] is True:
+                        task_state = result["task_state"]
+                        if task_state == "Completed":
+                            result['msg'] = "'%s' mount successfully. %s" % (image, result['msg'])
+                        else:
+                            result['ret'] = False
+                            result['msg'] = "'%s' mount failed. %s" % (image, result['msg'])
+                    return result
+                else:
+                    if protocol.lower() == "https":
+                        print(
+                            "Error may be caused by failure to connect to the HTTPS file server. Please check its username and password requirements.")
+                    error_message = utils.get_extended_error(response)
+                    result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                        members_url, response.status, error_message)}
+                    return result
+            else:
+                continue
+    result = {'ret': False, 'msg': "Up to 2 files can be concurrently mounted to the server by the BMC."}
+    return result
 
 def add_helpmessage(argget):
     argget.add_argument('--image', type=str, help='Mount virtual media name')

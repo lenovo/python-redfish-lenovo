@@ -270,7 +270,7 @@ def update_firmware(ip, login_account, login_password, image, targets, fsprotoco
 
 def check_param(fsprotocol, fsip, fsport, fsdir, image, imageurl, fsusername, fspassword):
     """Validation parameters"""
-    port = (lambda fsport: ":" + fsport if fsport else fsport)
+    port = (lambda fsport: ":" + fsport.strip(":") if fsport else fsport)
     dir = (lambda fsdir: "/" + fsdir.strip("/") if fsdir else fsdir)
     if imageurl:
         try:
