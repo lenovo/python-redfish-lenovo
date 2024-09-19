@@ -133,7 +133,11 @@ def lenovo_bmc_config_backup(ip, login_account, login_password, backup_password,
                     backup_body = {"Passphrase":backup_password}
                 response_backup_url = REDFISH_OBJ.post(backup_target_url, body=backup_body)
                 if response_backup_url.status == 200:
-                    json.dump(response_backup_url.dict["data"], back_file, separators=(',',':'))
+                    if "data" in response_backup_url.dict:
+                        json.dump(response_backup_url.dict["data"], back_file, separators=(',',':'))
+                    elif "EncryptData" in response_backup_url.dict:
+                        backup_data = [{"EncryptData": response_backup_url.dict["EncryptData"]},{ "VerificationCode": response_backup_url.dict["VerificationCode"]}]
+                        json.dump(backup_data, back_file, separators=(',',':'))
                     back_file.close()
                     size = getDocSize(backup_file)
                     if not isinstance(size, dict):
