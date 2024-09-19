@@ -154,23 +154,6 @@ def lenovo_set_snmp_global(ip, login_account, login_password, setting_dict):
     else:
         etag = "*"
 
-    if 'snmpv3_agent' in setting_dict and setting_dict['snmpv3_agent'] == 'enable':
-        flag_missing = False
-        if ('contact_person' in setting_dict and setting_dict['contact_person'] == ''):
-            flag_missing = True
-        if ('contact_person' not in setting_dict) and (
-                response_url.dict['SNMPv3Agent']['ContactPerson'] is None or response_url.dict['SNMPv3Agent']['ContactPerson'] == ''):
-            flag_missing = True
-        if ('location' in setting_dict and setting_dict['location'] == ''):
-            flag_missing = True
-        if ('location' not in setting_dict) and (
-                response_url.dict['SNMPv3Agent']['Location'] is None or response_url.dict['SNMPv3Agent']['Location'] == ''):
-            flag_missing = True
-        if flag_missing == True:
-            result = {'ret': False, 'msg': 'Input parameter checking failed. Note that snmpv3_agent can only be enabled with contact_person and location being set.'}
-            REDFISH_OBJ.logout()
-            return result
-
     if 'snmpv1_trap' in setting_dict and setting_dict['snmpv1_trap'] == 'enable':
         flag_missing = False
         if ('snmpv1_community' in setting_dict and setting_dict['snmpv1_community'] == ''):
