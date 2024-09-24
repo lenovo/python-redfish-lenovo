@@ -103,7 +103,7 @@ def lenovo_set_bmc_user_ldap_policy(ip, login_account, login_password, policy):
 
         # Send patch to change the allowable login policy
         response_accounts_url = REDFISH_OBJ.patch(accounts_url, body=request_body)
-        if response_accounts_url.status == 200:
+        if response_accounts_url.status == 200 or response_accounts_url.status == 204:
             result = {'ret': True, 'msg':"Successfully set logon policy to %s" %(policy)}
             return result
         else:
