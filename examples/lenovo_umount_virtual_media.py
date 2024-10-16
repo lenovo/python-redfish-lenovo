@@ -103,9 +103,8 @@ def lenovo_umount_virtual_media(ip, login_account, login_password, image, mountt
         if "Oem" in response_manager_url.dict:
             Oem_dict = response_manager_url.dict['Oem']
             if "Ami" not in Oem_dict and "Lenovo" in Oem_dict:
-                remotemap_url = Oem_dict['Lenovo']['RemoteMap']['@odata.id']
-                remotecontrol_url = Oem_dict['Lenovo']['RemoteControl']['@odata.id']
-
+                remotemap_url = Oem_dict.get('Lenovo', {}).get('RemoteMap', {}).get('@odata.id', '')
+                remotecontrol_url = Oem_dict.get('Lenovo', {}).get('RemoteControl', {}).get('@odata.id', '')
             # Get the mount virtual media list
             response_virtual_media = REDFISH_OBJ.get(virtual_media_url, None)
             if response_virtual_media.status == 200:

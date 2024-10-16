@@ -79,6 +79,7 @@ def mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsp
         # Get base url response
         root_virtual_media_urls = []
         if response_base_url.status == 200:
+            model = utils.get_system_model(response_base_url, REDFISH_OBJ)
             systems_url = response_base_url.dict['Systems']['@odata.id']
             root_virtual_media_urls.append(systems_url)
             managers_url = response_base_url.dict['Managers']['@odata.id']
@@ -96,7 +97,6 @@ def mount_virtual_media(ip, login_account, login_password, fsprotocol, fsip, fsp
                 for i in range(count):
                     manager_url = response_url.dict['Members'][i]['@odata.id']
                     response_x_url = REDFISH_OBJ.get(manager_url, None)
-                    model = response_x_url.dict['Model']
                     virtual_media_url = ""
                     if response_x_url.status == 200:
                         # Get the virtual media url
