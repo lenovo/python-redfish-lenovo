@@ -96,6 +96,7 @@ def lenovo_mount_virtual_media(ip, login_account, login_password, image, mountty
         # Get response_account_service_url
         if response_base_url.status == 200:
             root_virtual_media_urls = []
+            model = utils.get_system_model(response_base_url, REDFISH_OBJ)
             root_virtual_media_urls.append(response_base_url.dict['Systems']['@odata.id'])
             root_virtual_media_urls.append(response_base_url.dict['Managers']['@odata.id'])
         else:
@@ -107,7 +108,6 @@ def lenovo_mount_virtual_media(ip, login_account, login_password, image, mountty
 
         virtual_media_url = ''
         response_manager_url = ''
-        model = ''
         for root_url in root_virtual_media_urls:
             response_root_url = REDFISH_OBJ.get(root_url, None)
             if response_root_url.status != 200:
@@ -128,9 +128,6 @@ def lenovo_mount_virtual_media(ip, login_account, login_password, image, mountty
                 # Get the virtual media url from the manager response or system response
                 if "VirtualMedia" in response_url.dict:
                     virtual_media_url = response_url.dict['VirtualMedia']['@odata.id']
-
-                if "Systems" in manager_url and "Model" in response_url.dict:
-                    model = response_url.dict["Model"]
                 # Get manager response
                 if "Oem" in response_url.dict:
                     response_manager_url = response_url
@@ -377,7 +374,7 @@ def mount_virtual_media(REDFISH_OBJ, members_list, protocol, fsip, fsport, fsdir
                 body = {}
                 if protocol == "nfs":
                     if "V4" in model:
-                        image_uri = fsprotocol.lower() + "://" + fsip + fsport + fsdir + "/" + image
+                        image_uri = protocol.lower() + "://" + fsip + fsport + fsdir + "/" + image
                     else:
                         image_uri = fsip + fsport + ":" + fsdir + "/" + image
                 elif protocol == "cifs":

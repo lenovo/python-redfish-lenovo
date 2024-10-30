@@ -133,6 +133,15 @@ def lenovo_set_snmp_global(ip, login_account, login_password, setting_dict):
         result = {'ret': False, 'msg': "Error_message: %s. Please check if username, password and IP are correct" % repr(e)}
         return result
 
+    system_url = "/redfish/v1/Systems/1"
+    system_resp = REDFISH_OBJ.get(system_url, None)
+    if system_resp.status != 200:
+        error_message = utils.get_extended_error(system_resp)
+        result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+            system_url, system_resp.status, error_message)}
+        REDFISH_OBJ.logout()
+        return result
+    model = system_resp.dict.get('Model', "")
 
     request_url = '/redfish/v1/Managers/1/NetworkProtocol/Oem/Lenovo/SNMP'
 
@@ -154,34 +163,29 @@ def lenovo_set_snmp_global(ip, login_account, login_password, setting_dict):
     else:
         etag = "*"
 
-    if 'snmpv3_agent' in setting_dict and setting_dict['snmpv3_agent'] == 'enable':
-        flag_missing = False
-        if ('contact_person' in setting_dict and setting_dict['contact_person'] == ''):
-            flag_missing = True
-        if ('contact_person' not in setting_dict) and (
-                response_url.dict['SNMPv3Agent']['ContactPerson'] is None or response_url.dict['SNMPv3Agent']['ContactPerson'] == ''):
-            flag_missing = True
-        if ('location' in setting_dict and setting_dict['location'] == ''):
-            flag_missing = True
-        if ('location' not in setting_dict) and (
-                response_url.dict['SNMPv3Agent']['Location'] is None or response_url.dict['SNMPv3Agent']['Location'] == ''):
-            flag_missing = True
-        if flag_missing == True:
-            result = {'ret': False, 'msg': 'Input parameter checking failed. Note that snmpv3_agent can only be enabled with contact_person and location being set.'}
-            REDFISH_OBJ.logout()
-            return result
-
-    if 'snmpv1_trap' in setting_dict and setting_dict['snmpv1_trap'] == 'enable':
-        flag_missing = False
-        if ('snmpv1_community' in setting_dict and setting_dict['snmpv1_community'] == ''):
-            flag_missing = True
-        if ('snmpv1_community' not in setting_dict) and (
-                len(response_url.dict['CommunityNames']) == 0 or response_url.dict['CommunityNames'][0] == ''):
-            flag_missing = True
-        if flag_missing == True:
-            result = {'ret': False, 'msg': 'Input parameter checking failed. Note that snmpv1_trap can only be enabled with snmpv1_community being set.'}
-            REDFISH_OBJ.logout()
-            return result
+    if model and "V4" not in model:
+        if 'snmpv3_agent' in setting_dict and setting_dict['snmpv3_agent'] == 'enable':
+            flag_missing = False
+            if ('contact_person' in setting_dict and setting_dict['contact_person'] == ''):
+                flag_missing = True
+            if ('location' in setting_dict and setting_dict['location'] == ''):
+                flag_missing = True
+            if flag_missing == True:
+                result = {'ret': False, 'msg': 'Input parameter checking failed. Note that snmpv3_agent can only be enabled with contact_person and location being set.'}
+                REDFISH_OBJ.logout()
+                return result
+    if model and "V4" in model:
+        if 'snmpv1_trap' in setting_dict and setting_dict['snmpv1_trap'] == 'enable':
+            flag_missing = False
+            if ('snmpv1_community' in setting_dict and setting_dict['snmpv1_community'] == ''):
+                flag_missing = True
+            if ('snmpv1_community' not in setting_dict) and (
+                    len(response_url.dict.get('CommunityNames', [])) == 0 or response_url.dict.get('CommunityNames',[])[0] == ''):
+                flag_missing = True
+            if flag_missing == True:
+                result = {'ret': False, 'msg': 'Input parameter checking failed. Note that snmpv1_trap can only be enabled with snmpv1_community being set.'}
+                REDFISH_OBJ.logout()
+                return result
 
     # Build patch body
     patch_body = {}

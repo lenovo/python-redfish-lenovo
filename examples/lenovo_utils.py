@@ -86,6 +86,21 @@ def get_system_url(base_url, system_id, redfish_obj):
                 return system
 
 
+def get_system_model(response_base_url, redfish_obj):
+    try:
+        # Get ComputerSystemCollection resource
+        systems_url = response_base_url.dict["Systems"]["@odata.id"]
+        response_systems_url = redfish_obj.get(systems_url, None)
+        if response_systems_url.status != 200:
+            raise Exception(
+                "%s response code %s, %s" % (systems_url, response_systems_url.status, str(response_systems_url.dict)))
+        members = response_systems_url.dict["Members"][0]['@odata.id']
+        response_x_url = redfish_obj.get(members, None)
+        model = response_x_url.dict['Model']
+        return model
+    except Exception as e:
+        return ""
+
 def get_extended_error(response_body):
     """Get extended error    
     :params response_body: Response from HTTP
