@@ -84,6 +84,8 @@ def lenovo_export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip,
         return result
 
     try:
+        task_uri = ""
+        location_uri = ""
         # Get ServiceRoot resource
         response_base_url = REDFISH_OBJ.get('/redfish/v1/Managers', None)
         # Get managers collection
@@ -204,10 +206,101 @@ def lenovo_export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip,
                     return result
                 task_uri = response_ffdc_data_uri.dict['@odata.id']
 
+        # Get systems resource for SR630V4
+        if task_uri == "":
+            # Get ServiceRoot resource for SR630V4
+            response_base_url = REDFISH_OBJ.get('/redfish/v1/Systems', None)
+            # Get managers collection for SR630V4
+            if response_base_url.status == 200:
+                systems_list = response_base_url.dict['Members']
             else:
-                result = {'ret': False, 'msg': "No resource found, not support service data downloading."}
+                error_message = utils.get_extended_error(response_base_url)
+                result = {'ret': False, 'msg': "Url '/redfish/v1/Systems' response Error code %s \nerror_message: %s" % (response_base_url.status, error_message)}
                 return result
+            for i in systems_list:
+                system_uri = i["@odata.id"]
+                response_system_uri = REDFISH_OBJ.get(system_uri, None)
+                if response_system_uri.status != 200:
+                    error_message = utils.get_extended_error(response_system_uri)
+                    result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                    response_system_uri, response_system_uri.status, error_message)}
+                    return result
+                # Collect service data via /redfish/v1/Systems/1/LogServices/DiagnosticLog/Actions/LogService.CollectDiagnosticData
+                if 'LogServices' in response_system_uri.dict:
+                    # Get servicedata uri via system uri response resource
+                    servicedata_uri = response_system_uri.dict['LogServices']['@odata.id']
+                    # Get servicedata resource
+                    response_servicedata_uri = REDFISH_OBJ.get(servicedata_uri, None)
+                    if response_servicedata_uri.status != 200:
+                        error_message = utils.get_extended_error(response_servicedata_uri)
+                        result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                        servicedata_uri, response_servicedata_uri.status, error_message)}
+                        return result
 
+                    # Concatenate diagnosticlog uri
+                    diagnosticlog_uri = servicedata_uri + "/DiagnosticLog"
+                    # Get diagnosticlog resource
+                    response_diagnosticlog_uri = REDFISH_OBJ.get(diagnosticlog_uri, None)
+                    if response_diagnosticlog_uri.status != 200:
+                        error_message = utils.get_extended_error(response_diagnosticlog_uri)
+                        result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                        diagnosticlog_uri, response_diagnosticlog_uri.status, error_message)}
+                        return result
+
+                    # Get export ffdc data uri via diagnosticlog uri response resource
+                    ffdc_data_uri = diagnosticlog_uri + "/Actions/LogService.CollectDiagnosticData"
+
+                    # Build post request body and Get the user specified parameter
+                    ffdctype = ""
+                    if logtype == "Minilog":
+                        diagnostictype = "OEM"
+                        ffdctype = "MiniLog"
+                    else:
+                        diagnostictype = "Manager"
+
+                    if ffdctype and ffdctype not in response_diagnosticlog_uri.dict['Actions']['#LogService.CollectDiagnosticData']['OEMDiagnosticDataType@Redfish.AllowableValues']:
+                        error_message = "target server not support %s" % (logtype)
+                        result = {'ret': False, 'msg': error_message}
+                        return result
+                    body = {}
+                    body['DiagnosticDataType'] = diagnostictype
+                    if logtype == "Minilog":
+                        body['OEMDiagnosticDataType'] = ffdctype
+
+                    # Check the transport protocol, only support sftp and tftp protocols
+                    export_uri = ""
+                    if fsprotocol:
+                        export_uri = fsprotocol.lower() + "://" + fsip
+                        if fsdir:
+                            export_uri += ":/" + fsdir + "/"
+                        body['TargetURI'] = export_uri
+                        if fsprotocol.lower() not in ["sftp", "tftp"]:
+                            error_message = "Target server only support sftp and tftp, http is not supported"
+                            result = {"ret": False, "msg": error_message}
+                            return result
+                        # Get the user specified sftp username and password when the protocol is sftp
+                        if fsprotocol.upper() == "SFTP":
+                            if not fsusername or not fspassword:
+                                error_message = "When the protocol is sftp, you must specify the sftp username and password"
+                                result = {"ret": False, "msg": error_message}
+                                return result
+                            else:
+                                body['UserName'] = fsusername
+                                body['Password'] = fspassword
+                    time_start = time.time()
+                    response_ffdc_data_uri = REDFISH_OBJ.post(ffdc_data_uri, body=body)
+                    if response_ffdc_data_uri.status != 200:
+                        error_message = utils.get_extended_error(response_ffdc_data_uri)
+                        result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                        ffdc_data_uri, response_ffdc_data_uri.status, error_message)}
+                        return result
+                    task_uri = response_ffdc_data_uri.dict['@odata.id']
+                    location_uri = response_ffdc_data_uri.dict['Location']
+
+        if task_uri == "":
+            result = {'ret': False, 'msg': "No resource found, not support service data downloading."}
+            return result
+        else:
             # Check collect result via returned task uri
             print("Start downloading ffdc files and may need to wait a few minutes...")
             task_state = ''
@@ -220,8 +313,21 @@ def lenovo_export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip,
                         messages = response_task_uri.dict['Messages']
                     if "Completed" in task_state:
                         # If the user does not specify export uri, the ffdc data file will be downloaded to the local
-                        if not fsprotocol and 'Oem' in response_task_uri.dict and 'Lenovo' in response_task_uri.dict['Oem']:
+                        if 'Oem' in response_task_uri.dict and 'Lenovo' in response_task_uri.dict['Oem']:
                             download_uri = response_task_uri.dict['Oem']['Lenovo']['FFDCForDownloading']['Path']
+                        elif location_uri != "":
+                            # Get download resource for SR630V4
+                            response_location_uri = REDFISH_OBJ.get(location_uri, None)
+                            if response_location_uri.status != 200:
+                                error_message = utils.get_extended_error(response_location_uri)
+                                result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                                    location_uri, response_location_uri.status, error_message)}
+                                return result
+                            download_uri = response_location_uri.dict['AdditionalDataURI']
+                        else:
+                            download_uri = ""
+
+                        if not fsprotocol and download_uri:
                             # Download FFDC data from download uri when the task completed
                             download_sign = download_ffdc(ip, login_account, login_password, download_uri)
                             if download_sign:
@@ -235,9 +341,11 @@ def lenovo_export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip,
                         elif fsprotocol:
                             time_end = time.time()
                             print('time cost: %.2f' %(time_end-time_start)+'s')
-                            if fsprotocol and fsprotocol.lower() not in export_uri:
+                            if fsprotocol.lower() not in export_uri:
                                 export_uri = fsprotocol.lower() + "://" + export_uri
-                            result = {'ret': True, 'msg':  "The FFDC data is saved in %s." %export_uri}
+                            if download_uri:
+                                export_uri = export_uri + download_uri.split('/')[-1]
+                            result = {'ret': True, 'msg': "The FFDC data is saved in %s." %export_uri}
                             break
                         else:
                             result = {'ret': False, 'msg':  "If the user wants to download to a remote server, you need to specify the server type."}
