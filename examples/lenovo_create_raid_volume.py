@@ -56,7 +56,7 @@ def lenovo_create_raid_volume(ip, login_account, login_password, system_id, raid
     :params drive_cache_policy: drive cache policy of the volume
     :type drive_cache_policy: string
     :params strip_size_bytes: strip size bytes of the volume
-    :type drive_list: int
+    :type strip_size_bytes: int
     :params drive_list: drive list of the volume
     :type drive_list: string
     :returns: returns storage inventory when succeeded or error message when failed
