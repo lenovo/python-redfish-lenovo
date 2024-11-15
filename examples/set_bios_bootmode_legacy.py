@@ -51,7 +51,13 @@ def set_bios_bootmode_legacy(ip, login_account, login_password, system_id):
         traceback.print_exc()
         result = {'ret': False, 'msg': "Please check the username, password, IP is correct"}
         return result
-
+    
+    response_base_url = REDFISH_OBJ.get('/redfish/v1', None)
+    model = utils.get_system_model(response_base_url, REDFISH_OBJ)
+    if "V4" in model.upper():
+        result = {'ret': False, 'msg': "Not support set boot mode to legacy."}
+        return result
+    
     # GET the ComputerSystem resource
     system = utils.get_system_url("/redfish/v1", system_id, REDFISH_OBJ)
     if not system:
