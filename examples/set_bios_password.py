@@ -84,36 +84,35 @@ def set_bios_password(ip, login_account, login_password, system_id, bios_passwor
             response_bios_url = REDFISH_OBJ.get(bios_url, None)
             if response_bios_url.status == 200:
                 # Get password name allowable value list
-                attribute_registry = response_bios_url.dict['AttributeRegistry']
-                registry_url = "/redfish/v1/Registries"
-                bios_registry_url = ""
-                registry_response = REDFISH_OBJ.get(registry_url, None)
-                if registry_response.status == 200:
-                    members_list = registry_response.dict["Members"]
-                    for registry in members_list:
-                        if attribute_registry in registry["@odata.id"]:
-                            bios_registry_url = registry["@odata.id"]
-                bios_registry_json_url = ""
-                if bios_registry_url != "":
-                    bios_registry_response = REDFISH_OBJ.get(bios_registry_url, None)
-                    if bios_registry_response.status == 200:
-                        bios_registry_json_url = bios_registry_response.dict["Location"][0]["Uri"]
-                bios_attribute_list = []
-                if bios_registry_json_url != "":
-                    bios_registry_json_response = REDFISH_OBJ.get(bios_registry_json_url, None)
-                    if bios_registry_json_response.status == 200:
-                        bios_attribute_list = bios_registry_json_response.dict["RegistryEntries"]["Attributes"]
-
                 password_allowed_values = []
-                for bios_attribute in bios_attribute_list:
-                    AttributeName = bios_attribute["AttributeName"]
-                    AttributeType = bios_attribute["Type"]
-                    if AttributeType == "Password":
-                        password_allowed_values.append(AttributeName)
+                if "PasswordName@Redfish.AllowableValues" in response_bios_url.dict["Actions"]["#Bios.ChangePassword"]:
+                    password_allowed_values = response_bios_url.dict["Actions"]["#Bios.ChangePassword"]["PasswordName@Redfish.AllowableValues"]
+                else:
+                    attribute_registry = response_bios_url.dict['AttributeRegistry']
+                    registry_url = "/redfish/v1/Registries"
+                    bios_registry_url = ""
+                    registry_response = REDFISH_OBJ.get(registry_url, None)
+                    if registry_response.status == 200:
+                        members_list = registry_response.dict["Members"]
+                        for registry in members_list:
+                            if attribute_registry in registry["@odata.id"]:
+                                bios_registry_url = registry["@odata.id"]
+                    bios_registry_json_url = ""
+                    if bios_registry_url != "":
+                        bios_registry_response = REDFISH_OBJ.get(bios_registry_url, None)
+                        if bios_registry_response.status == 200:
+                            bios_registry_json_url = bios_registry_response.dict["Location"][0]["Uri"]
+                    bios_attribute_list = []
+                    if bios_registry_json_url != "":
+                        bios_registry_json_response = REDFISH_OBJ.get(bios_registry_json_url, None)
+                        if bios_registry_json_response.status == 200:
+                            bios_attribute_list = bios_registry_json_response.dict["RegistryEntries"]["Attributes"]
 
-                if len(password_allowed_values) == 0:
-                    if "PasswordName@Redfish.AllowableValues" in response_bios_url.dict["Actions"]["#Bios.ChangePassword"]:
-                        password_allowed_values = response_bios_url.dict["Actions"]["#Bios.ChangePassword"]["PasswordName@Redfish.AllowableValues"]
+                    for bios_attribute in bios_attribute_list:
+                        AttributeName = bios_attribute["AttributeName"]
+                        AttributeType = bios_attribute["Type"]
+                        if AttributeType == "Password":
+                            password_allowed_values.append(AttributeName)
 
                 # Check whether password name is in allowable value list
                 # For SR635/SR655 products, switch to the allowed PasswordName
