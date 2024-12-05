@@ -105,10 +105,12 @@ def lenovo_ssl_certificate_generate_csr(ip, login_account, login_password, forma
                 #request_body["Initials"] = "Initials"
                 if KeyCurveId is not None:
                     request_body["KeyCurveId"] = KeyCurveId
-                #request_body["KeyPairAlgorithm"] = "KeyPairAlgorithm"
+                    if KeyCurveId == 'TPM_ECC_NIST_P256':
+                        request_body["KeyPairAlgorithm"] = "TPM_ALG_ECDH"
+                    else:
+                        request_body["KeyPairAlgorithm"] = "TPM_ALG_RSA"
                 #request_body["UnstructuredName"] = "UnstructuredName"
                 ### Extended settings examples end ###
-
                 # Perform action #CertificateService.GenerateCSR
                 response_url = REDFISH_OBJ.post(target_url, body=request_body)
                 if response_url.status not in [200, 201, 202, 204]:
