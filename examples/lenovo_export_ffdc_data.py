@@ -206,11 +206,11 @@ def lenovo_export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip,
                     return result
                 task_uri = response_ffdc_data_uri.dict['@odata.id']
 
-        # Get systems resource for SR630V4
+        # Get systems resource for V4
         if task_uri == "":
-            # Get ServiceRoot resource for SR630V4
+            # Get ServiceRoot resource for V4
             response_base_url = REDFISH_OBJ.get('/redfish/v1/Systems', None)
-            # Get managers collection for SR630V4
+            # Get managers collection for V4
             if response_base_url.status == 200:
                 systems_list = response_base_url.dict['Members']
             else:
@@ -316,7 +316,7 @@ def lenovo_export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip,
                         if 'Oem' in response_task_uri.dict and 'Lenovo' in response_task_uri.dict['Oem']:
                             download_uri = response_task_uri.dict['Oem']['Lenovo']['FFDCForDownloading']['Path']
                         elif location_uri != "":
-                            # Get download resource for SR630V4
+                            # Get download resource for V4
                             response_location_uri = REDFISH_OBJ.get(location_uri, None)
                             if response_location_uri.status != 200:
                                 error_message = utils.get_extended_error(response_location_uri)
