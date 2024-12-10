@@ -134,8 +134,8 @@ def lenovo_set_bmc_external_ldap(ip, login_account, login_password, ldapserver, 
                 if client_distinguished_name is not None:
                     body['Authentication'] = {'Username': client_distinguished_name, 'Password': client_password}
                 body['LDAPService'] = {'SearchSettings': {}}
-                body['LDAPService']['SearchSettings']['BaseDistinguishedNames'] = [rootdn]
-                body['LDAPService']['SearchSettings']['GroupsAttribute'] = group_filter
+                body['LDAPService']['SearchSettings']['BaseDistinguishedNames'] = [rootdn if rootdn else ""]
+                body['LDAPService']['SearchSettings']['GroupsAttribute'] = group_filter if group_filter else ""
                 body['LDAPService']['SearchSettings']['GroupNameAttribute'] = group_search_attribute
                 body['LDAPService']['SearchSettings']['UsernameAttribute'] = uid_search_attribute
                 body['ServiceAddresses'] = list()
