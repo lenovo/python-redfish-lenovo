@@ -27,7 +27,7 @@ import traceback
 import lenovo_utils as utils
 
 
-def lenovo_create_raid_volume(ip, login_account, login_password, system_id, raidid, volume_name, raid_type, volume_capacity, read_policy, write_policy, io_policy, access_policy, drive_cache_policy):
+def lenovo_create_raid_volume(ip, login_account, login_password, system_id, raidid, volume_name, raid_type, volume_capacity, read_policy, write_policy, io_policy, access_policy, drive_cache_policy, strip_size_bytes, drive_list):
     """Create raid volume 
     :params ip: BMC IP address
     :type ip: string
@@ -55,6 +55,10 @@ def lenovo_create_raid_volume(ip, login_account, login_password, system_id, raid
     :type access_policy: string
     :params drive_cache_policy: drive cache policy of the volume
     :type drive_cache_policy: string
+    :params strip_size_bytes: strip size bytes of the volume
+    :type strip_size_bytes: int
+    :params drive_list: drive list of the volume
+    :type drive_list: string
     :returns: returns storage inventory when succeeded or error message when failed
     """
     result = {}
@@ -113,6 +117,8 @@ def lenovo_create_raid_volume(ip, login_account, login_password, system_id, raid
         list_raid_drive_num = []
         list_raid_volume_num = []
         list_raid_volume_urls = []
+        list_raid_drive_urls = []
+        support_drive_slots = []
         for raid_index in range(0, storage_count):
             storage_x_url = response_storage_url.dict["Members"][raid_index]["@odata.id"]
             response_storage_x_url = REDFISH_OBJ.get(storage_x_url, None)
@@ -125,6 +131,17 @@ def lenovo_create_raid_volume(ip, login_account, login_password, system_id, raid
             Name = response_storage_x_url.dict["Name"]
             drive_num = len(response_storage_x_url.dict["Drives"])
             volumes_url = response_storage_x_url.dict["Volumes"]["@odata.id"]
+
+            for drive in response_storage_x_url.dict["Drives"]:
+                if "/" in drive["@odata.id"]:
+                    drive_slotname = drive["@odata.id"].split("/")[-1]
+                    if "_" in drive_slotname:
+                        drive_slot = drive_slotname.split("_")[-1]
+                        support_drive_slots.append(drive_slot)
+                    elif "." in drive_slotname:
+                        drive_slot = drive_slotname.split(".")[-1]
+                        support_drive_slots.append(drive_slot)
+            list_raid_drive_urls.extend(response_storage_x_url.dict["Drives"])
 
             response_volumes_url = REDFISH_OBJ.get(volumes_url, None)
             if response_volumes_url.status != 200:
@@ -182,6 +199,8 @@ def lenovo_create_raid_volume(ip, login_account, login_password, system_id, raid
              "RAIDType":raid_type,
              "Oem":{"Lenovo":{}}
             }
+        if strip_size_bytes is not None:
+            parameter["StripSizeBytes"] = strip_size_bytes
         if volume_capacity > 0:
             parameter["CapacityBytes"] = volume_capacity # if you want to use all space, no need to specify CapacityBytes
         if read_policy is not None:
@@ -210,8 +229,17 @@ def lenovo_create_raid_volume(ip, login_account, login_password, system_id, raid
         if drive_cache_policy is not None:
             parameter["Oem"]["Lenovo"]["DriveCachePolicy"] = drive_cache_policy
 
+        if drive_list is not None:
+            drive_urls = []
+            for drive_slot in drive_list:
+                if drive_slot in support_drive_slots:
+                    drive_urls.append(list_raid_drive_urls[support_drive_slots.index(drive_slot)])
+            parameter["Links"] = {}
+            parameter["Links"]["Drives"] = []
+            parameter["Links"]["Drives"] = drive_urls
+
         response_create_volume = REDFISH_OBJ.post(target_raid_volumes_url,body=parameter, headers=headers)
-        if response_create_volume.status in [200, 201]:
+        if response_create_volume.status in [200, 201, 204]:
             try:
                 rt_link = login_host + "/" + response_create_volume.dict["@odata.id"]
                 id = rt_link.split("/")[-1]
@@ -225,7 +253,10 @@ def lenovo_create_raid_volume(ip, login_account, login_password, system_id, raid
             return result
         else:
             error_message = utils.get_extended_error(response_create_volume)
-            result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+            if "Links/Drives is a required property" in error_message:
+                result = {'ret': False, 'msg': "Please specify --drivelist,  it is a required property for this machine."}
+            else:
+                result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
                 target_raid_volumes_url, response_create_volume.status, error_message)}
             REDFISH_OBJ.logout()
             return result
@@ -257,6 +288,10 @@ def add_helpmessage(argget):
                         help="virtual drive(VD)'s access policy")
     argget.add_argument('--drivecachepolicy', type=str, required=False, choices=["Unchanged", "Enable", "Disable"],
                         help="virtual drive(VD)'s drive cache policy")
+    argget.add_argument('--stripsizeKB', type=int, required=False, default=256,
+                        help="Specify the strip size Kilo bytes.")
+    argget.add_argument('--drivelist', type=str, required=False, nargs='*',
+                        help="Specify the drive slot list that used to create raid,example: 1 2.")
 
 def add_parameter():
     """Add create volume parameter"""
@@ -277,6 +312,8 @@ Example:
     parameter_info["iopolicy"] = args.iopolicy
     parameter_info["accesspolicy"] = args.accesspolicy
     parameter_info["drivecachepolicy"] = args.drivecachepolicy
+    parameter_info["stripsizeKB"] = args.stripsizeKB
+    parameter_info["drivelist"] = args.drivelist
     return parameter_info
 
 
@@ -295,7 +332,8 @@ if __name__ == '__main__':
                                 parameter_info["raidid"], parameter_info["name"], parameter_info["raidtype"],
                                 parameter_info["capacityMB"]*1024*1024 if parameter_info["capacityMB"] > 0 else -1,
                                 parameter_info["readpolicy"], parameter_info["writepolicy"], parameter_info["iopolicy"],
-                                parameter_info["accesspolicy"], parameter_info["drivecachepolicy"])
+                                parameter_info["accesspolicy"], parameter_info["drivecachepolicy"],
+                                parameter_info["stripsizeKB"]*1024, parameter_info["drivelist"])
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2) + '\n')
