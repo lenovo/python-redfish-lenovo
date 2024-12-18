@@ -3,12 +3,12 @@
 |--------------------|------------------------------------------|---------------|---------------|----------------|-----------------|-----------------|-----------------|-----------------|
 | Inventory          | get_bmc_inventory.py                     |     Yes       |     Yes       |     Yes        |     Yes         |     Yes         |     Yes         |     Yes         |
 |                    | get_cpu_inventory.py                     |     Yes       |     Yes       |     Yes        |     Yes         |     Yes         |     Yes         |     Yes         |
-|                    | get_fan_inventory.py                     |     Yes       |     Yes       |     Yes *3     |     Yes *3      |     Yes *3      |     Yes *3      |     Yes *3      |
+|                    | get_fan_inventory.py                     |     Yes       |     Yes       |     Yes *3     |     Yes *3      |     Yes *3      |     Yes *3      |     Yes         |
 |                    | get_memory_inventory.py                  |     Yes       |     Yes       |     Yes        |     Yes         |     Yes         |     Yes         |     Yes         |
 |                    | get_nic_inventory.py                     |     Yes       |     Yes       |     Yes        |     Yes         |     Yes         |     Yes         |     Yes         |
 |                    | get_pci_inventory.py                     |     Yes       |     Yes       |     Yes        |     Yes         |     Yes         |     Yes         |     Yes         |
-|                    | get_psu_inventory.py                     |     Yes       |     Yes       |     Yes *3     |     Yes *3      |     Yes *3      |     Yes *3      |     Yes *3      |
-|                    | get_power_redundancy.py                  |     Yes       |     Yes       |     Yes *3     |     Yes *3      |     Yes *3      |     Yes *3      |     Yes *3      |
+|                    | get_psu_inventory.py                     |     Yes       |     Yes       |     Yes *3     |     Yes *3      |     Yes *3      |     Yes *3      |     Yes         |
+|                    | get_power_redundancy.py                  |     Yes       |     Yes       |     Yes *3     |     Yes *3      |     Yes *3      |     Yes *3      |     Yes         |
 |                    | get_storage_inventory.py                 |     Yes       |     Yes       |     Yes        |     Yes         |     Yes         |     Yes         |     NO          |
 |                    | get_system_inventory.py                  |     Yes       |     Yes       |     Yes        |     Yes         |     Yes         |     Yes         |     Yes         |
 |                    | get_chassis_inventory.py                 |     Yes       |     Yes       |     Yes        |     Yes         |     Yes         |     Yes         |     Yes         |
@@ -41,7 +41,7 @@
 |                    | get_bios_attribute_metadata.py           |     Yes       |     Yes       |     Yes        |     Yes         |     Yes         |     Yes         |     Yes         |
 |                    | reset_bios_default.py                    |     Yes       |     Yes       |     Yes        |     Yes         |     Yes         |     Yes         |     Yes         |
 |                    | get_bios_bootmode.py                     |     Yes       |     Yes       |     Yes        |     Yes         |     Yes         |     Yes         |     Yes         |
-|                    | set_bios_bootmode_legacy.py              |     Yes       |     Yes       |     Yes        |     Yes         |     Yes         |     Yes         |     Yes         |
+|                    | set_bios_bootmode_legacy.py              |     Yes       |     Yes       |     Yes        |     Yes         |     Yes         |     Yes         |     NO          |
 |                    | set_bios_bootmode_uefi.py                |     Yes       |     Yes       |     Yes        |     Yes         |     Yes         |     Yes         |     Yes         |
 |                    | lenovo_get_bios_boot_order.py            |     Yes       |     Yes       |     Yes        |     Yes         |     Yes         |     Yes         |     Yes         |
 |                    | lenovo_set_bios_boot_order.py            |     Yes       |     Yes       |     Yes        |     Yes         |     Yes         |     Yes         |     Yes         |
@@ -168,6 +168,6 @@ ThinkSystem Intel (Purley):     SR530, SR550, SR570, SR590, SR630,  SR650, SR670
 ThinkSystem V2 Intel (Whitley): SR850 V2, SR860 V2, SR650 V2, SR630 V2, SR670 V2, ST650 V2, SN550 V2, SD650 V2, SD650-N V2, SD630 V2
 ThinkSystem V3 Intel (EGS):     SR650 V3, SR630 V3, SD650 V3, SD650-I V3, ST650 V3, SR860 V3, SR850 V3, SR950 V3, SD650-N V3
 ThinkSystem V3 AMD (Genoa):     SR655 V3, SR635 V3, SR645 V3, SR665 V3, SD665 V3, SR675 V3, SD665-N V3, SE455 V3
-ThinkSystem V4 Intel (BHS):     SR630 V4, SD520 V4
+ThinkSystem V4 Intel (BHS):     SR630 V4
 
 Note: on different products, there will be little different behaviors and properties per hardware design and Redfish spec/schema supported.
