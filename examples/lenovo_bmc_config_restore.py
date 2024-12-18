@@ -148,17 +148,6 @@ def lenovo_bmc_config_restore(ip, login_account, login_password, backup_password
                 '/redfish/v1', response_base_url.status, error_message)}
             return result
     
-        # Get ServiceBase resource
-        response_base_url = REDFISH_OBJ.get('/redfish/v1', None)
-        # Get response_base_url
-        if response_base_url.status == 200:
-            manager_url = response_base_url.dict['Managers']['@odata.id']
-        else:
-            error_message = utils.get_extended_error(response_base_url)
-            result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                '/redfish/v1', response_base_url.status, error_message)}
-            return result
-    
         # Get /redfish/v1/Managers resource
         response_manager_url = REDFISH_OBJ.get(manager_url, None)
         bmc_time_detail = []
@@ -210,23 +199,15 @@ def lenovo_bmc_config_restore(ip, login_account, login_password, backup_password
                     return result
 
                 # GET model
-                system = utils.get_system_url("/redfish/v1", "None", REDFISH_OBJ)
-                if not system:
-                    result = {'ret': False, 'msg': "This system id is not exist or system member is None"}
+                base_url = "/redfish/v1"
+                response_base_url = REDFISH_OBJ.get(base_url, None)
+                if response_base_url.status != 200:
+                    error_message = utils.get_extended_error(response_base_url)
+                    result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+                        base_url, response_base_url.status, error_message)}
                     REDFISH_OBJ.logout()
                     return result
-
-                for i in range(len(system)):
-                    system_url = system[i]
-                    response_system_url = REDFISH_OBJ.get(system_url, None)
-                    if response_system_url.status != 200:
-                        error_message = utils.get_extended_error(response_system_url)
-                        result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
-                            system_url, response_system_url.status, error_message)}
-                        REDFISH_OBJ.logout()
-                        return result
-                    model = response_system_url.dict["Model"]
-
+                model = utils.get_system_model(response_base_url, REDFISH_OBJ)
                 restore_body = {}
                 if "V4" in model.upper():
                     EncryptData = ""

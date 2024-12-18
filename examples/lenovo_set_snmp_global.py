@@ -133,15 +133,15 @@ def lenovo_set_snmp_global(ip, login_account, login_password, setting_dict):
         result = {'ret': False, 'msg': "Error_message: %s. Please check if username, password and IP are correct" % repr(e)}
         return result
 
-    system_url = "/redfish/v1/Systems/1"
-    system_resp = REDFISH_OBJ.get(system_url, None)
-    if system_resp.status != 200:
-        error_message = utils.get_extended_error(system_resp)
-        result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-            system_url, system_resp.status, error_message)}
+    base_url = "/redfish/v1"
+    response_base_url = REDFISH_OBJ.get(base_url, None)
+    if response_base_url.status != 200:
+        error_message = utils.get_extended_error(response_base_url)
+        result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
+            base_url, response_base_url.status, error_message)}
         REDFISH_OBJ.logout()
         return result
-    model = system_resp.dict.get('Model', "")
+    model = utils.get_system_model(response_base_url, REDFISH_OBJ)
 
     request_url = '/redfish/v1/Managers/1/NetworkProtocol/Oem/Lenovo/SNMP'
 
@@ -174,18 +174,6 @@ def lenovo_set_snmp_global(ip, login_account, login_password, setting_dict):
                 result = {'ret': False, 'msg': 'Input parameter checking failed. Note that snmpv3_agent can only be enabled with contact_person and location being set.'}
                 REDFISH_OBJ.logout()
                 return result
-    if model and "V4" in model:
-        if 'snmpv1_trap' in setting_dict and setting_dict['snmpv1_trap'] == 'enable':
-            flag_missing = False
-            if ('snmpv1_community' in setting_dict and setting_dict['snmpv1_community'] == ''):
-                flag_missing = True
-            if ('snmpv1_community' not in setting_dict) and (
-                    len(response_url.dict.get('CommunityNames', [])) == 0 or response_url.dict.get('CommunityNames',[])[0] == ''):
-                flag_missing = True
-            if flag_missing == True:
-                result = {'ret': False, 'msg': 'Input parameter checking failed. Note that snmpv1_trap can only be enabled with snmpv1_community being set.'}
-                REDFISH_OBJ.logout()
-                return result
 
     # Build patch body
     patch_body = {}
@@ -208,9 +196,9 @@ def lenovo_set_snmp_global(ip, login_account, login_password, setting_dict):
         elif 'snmpv1_trap' in setting_dict and setting_dict['snmpv1_trap'] != 'enable':
             patch_body['SNMPTraps']['SNMPv1TrapEnabled'] = False
         if 'snmpv3_trap' in setting_dict and setting_dict['snmpv3_trap'] == 'enable':
-            patch_body['SNMPTraps']['ProtocolEnabled'] = True
+            patch_body['SNMPTraps']['SNMPv3Trap'] = {'ProtocolEnabled': True}
         elif 'snmpv3_trap' in setting_dict and setting_dict['snmpv3_trap'] != 'enable':
-            patch_body['SNMPTraps']['ProtocolEnabled'] = False
+            patch_body['SNMPTraps']['SNMPv3Trap'] = {'ProtocolEnabled': False}
         if 'port_trap' in setting_dict:
             patch_body['SNMPTraps']['Port'] = setting_dict['port_trap']
         if 'snmpv1_address' in setting_dict:
@@ -226,6 +214,7 @@ def lenovo_set_snmp_global(ip, login_account, login_password, setting_dict):
 
     # Perform patch
     headers = {"If-Match": etag}
+    print(request_url, patch_body)
     response_url = REDFISH_OBJ.patch(request_url, body=patch_body, headers=headers)
     if response_url.status in [200,204]:
         result = {'ret': True, 'msg': "The global SNMP info is successfully updated."}
@@ -335,4 +324,3 @@ if __name__ == '__main__':
     else:
         sys.stderr.write(result['msg'] + '\n')
         sys.exit(1)
-
