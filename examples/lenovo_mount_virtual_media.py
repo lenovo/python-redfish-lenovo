@@ -562,7 +562,6 @@ def mount_virtual_media_from_rdoc_bhs(REDFISH_OBJ, members_list, protocol, fsip,
                         image_uri = "smb://" + fsip + fsport + fsdir + "/" + image
                     body = {"Image": image_uri,
                             "UserName": fsusername, "Password": fspassword, "WriteProtected": bool(writeprotocol)}
-                print(mount_image_url, body)
                 response = REDFISH_OBJ.post(mount_image_url, body=body)
                 if response.status in [200, 201, 204]:
                     result = {'ret': True, 'msg': "'%s' mount successfully." % image}
@@ -580,7 +579,7 @@ def mount_virtual_media_from_rdoc_bhs(REDFISH_OBJ, members_list, protocol, fsip,
                     # Delete the task when the task state is completed without any warning
                     severity = ''
                     if result["ret"] is True and "Completed" == result["task_state"] and result['msg'] != '':
-                        result_json = json.dumps(ast.literal_eval(result['msg'].replace("Messages:", "")))
+                        result_json = json.dumps(result['msg'])
                         if "Severity" in result_json[0]:
                             severity = result_json[0]["Severity"]
                     if result["ret"] is True and "Completed" == result["task_state"] and (
