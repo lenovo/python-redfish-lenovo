@@ -26,7 +26,7 @@ import traceback
 import lenovo_utils as utils
 
 
-def lenovo_callhome_setting(ip, login_account, login_password, callhomesetting_dict, httpproxy_dict):
+def lenovo_callhome_setting(ip, login_account, login_password, callhomesetting_dict, httpproxy_dict, machine_dict):
     """ Call Home setting
         :params ip: BMC IP address
         :type ip: string
@@ -38,6 +38,8 @@ def lenovo_callhome_setting(ip, login_account, login_password, callhomesetting_d
         :type callhomesetting_dict: string
         :params httpproxy_dict: http proxy setting
         :type httpproxy_dict: string
+        :params machine_dict: machine location setting
+        :type machine_dict: string
         :returns: returns set call home result when succeeded or error message when failed
         """
 
@@ -134,7 +136,14 @@ def lenovo_callhome_setting(ip, login_account, login_password, callhomesetting_d
                     if 'HTTPProxy' not in callhome_setting:
                         callhome_setting['HTTPProxy'] = {}
                     callhome_setting['HTTPProxy'][item_name] = httpproxy_dict[item_name]
-        
+
+        for item_name in ["Address","PostalCode","City","StateOrProvince"]:
+            if item_name in machine_dict:
+                if item_name in response_url.dict['MachineLocation']:
+                    if 'MachineLocation' not in callhome_setting:
+                        callhome_setting['MachineLocation'] = {}
+                    callhome_setting['MachineLocation'][item_name] = machine_dict[item_name]
+
         # Perform patch to change setting
         if "@odata.etag" in response_url.dict:
             etag = response_url.dict['@odata.etag']
@@ -185,7 +194,11 @@ def add_helpmessage(argget):
     argget.add_argument('--HTTPProxyPort', default=3128, type=int, help='Http proxy port, the range is from 1 to 65535.')
     argget.add_argument('--HTTPProxyUserName', type=str, help='Http proxy user name if proxy needs authentication.')
     argget.add_argument('--HTTPProxyPassword', type=str, help='Http proxy password if proxy needs authentication.')
-
+    # MachineLocation
+    argget.add_argument('--MachineAddress', type=str, help='Machine address, the maximum length is 30 characters, and special characters & < > are not allowed.')
+    argget.add_argument('--MachinePostalCode', type=str, help='Machine postal code, the maximum length of this property is 9 characters.')
+    argget.add_argument('--MachineCity', type=str, help='Machine city, the maximum length is 30 characters.')
+    argget.add_argument('--MachineStateOrProvince', type=str, help='Machine state or province, the maximum length is 30 characters.')
 
 
 def add_parameter():
@@ -251,6 +264,19 @@ def add_parameter():
         httpproxy_dict["HTTPProxyPassword"] = args.HTTPProxyPassword
         
     parameter_info["httpproxy_dict"] = httpproxy_dict
+
+
+    machine_dict = {}
+    if args.MachineAddress is not None:
+        machine_dict["Address"] = args.MachineAddress
+    if args.MachinePostalCode is not None:
+        machine_dict["PostalCode"] = args.MachinePostalCode
+    if args.MachineCity is not None:
+        machine_dict["City"] = args.MachineCity
+    if args.MachineStateOrProvince is not None:
+        machine_dict["StateOrProvince"] = args.MachineStateOrProvince
+
+    parameter_info["machine_dict"] = machine_dict
     return parameter_info
 
 
@@ -264,12 +290,12 @@ if __name__ == '__main__':
     login_password = parameter_info["passwd"]
 
     # check the parameters user specified
-    if not parameter_info["callhomesetting_dict"] and not parameter_info["httpproxy_dict"]:
+    if not parameter_info["callhomesetting_dict"] and not parameter_info["httpproxy_dict"] and not parameter_info["machine_dict"]:
         sys.stderr.write("Please run the command 'python %s -h' to view the help info" % sys.argv[0])
         sys.exit(1)
 
     # Set callhome and check result   
-    result = lenovo_callhome_setting(ip, login_account, login_password, parameter_info["callhomesetting_dict"], parameter_info["httpproxy_dict"])
+    result = lenovo_callhome_setting(ip, login_account, login_password, parameter_info["callhomesetting_dict"], parameter_info["httpproxy_dict"], parameter_info["machine_dict"])
     if result['ret'] is True:
         del result['ret']
         sys.stdout.write(json.dumps(result['msg'], sort_keys=True, indent=2) + '\n')
