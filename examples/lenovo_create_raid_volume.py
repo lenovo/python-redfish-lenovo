@@ -117,8 +117,10 @@ def lenovo_create_raid_volume(ip, login_account, login_password, system_id, raid
         list_raid_drive_num = []
         list_raid_volume_num = []
         list_raid_volume_urls = []
+        list_raid_storagePools_urls = []
         list_raid_drive_urls = []
         support_drive_slots = []
+        available_storage_pools_url = []
         for raid_index in range(0, storage_count):
             storage_x_url = response_storage_url.dict["Members"][raid_index]["@odata.id"]
             response_storage_x_url = REDFISH_OBJ.get(storage_x_url, None)
@@ -131,6 +133,7 @@ def lenovo_create_raid_volume(ip, login_account, login_password, system_id, raid
             Name = response_storage_x_url.dict["Name"]
             drive_num = len(response_storage_x_url.dict["Drives"])
             volumes_url = response_storage_x_url.dict["Volumes"]["@odata.id"]
+            storagePools_url = response_storage_x_url.dict["StoragePools"]["@odata.id"]
 
             for drive in response_storage_x_url.dict["Drives"]:
                 if "/" in drive["@odata.id"]:
@@ -158,6 +161,7 @@ def lenovo_create_raid_volume(ip, login_account, login_password, system_id, raid
             list_raid_drive_num.append(drive_num)
             list_raid_volume_num.append(volume_num)
             list_raid_volume_urls.append(volumes_url)
+            list_raid_storagePools_urls.append(storagePools_url)
 
         # Found the target storage when raidid is specified
         if raidid is not None:
@@ -168,9 +172,17 @@ def lenovo_create_raid_volume(ip, login_account, login_password, system_id, raid
                         REDFISH_OBJ.logout()
                         return result
                     if list_raid_volume_num[raid_index] != 0:
-                        result = {'ret': False, 'msg': "Volume has already been created on specified storage %s" %(raidid)}
-                        REDFISH_OBJ.logout()
-                        return result
+                        # Check whether there are free capacity when volume has already been created
+                        check_result = check_free_capacity(list_raid_storagePools_urls, raid_index, volume_capacity, drive_list, REDFISH_OBJ)
+                        
+                        if check_result['ret'] is True:
+                            del check_result['ret']
+                            if "available_storagepools_url" in check_result:
+                                available_storage_pools_url = check_result['available_storagepools_url']
+                        else:
+                            sys.stderr.write(check_result['msg'] + '\n')
+                            sys.exit(1)
+                        
                     target_raid_volumes_url = list_raid_volume_urls[raid_index]
                     break
         # Check whether only one raid storage can be configured when raidid is not specified. If multi-raid can be configured, raidid need to be specified
@@ -179,7 +191,14 @@ def lenovo_create_raid_volume(ip, login_account, login_password, system_id, raid
                 if list_raid_drive_num[raid_index] == 0:
                     continue
                 if list_raid_volume_num[raid_index] != 0:
-                    continue
+                    check_result = check_free_capacity(list_raid_storagePools_urls, raid_index, volume_capacity, drive_list, REDFISH_OBJ)
+                    if check_result['ret'] is True:
+                        del check_result['ret']
+                        if "available_storagepools_url" in check_result:
+                            available_storage_pools_url = check_result['available_storagepools_url']
+                    else:
+                        sys.stderr.write(check_result['msg'] + '\n')
+                        sys.exit(1)
                 if target_raid_volumes_url is None:
                     target_raid_volumes_url = list_raid_volume_urls[raid_index]
                 else:
@@ -238,28 +257,15 @@ def lenovo_create_raid_volume(ip, login_account, login_password, system_id, raid
             parameter["Links"]["Drives"] = []
             parameter["Links"]["Drives"] = drive_urls
 
-        response_create_volume = REDFISH_OBJ.post(target_raid_volumes_url,body=parameter, headers=headers)
-        if response_create_volume.status in [200, 201, 204]:
-            try:
-                rt_link = login_host + "/" + response_create_volume.dict["@odata.id"]
-                id = rt_link.split("/")[-1]
-                result = {"ret":True,"msg":"Create volume successfully, volume id is " + id + ", volume 's link is:" + rt_link}
-            except:
-                result = {"ret":True,"msg":"Create volume successfully"}
-            try:
-                REDFISH_OBJ.logout()
-            except:
-                pass
-            return result
+        if len(available_storage_pools_url) == 0:
+            result = post_volume(REDFISH_OBJ, target_raid_volumes_url, login_host, parameter, headers, )
         else:
-            error_message = utils.get_extended_error(response_create_volume)
-            if "Links/Drives is a required property" in error_message:
-                result = {'ret': False, 'msg': "Please specify --drivelist,  it is a required property for this machine."}
-            else:
-                result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
-                target_raid_volumes_url, response_create_volume.status, error_message)}
-            REDFISH_OBJ.logout()
-            return result
+            for storage_pool_url in available_storage_pools_url:
+                parameter["Oem"]["Lenovo"]["StoragePool"] = []
+                parameter["Oem"]["Lenovo"]["StoragePool"].append({"@odata.id":storage_pool_url})   
+                result = post_volume(REDFISH_OBJ, target_raid_volumes_url, login_host, parameter, headers)                
+                if result['ret'] is True:
+                    break           
 
     if target_raid_volumes_url is None:
         result = {'ret': False, 'msg': "Failed to found storage that can be configured"}
@@ -268,7 +274,90 @@ def lenovo_create_raid_volume(ip, login_account, login_password, system_id, raid
     REDFISH_OBJ.logout()
     return result
 
+def post_volume(REDFISH_OBJ, target_raid_volumes_url, login_host, body, headers):
+    response_create_volume = REDFISH_OBJ.post(target_raid_volumes_url,body=body, headers=headers)
+    if response_create_volume.status in [200, 201, 204]:
+        try:
+            rt_link = login_host + "/" + response_create_volume.dict["@odata.id"]
+            id = rt_link.split("/")[-1]
+            result = {"ret":True,"msg":"Create volume successfully, volume id is " + id + ", volume 's link is:" + rt_link}
+        except:
+            result = {"ret":True,"msg":"Create volume successfully"}
+        try:
+            REDFISH_OBJ.logout()
+        except:
+            pass       
+    else:
+        error_message = utils.get_extended_error(response_create_volume)
+        if "Links/Drives is a required property" in error_message:
+            result = {'ret': False, 'msg': "Please specify --drivelist,  it is a required property for this machine."}
+        else:
+            result = {'ret': False, 'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+            target_raid_volumes_url, response_create_volume.status, error_message)}
+    return result
 
+def check_free_capacity(list_raid_storagePools_urls, raid_index, volume_capacity, drive_list, REDFISH_OBJ):
+    storagepools_url = list_raid_storagePools_urls[raid_index]
+    available_storagepools_url = []
+    response_pools_url = REDFISH_OBJ.get(storagepools_url, None)
+    if response_pools_url.status != 200:
+        error_message = utils.get_extended_error(response_pools_url)
+        result = {'ret': False,
+                'msg': "Url '%s' response Error code %s\nerror_message: %s" % (
+                    storagepools_url, response_pools_url.status,
+                    error_message)}
+        return result
+    
+    providing_drives_slots = []
+    storagepool_count = response_pools_url.dict["Members@odata.count"]
+    for pool_index in range(0, storagepool_count):
+        storagepool_x_url = response_pools_url.dict["Members"][pool_index]["@odata.id"]
+        response_storagepool_x_url = REDFISH_OBJ.get(storagepool_x_url, None)
+        if response_storagepool_x_url.status != 200:
+            result = {'ret': False, 'msg': "response_storagepool_x_url code %s" % response_storagepool_x_url.status}
+            REDFISH_OBJ.logout()
+            return result
+        if drive_list is not None:
+            if "CapacitySources" in response_storagepool_x_url.dict and "CapacitySources@odata.count" in response_storagepool_x_url.dict:
+                capacitysource_count = response_storagepool_x_url.dict["CapacitySources@odata.count"]
+                for capacity_index in range(0, capacitysource_count):
+                    if "ProvidingDrives" in response_storagepool_x_url.dict["CapacitySources"][capacity_index]:
+                        capacitysource_x_url = response_storagepool_x_url.dict["CapacitySources"][capacity_index]["ProvidingDrives"]["@odata.id"]
+                        response_capacitysource_x_url = REDFISH_OBJ.get(capacitysource_x_url, None)
+                        if response_capacitysource_x_url.status != 200:
+                            result = {'ret': False, 'msg': "response_capacitysource_x_url code %s" % response_capacitysource_x_url.status}
+                            REDFISH_OBJ.logout()
+                            return result
+                        if "Members" in response_capacitysource_x_url.dict:
+                            for drive_index in range(0, len(response_capacitysource_x_url.dict["Members"])):
+                                drive = response_capacitysource_x_url.dict["Members"][drive_index]
+                                if "/" in drive["@odata.id"]:
+                                    drive_slotname = drive["@odata.id"].split("/")[-1]
+                                    if "_" in drive_slotname:
+                                        drive_slot = drive_slotname.split("_")[-1]
+                                        providing_drives_slots.append(drive_slot)
+                                    elif "." in drive_slotname:
+                                        drive_slot = drive_slotname.split(".")[-1]
+                                        providing_drives_slots.append(drive_slot)
+                        
+                            if set(providing_drives_slots) == set(drive_list):
+                                result = {'ret': False,'msg': "There is no need to specify drivelist when there is storagepool on specified the drivelist. Drive list: %s" %(str(drive_list))}       
+                                REDFISH_OBJ.logout()
+                            else:
+                                result = {'ret': True, 'create_new_pool': True} 
+                            return result                           
+        
+        if "Capacity" in response_storagepool_x_url.dict and "Data" in response_storagepool_x_url.dict["Capacity"] and "ConsumedBytes" in response_storagepool_x_url.dict["Capacity"]["Data"] and "AllocatedBytes" in response_storagepool_x_url.dict["Capacity"]["Data"]:
+            if response_storagepool_x_url.dict["Capacity"]["Data"]["AllocatedBytes"] > response_storagepool_x_url.dict["Capacity"]["Data"]["ConsumedBytes"]:
+                if response_storagepool_x_url.dict["Capacity"]["Data"]["AllocatedBytes"] - response_storagepool_x_url.dict["Capacity"]["Data"]["ConsumedBytes"] >= volume_capacity:
+                    available_storagepools_url.append(storagepool_x_url)                                      
+                    
+    if len(available_storagepools_url) == 0:
+        result = {'ret': False,'msg': "There is no free capacity on storage pool. Please check the storage pool. "}
+        REDFISH_OBJ.logout()
+        return result
+   
+    return {'ret': True, 'available_storagepools_url': available_storagepools_url}
 def add_helpmessage(argget):
     argget.add_argument('--raidid', type=str, required=False,
                         help="Specify the storage id when multi storage exist")
