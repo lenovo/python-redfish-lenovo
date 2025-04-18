@@ -289,7 +289,7 @@ def lenovo_export_ffdc_data(ip, login_account, login_password, fsprotocol, fsip,
                                 body['Password'] = fspassword
                     time_start = time.time()
                     response_ffdc_data_uri = REDFISH_OBJ.post(ffdc_data_uri, body=body)
-                    if response_ffdc_data_uri.status != 200:
+                    if response_ffdc_data_uri.status != 200 and response_ffdc_data_uri.status != 202:
                         error_message = utils.get_extended_error(response_ffdc_data_uri)
                         result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
                         ffdc_data_uri, response_ffdc_data_uri.status, error_message)}
