@@ -25,6 +25,8 @@ import json
 import traceback
 import lenovo_utils as utils
 
+# CI probe: exercises the upstream-pr path from a python-redfish-lenovo change. Not for merge.
+
 def get_all_tasks(ip, login_account, login_password):
     """Get all tasks
         :params ip: BMC IP address
