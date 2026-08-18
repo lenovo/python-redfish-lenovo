@@ -195,10 +195,16 @@ def lenovo_set_snmp_global(ip, login_account, login_password, setting_dict):
             patch_body['SNMPTraps']['SNMPv1TrapEnabled'] = True
         elif 'snmpv1_trap' in setting_dict and setting_dict['snmpv1_trap'] != 'enable':
             patch_body['SNMPTraps']['SNMPv1TrapEnabled'] = False
-        if 'snmpv3_trap' in setting_dict and setting_dict['snmpv3_trap'] == 'enable':
-            patch_body['SNMPTraps']['SNMPv3Trap'] = {'ProtocolEnabled': True}
-        elif 'snmpv3_trap' in setting_dict and setting_dict['snmpv3_trap'] != 'enable':
-            patch_body['SNMPTraps']['SNMPv3Trap'] = {'ProtocolEnabled': False}
+        if 'snmpv3_trap' in setting_dict:
+            # BHS nests the flag under SNMPTraps.SNMPv3Trap, older XCC exposes it as the
+            # flat SNMPTraps.ProtocolEnabled. Pick whichever the resource actually reports:
+            # a PATCH carrying the wrong one still returns 200, so guessing turns
+            # snmpv3_trap into a silent no-op.
+            snmpv3_trap = (setting_dict['snmpv3_trap'] == 'enable')
+            if 'SNMPv3Trap' in response_url.dict.get('SNMPTraps', {}):
+                patch_body['SNMPTraps']['SNMPv3Trap'] = {'ProtocolEnabled': snmpv3_trap}
+            else:
+                patch_body['SNMPTraps']['ProtocolEnabled'] = snmpv3_trap
         if 'port_trap' in setting_dict:
             patch_body['SNMPTraps']['Port'] = setting_dict['port_trap']
         if 'snmpv1_address' in setting_dict:
