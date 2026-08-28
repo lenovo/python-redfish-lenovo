@@ -85,15 +85,43 @@ def set_chassis_indicator_led(ip, login_account, login_password, led_status):
                     etag = ""
                 headers = {"If-Match": etag, "Content-Type": "application/json"}
 
-                led_status = led_status
                 parameter = {"IndicatorLED": led_status}
+                patched_url = led_url
                 response_url = REDFISH_OBJ.patch(led_url, body=parameter, headers=headers)
+                if response_url.status not in [200, 204]:
+                    # Some services report the identify LED on the chassis but take the write
+                    # only on the ComputerSystem the chassis links to -- one lamp, two
+                    # resources, and the chassis copy follows whatever the system is set to.
+                    # Nothing in the payload marks it read-only, so the rejected PATCH is the
+                    # only signal there is. Follow the link and retry there before giving up.
+                    #
+                    # Held because the retry below overwrites response_url: the command named
+                    # a chassis, so the chassis rejecting the write is the answer the caller
+                    # asked for, and reporting only the system's error reads as though the
+                    # wrong url had been written to.
+                    chassis_error = utils.get_extended_error(response_url)
+                    chassis_status = response_url.status
+                    for system in response_led_url.dict.get('Links', {}).get('ComputerSystems', []):
+                        response_system_url = REDFISH_OBJ.get(system['@odata.id'], None)
+                        if response_system_url.status != 200 or 'IndicatorLED' not in response_system_url.dict:
+                            continue
+                        system_headers = {"If-Match": response_system_url.dict.get('@odata.etag', ''),
+                                          "Content-Type": "application/json"}
+                        patched_url = system['@odata.id']
+                        response_url = REDFISH_OBJ.patch(patched_url, body=parameter, headers=system_headers)
+                        if response_url.status in [200, 204]:
+                            break
                 if response_url.status in [200, 204]:
-                    result = {'ret': True, 'msg': "PATCH command successfully completed '%s' request for chassis indicator LED" % led_status}
+                    result = {'ret': True, 'msg': "PATCH command successfully completed '%s' request for indicator LED at '%s'" % (
+                        led_status, patched_url)}
                 else:
                     error_message = utils.get_extended_error(response_url)
-                    result = {'ret': False, 'msg': "Url '%s' response Error code %s \nerror_message: %s" % (
-                        led_url, response_url.status, error_message)}
+                    message = "Url '%s' response Error code %s \nerror_message: %s" % (
+                        patched_url, response_url.status, error_message)
+                    if patched_url != led_url:
+                        message += "\nUrl '%s' rejected it first. response Error code %s \nerror_message: %s" % (
+                            led_url, chassis_status, chassis_error)
+                    result = {'ret': False, 'msg': message}
                     return result
         else:
             error_message = utils.get_extended_error(response_chassis_url)
