@@ -104,13 +104,28 @@ def get_hostinterface(ip, login_account, login_password):
                                "HostEthernetInterfaces", "ManagerEthernetInterface", "NetworkProtocol"]:
                     hostinterface_dict[key] = response_url.dict[key]
 
-            # Get HostEthernetInterfaces resource
-            if "HostEthernetInterfaces" not in response_url.dict:
+            # Get HostEthernetInterfaces resource. Some services publish the property with
+            # a stub link -- plain "HostEthernetInterfaces" rather than the path from the
+            # service root the spec asks for -- and have no such collection at all. Sent on
+            # as-is it is joined onto the base URL with no separator, so the request dies
+            # resolving a host named <bmc-ip>hostethernetinterfaces, in DNS rather than in
+            # Redfish. Treat anything that is not a path from the root as absent, and say on
+            # stderr which link was dropped -- stdout carries the inventory itself.
+            # isinstance rather than a bare .get chain: nothing says the property has to be
+            # an object, and a service that gave the link as a plain string would raise
+            # AttributeError here. Nothing in this function catches it -- only login and
+            # logout are wrapped -- so it would leave as an unhandled traceback rather than
+            # the warning this branch exists to print.
+            hostethernets_link = response_url.dict.get("HostEthernetInterfaces")
+            hostethernets_url = (hostethernets_link.get('@odata.id')
+                                 if isinstance(hostethernets_link, dict) else hostethernets_link)
+            if not isinstance(hostethernets_url, str) or not hostethernets_url.startswith('/'):
+                if "HostEthernetInterfaces" in response_url.dict:
+                    sys.stderr.write("Warning: %s reports HostEthernetInterfaces as %s, not a path "
+                                     "from the service root. Skipped.\n"
+                                     % (interface['@odata.id'], repr(hostethernets_url)))
                 hostinterfaces.append(hostinterface_dict)
                 continue
-
-            # Get HostEthernetInterfaces resource
-            hostethernets_url = response_url.dict["HostEthernetInterfaces"]['@odata.id']
             response_hostethernets_url = REDFISH_OBJ.get(hostethernets_url, None)
             if response_hostethernets_url.status != 200:
                 error_message = utils.get_extended_error(response_hostethernets_url)
